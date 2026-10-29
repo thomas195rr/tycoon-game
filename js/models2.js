@@ -207,6 +207,12 @@
         }
       }
       this.offers(g, b);
+      { const FL = TG.FL; FL.start(b); const doneNow = pr.done - (pr.doneSeen || 0); pr.doneSeen = pr.done;
+        FL.row(b, '🏗️', 'Jobs in progress', pr.active.length, '', 'g'); FL.row(b, '🦺', 'Crew working', used, '/' + Math.round(totalCrewNeed), used < totalCrewNeed * 0.9 ? 'y' : 'g', used < totalCrewNeed * 0.9 ? 'Not enough crew or crew gear' : '');
+        if (doneNow > 0) FL.row(b, '✅', 'Jobs finished', doneNow, '', 'g');
+        const late = pr.active.filter((p) => p.elapsed > p.deadline).length; if (late) FL.row(b, '⏰', 'Jobs late', late, '', 'r', 'Paying late penalties');
+        FL.row(b, '📨', 'New offers', pr.offers.length, '', '');
+        FL.next(b, '✅', 'Jobs finishing', pr.active.filter((p) => p.progress > 1 - 1.2 / p.months).length, '', 'g'); }
       const avail = this.crew(b, ctx);
       ctx.cap = Math.round(avail); ctx.demand = Math.round(totalCrewNeed); ctx.served = Math.round(used);
       ctx.util = avail > 0 ? totalCrewNeed / avail : (totalCrewNeed ? 1.5 : 0); ctx.busy = U.clamp(ctx.util, 0, 1.3);
@@ -245,6 +251,7 @@
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
         ctx.note = `Building the product: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done`;
+        { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
         if (t.dev >= T.devPoints) { t.phase = 'live'; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;
       }
@@ -321,7 +328,7 @@
       }
       // locations
       const open = s.locations.filter((l) => l.status === 'open');
-      const regCap = U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + (ctx.own ? 4 : 0);
+      const regCap = (U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + (ctx.own ? 4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
       const cov = open.length ? U.clamp(regCap / open.length, 0, 1) : 1;
       const sat = open.length / (fr.perRegion * Object.keys(C.regions).length);
       const cannibal = 1 / (1 + Math.pow(sat, 1.5) * (fo.cannibalCut ? 0.5 : 1));
@@ -340,7 +347,12 @@
           for (const ob of g.businesses) if (ob.type === s.concept) ob.rep = U.clamp(ob.rep - x * C.reputation.chainSpill, 0, 100);
         }
       }
+      const closedNow = s.locations.filter((l) => l.status === 'closed').length;
       s.locations = s.locations.filter((l) => l.status !== 'closed');
+      { const FL = TG.FL; FL.start(b); const openedNow = s.locations.filter((l) => l.status === 'open' && l.age === 3).length;
+        FL.row(b, '📨', 'Applications', n, '', 'g'); FL.row(b, '🏬', 'Opened', openedNow, '', openedNow ? 'g' : ''); if (closedNow) FL.row(b, '🚪', 'Closed', closedNow, '', 'r', 'Franchise turnover');
+        FL.row(b, '🏪', 'Open stores', s.locations.filter((l) => l.status === 'open').length, '', 'g'); FL.row(b, '💵', 'Royalties', royalty, '$', 'g');
+        FL.next(b, '🏗️', 'Opening soon', s.locations.filter((l) => l.status === 'building' && l.age === 2).length, '', 'g'); FL.next(b, '🚪', 'Expected closures', open.length * fr.closeChance, '', 'y'); }
       TG.F.earn(g, Math.round(royalty), 'Royalties', b.id);
       TG.F.spend(g, Math.round(open.length * fr.supportPerLoc * g.world.priceIdx), 'Franchise support', b.id);
       const pDrift = (1 - cov) * 0.12 * (fo.driftCut ? 1 - fo.driftCut : 1);

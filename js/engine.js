@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 1;
+  const VERSION = 2;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -205,10 +205,58 @@
   E.migrate = (g) => {
     g.reports = g.reports || []; g.newsFeed = g.newsFeed || []; g.stats = g.stats || { peakNW: 0, reached: {} };
     g.settings.majorTypes = g.settings.majorTypes || { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true };
+    // v2: a market for every good; exact prices replace low/normal/premium
+    for (const id in TG.CONFIG.markets) if (!g.markets[id]) { const m = TG.CONFIG.markets[id]; g.markets[id] = { demand12: m.demand12, comp: 1, player12: 0, sales: [], price: m.base, hist: [] }; }
+    if ((g.v || 1) < 2) {
+      for (const b of g.businesses) {
+        if (b.price && b.price !== 'normal' && TG.PR.hasPrice(b)) { const mk = TG.PR.market(g, b); if (mk > 0) b.ask = Math.round(mk * (b.price === 'low' ? 0.9 : 1.1) * 100) / 100; }
+        delete b.price; if (b.ask === undefined) b.ask = null;
+      }
+      g.v = 2;
+    }
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };
-  E.save = (g) => { try { return store.set(SAVE_KEY, E.serialize(g)); } catch (e) { return false; } };
+  E.saveText = (txt) => { try { return store.set(SAVE_KEY, txt); } catch (e) { return false; } };
+  E.saveState = { ok: null, at: 0, where: '', err: '' };
+  const IDB = {
+    db: null, failed: false,
+    open() {
+      if (IDB.db || IDB.failed) return Promise.resolve(IDB.db);
+      return new Promise((res) => {
+        try {
+          const f = globalThis.indexedDB; if (!f) { IDB.failed = true; return res(null); }
+          const rq = f.open('tycoon', 1);
+          rq.onupgradeneeded = () => { try { rq.result.createObjectStore('saves'); } catch (e) { res(null); } };
+          rq.onsuccess = () => { IDB.db = rq.result; res(IDB.db); };
+          rq.onerror = () => { IDB.failed = true; res(null); };
+          rq.onblocked = () => { IDB.failed = true; res(null); };
+        } catch (e) { IDB.failed = true; res(null); }
+      });
+    },
+    put(k, v) {
+      return IDB.open().then((db) => new Promise((res) => { if (!db) return res(false);
+        try { const tx = db.transaction('saves', 'readwrite'); tx.objectStore('saves').put(v, k);
+          tx.oncomplete = () => res(true); tx.onerror = () => res(false); tx.onabort = () => res(false);
+        } catch (e) { res(false); } })); },
+    get(k) { return IDB.open().then((db) => new Promise((res) => { if (!db) return res(null);
+        try { const rq = db.transaction('saves', 'readonly').objectStore('saves').get(k);
+          rq.onsuccess = () => res(rq.result == null ? null : rq.result); rq.onerror = () => res(null);
+        } catch (e) { res(null); } })); },
+    del(k) { return IDB.open().then((db) => { if (!db) return;
+      return IDB.put(k, null); }); },
+  };
+  TG.IDB = IDB;
+  E.save = (g) => {
+    let txt; try { g.savedAt = Date.now(); txt = E.serialize(g); } catch (e) { E.saveState = { ok: false, at: Date.now(), where: '', err: 'could not package the game' }; return false; }
+    const lsOk = E.saveText(txt); const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    E.saveIdb(txt, st);
+    if (E.onSaved) E.onSaved(st); return lsOk; };
+  E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
+    try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; return g; });
+  E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
+    if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
   E.load = () => { const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
   E.clearSave = () => store.del(SAVE_KEY);
   const b64e = (s) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'));
