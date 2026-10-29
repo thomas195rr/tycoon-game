@@ -123,7 +123,9 @@
       if (f.policy === 'hold' && pNow < floor && b.ask == null) sell = Math.max(0, f.stock - prod * fd.maxStockMonths);
       sell = Math.min(sell, f.stock);
       const r = b.ask != null ? U.clamp(b.ask / Math.max(0.01, pNow), 0.3, 4) : 1;
-      const offered = sell; sell = Math.floor(sell * TG.PR.sellF(r));
+      // business buyers switch suppliers fast: factory goods are more price-sensitive than farm commodities
+      // above market, buyers only take a share of a normal month's volume (a stockpile does not create extra buyers)
+      const offered = sell; if (r > 1) sell = Math.min(sell, Math.floor(Math.max(prod, lineCap * 0.5) * Math.pow(TG.PR.sellF(r), TG.CONFIG.pricing.factorySens || 1)));
       const price = b.ask != null ? b.ask : pNow;
       if (sell > 0) { TG.F.earn(g, Math.round(sell * price), 'Product sales', b.id); TG.W.sell(g, 'goods', sell); f.stock -= sell; }
       TG.F.spend(g, Math.round(f.stock * fd.storagePerUnit * g.world.priceIdx), 'Storage', b.id);

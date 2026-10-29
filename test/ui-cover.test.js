@@ -2,14 +2,15 @@
 //   NODE_PATH=/path/to/node_modules node test/ui-cover.test.js [--width 375]
 const path = require('path'); const puppeteer = require('puppeteer-core');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const W = Number(arg('width', 375));
+const W = Number(arg('width', 375)); const SHOTS = arg('shots', null); const ONLY = arg('only', null);
+const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${W}-${n.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }); } };
 (async () => {
   const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox'] });
   const page = await browser.newPage(); await page.setViewport({ width: W, height: 800 });
   const errors = []; page.on('pageerror', (e) => errors.push('pageerror: ' + e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-  await page.goto('file://' + path.join(__dirname, '..', 'index.html')); await page.evaluate(() => localStorage.clear()); await page.reload();
+  await page.goto('file://' + path.join(__dirname, '..', 'index.html')); await page.evaluate(() => { localStorage.clear(); return TG.IDB.put('tycoon_save_v1', null); }); await page.reload(); await page.waitForSelector('[data-act="newGame"]');
   await page.click('[data-act="newGame"][data-arg="rich"]');
-  const types = await page.evaluate(() => Object.keys(TG.CONFIG.businesses));
+  const types = (await page.evaluate(() => Object.keys(TG.CONFIG.businesses))).filter((t) => !ONLY || ONLY.split(',').includes(t));
   const SKIP = ['clearSave', 'clearGo', 'importSave', 'importGo', 'bk', 'bkGo', 'newGameOpen', 'newGame', 'copyCode', 'go', 'next', 'skip', 'bizSell', 'bizSellGo', 'bizClose', 'bizCloseGo', 'bizBk', 'bizBkGo', 'techPivotGo', 'goMoreTab', 'goMoneyTab'];
   let pressed = 0; const acts = new Set();
   const check = async (label) => {
@@ -37,7 +38,13 @@ const W = Number(arg('width', 375));
     // a few months so panels fill in
     for (let i = 0; i < 3; i++) await page.evaluate(() => { TG.Game.nextMonth(TG.G); TG.UI.closeModal(); TG.UI.render(); });
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[data-act="tab"]')].map((x) => x.dataset.arg));
-    for (const tb of tabs) { await page.evaluate((tb) => { const i = tb.indexOf(':'); TG.UI.tab[tb.slice(0, i)] = tb.slice(i + 1); TG.UI.render(); }, tb); await check(t + ' ' + tb); await pressAll(t + ' ' + tb); }
+    for (const tb of tabs) { await page.evaluate((tb) => { const i = tb.indexOf(':'); TG.UI.tab[tb.slice(0, i)] = tb.slice(i + 1); TG.UI.render(); }, tb); await check(t + ' ' + tb); await shot(page, t + ' ' + tb); await pressAll(t + ' ' + tb); }
+  }
+  // farm enterprises other than the default (crops / dairy / orchard rows, seed and grain buttons)
+  for (const ent of ['crops', 'dairy', 'orchard', 'cattle']) {
+    await page.evaluate((ent) => { const g = TG.G; g.cash = 2e8; const b = g.businesses.find((x) => x.type === 'farm'); TG.M.farmSwitch(g, b, ent); for (let i = 0; i < 4; i++) TG.Game.nextMonth(g); TG.UI.closeModal(); TG.UI.bizId = b.id; TG.UI.tab.biz = 'overview'; TG.UI.screen = 'bizd'; TG.UI.render(); }, ent);
+    await check('farm ' + ent); await shot(page, 'farm ' + ent); await pressAll('farm ' + ent);
+    await page.evaluate(() => { TG.UI.tab.biz = 'model'; TG.UI.render(); }); await check('farm land ' + ent); await pressAll('farm land ' + ent);
   }
   for (const s of [['money', ['fin', 're', 'inv', 'casino']], ['more', ['mgr', 'news', 'log', 'ach', 'set', 'help']], ['home', [null]], ['biz', [null]]]) {
     for (const tb of s[1]) { await page.evaluate((s, tb) => { if (tb) TG.UI.tab[s] = tb; TG.UI.go(s); }, s[0], tb); await check(s[0] + ' ' + tb); await pressAll(s[0] + ' ' + tb); }

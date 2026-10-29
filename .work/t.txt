@@ -1,8 +1,0 @@
-hello
-  const rq = x.open('a', 1);
-  const rq = idb.open('tycoon', 1);
-          const rq = idbFactory().open('tycoon', 1);
-          rq.onsuccess = () => { IDB.db = rq.result; res(IDB.db); };
-          rq.onupgradeneeded = () => { try { rq.result.createObjectStore('saves'); } catch (e) { res(null); } };
-          rq.onerror = () => { IDB.failed = true; res(null); };
-const tx = db.transaction('saves', 'readwrite');

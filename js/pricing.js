@@ -115,7 +115,7 @@
     else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]); prem = S.staffReorderPremium; }
     const want = Math.max(0, need * mult - st.qty);
     const got = ST.buy(g, b, want, prem);
-    st.lastBy = who; st.lastOut = out;
+    st.lastBy = who; st.lastOut = out; st.short = got < want - 0.5 ? (ST.cap(b) - st.qty < 1 ? 'room' : 'cash') : '';
     if (out === 'bad' && h && got > 0 && R.chance(0.4)) TG.rep.decision(g, b, h.label, mult > 1 ? `Over-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)` : `Under-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)`, 'bad');
     return { by: who, got, prem };
   };

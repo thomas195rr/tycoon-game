@@ -16,7 +16,7 @@
 
   UI.screens.market = () => {
     const g = TG.G, C = TG.CONFIG; const type = UI.S.mkType, d = C.businesses[type];
-    let o = `<h2>🗺️ Property market</h2>`;
+    let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn ${k === type ? 'pri' : ''}" style="font-size:26px;min-width:56px" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}</button>`).join('')}</div></div>`;
     o += `<div class="card"><div class="row"><span class="small">I want to start a</span><select data-change="mkType">${UI.typeOptions(type)}</select></div>
       <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}</div>
       <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>

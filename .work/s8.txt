@@ -1,8 +1,0 @@
-@@@ FILE ../js/models.js
-<<<
-      const keep = Math.max(0, Math.min(matured * e.replaceShare * (f.ent === 'dairy' ? 2.5 : 1), cap - f.herd + matured));
->>>
-      // keep enough heifers to replace old cows, more (up to half) while there is free pasture
-      const base = matured * e.replaceShare * (f.ent === 'dairy' ? 2.5 : 1);
-      const keep = Math.min(matured, Math.max(base, Math.min(matured * 0.5, cap * 0.95 - f.herd)));
-===

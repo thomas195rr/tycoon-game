@@ -7,7 +7,17 @@ A turn-based, mobile-first business tycoon game that runs in the browser with no
 - **From source:** open `index.html` (works from `file://`; all scripts are classic scripts, no modules).
 - Rebuild the single file after editing: `node tools/build.js`.
 
-Progress autosaves to `localStorage` after every month and action. If the browser blocks storage (some sandboxes or embeds), the game keeps running in memory: use **More > Settings > Export save code** and **Import** to keep progress.
+- **Play online / add to home screen:** https://thomas195rr.github.io/tycoon-game/ — on iPhone use Share > Add to Home Screen; on Android/Chrome use Install app.
+
+Progress autosaves after every month and every tap, and again when the app is hidden or closed (`visibilitychange` / `pagehide`). Each save goes to `localStorage` and to an IndexedDB copy; on start the newest of the two is loaded. The header shows **💾 Saved ✓ time**. If the browser blocks storage (some sandboxes or embeds), a red banner offers **Export save**: use **More > Settings > Export save code** and **Import** to keep progress.
+
+## Version 2 highlights
+- **Live prices:** each business sells at a market price that moves with the economy and with everyone's supply (including yours). You can follow the market or type your own exact price. Above market, customers or buyers drop off steeply and reputation suffers; below market, you sell more but earn less each. A huge price never wins.
+- **Supplies & stock:** every business uses up stock (beans, parts, feed, raw materials...). Stock has a storage cap, spoils, and is reordered by you, your staff (slightly pricier) or a manager (good or bad calls).
+- **Equipment by category:** each item raises one kind of capacity (machines, seating, storage...). Output is limited by the weakest link: staff, each equipment group, space, helpers or stock. Items have upkeep and wear out.
+- **Life cycles:** cows are born, grow for 15 months, can be sold, retire at 10 years (dairy 6) and sometimes die; crops need seed and storage; gym members join and leave; fresh goods are wasted; clothes go out of style; trucks and machines wear out.
+- **This month / Next month:** every business shows a simple flow (in, made, sold, lost and why) with green/yellow/red dots, plus what to expect next month.
+- **Kid-friendly look:** light colours, big rounded buttons and cards, big icons, short words; tap any (i) or row label to show a short explanation, tap again to hide it. No animations.
 
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.

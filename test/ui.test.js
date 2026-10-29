@@ -15,9 +15,9 @@ const CLICKS = Number(arg('clicks', 600)), W = Number(arg('width', 375)), SHOTS 
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('dialog', (d) => d.accept());
   await page.goto('file://' + FILE);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  const shot = async (n) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${W}-${n}.png`), fullPage: false }); } };
+  await page.evaluate(() => { localStorage.clear(); return TG.IDB ? TG.IDB.put('tycoon_save_v1', null) : null; });
+  await page.reload(); await page.waitForSelector('#ngSeed');
+  const shot = async (n) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${W}-${n}.png`), fullPage: true }); } };
   await shot('00-newgame');
   await page.evaluate(() => { document.getElementById('ngSeed').value = '7'; });
   await page.click('[data-act="newGame"][data-arg="classic"]');
@@ -37,6 +37,7 @@ const CLICKS = Number(arg('clicks', 600)), W = Number(arg('width', 375)), SHOTS 
   const tabs = await page.evaluate(() => [...document.querySelectorAll('[data-act="tab"]')].map((x) => x.dataset.arg));
   for (const t of tabs) { await page.click(`[data-act="tab"][data-arg="${t}"]`); await check('tab ' + t); await shot('05-' + t.replace(':', '-')); }
   await page.click('[data-act="next"]'); await check('report'); await shot('06-report');
+  await page.evaluate(() => { TG.UI.closeModal(); TG.UI.tab.biz = 'overview'; TG.UI.render(); }); await shot('06b-biz-after-month');
   await page.evaluate(() => TG.UI.closeModal());
   for (const s of ['money', 'more']) {
     await page.click(`[data-act="go"][data-arg="${s}"]`);

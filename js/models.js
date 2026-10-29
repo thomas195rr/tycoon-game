@@ -109,7 +109,7 @@
       ctx.priceR = r;
       const lim = { staff: 'staff', equipment: 'equipment', space: 'space', support: 'helpers', stock: 'stock ran out' }[ctx.limit];
       if (cap === 0) ctx.note = 'No capacity: you need ' + (k.keyCap === 0 ? 'key staff' : k.eqCap === 0 ? 'working equipment' : 'space');
-      else if (stockLimited) ctx.note = 'Ran out of stock: order more or add storage';
+      else if (stockLimited) ctx.note = b.stock && b.stock.short === 'cash' ? 'Ran out of stock: not enough cash to buy supplies' : b.stock && b.stock.short === 'room' ? 'Ran out of stock: storage is too small' : 'Ran out of stock: order more or turn on auto-order';
       else if (demand > cap * 1.15) ctx.note = `Turning away ${U.pct(1 - cap / demand)} of customers: limited by ${lim}`;
       else if (demand < cap * 0.6) ctx.note = r > 1.08 ? 'Lots of empty capacity: your price is above market' : 'Lots of empty capacity: need more customers';
       // flow

@@ -16,43 +16,92 @@
   UI.screens.bizd = () => {
     const g = TG.G, b = biz(); if (!b) { UI.screen = 'biz'; return UI.screens.biz(); }
     const d = TG.B.def(b);
-    const tabs = [['overview', 'Overview'], ['staff', 'Staff'], ['equip', 'Equipment'], ['upg', 'Upgrades'], ['mkt', 'Marketing']];
+    const tabs = [['overview', '📋 Now'], ['staff', '👥 Staff'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Extras'], ['mkt', '📣 Ads']];
     if (TG.UI.modelPanel[d.model]) tabs.splice(1, 0, ['model', TG.UI.modelPanel[d.model].label]);
-    tabs.push(['own', 'Ownership']);
+    tabs.push(['own', '🔑 Owner']);
     const t = UI.curTab('biz', 'overview');
     const body = { overview, staff, equip, upg, mkt, own, model: () => TG.UI.modelPanel[d.model].render(g, b) }[t] || overview;
     return `<div class="row sp"><h2>${d.icon} ${esc(b.name)}</h2>${UI.btn('◀ All', 'go', 'biz', 'sm')}</div>${UI.tabs('biz', tabs)}${body(g, b)}`;
   };
 
-  // ---------- overview ----------
+  // ---------- overview (icon-first) ----------
+  const PR = () => TG.PR;
+  const toneRep = (v) => (v >= 60 ? 'g' : v >= 35 ? 'y' : 'r');
   function overview(g, b) {
     const d = TG.B.def(b), lc = b.lastCtx || {}; const h = b.hist; const last = h[h.length - 1];
-    const prop = g.properties.find((p) => p.id === b.propId);
-    let o = `<div class="card"><div class="row sp"><div><div class="mute">Last month</div><div class="big">${last ? UI.signed(last.profit) : '-'}</div><div class="mute">${last ? `rev ${m(last.rev)} · costs ${m(last.cost)}` : 'not open a full month yet'}</div></div>
-      <div><div class="mute">Reputation</div><div class="big">${Math.round(b.rep)}</div>${UI.bar(b.rep, 100)}</div>
-      <div><div class="mute">Quality</div><div class="big">${lc.quality != null ? lc.quality : '-'}</div><div class="mute">skill ${lc.skill != null ? lc.skill : '-'} · morale ${lc.morale != null ? lc.morale : '-'}</div></div></div>
-      ${b.licensePending > 0 ? `<div class="ev warn">⏳ Waiting for license: ${b.licensePending} month(s). Costs run, no revenue yet.</div>` : ''}
-      ${lc.cap != null ? `<div style="margin-top:6px" class="small">Capacity: served ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} (demand ${Math.round(lc.demand || 0).toLocaleString()})</div>${UI.bar(lc.served || 0, lc.cap || 1)}` : ''}
-      ${lc.note ? `<div class="ev info">💡 ${esc(lc.note)}</div>` : ''}${lc.limit ? `<div class="mute">Growth is limited by: <b>${esc({ staff: 'not enough key staff', equipment: 'equipment (' + (lc.limitEquip || '') + ')', space: 'space (bigger property needed)', support: 'support staff', demand: 'customer demand' }[lc.limit] || lc.limit)}</b></div>` : ''}
-      ${h.length > 2 ? `<div class="mute" style="margin-top:6px">Profit, last ${Math.min(36, h.length)} months</div>${UI.spark(h.slice(-36).map((x) => x.profit), '#1d4ed8')}` : ''}</div>`;
-    // settings
+    let o = `<div class="tiles">
+      ${UI.tile('t_profit', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Profit last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', last ? `Money in ${m(last.rev)} − money out ${m(last.cost)}.` : 'Not open a full month yet.')}
+      ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
+      ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
+      ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `Did ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible. Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
+    if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
+    if (lc.note) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
+    o += UI.flowCard(g, b);
+    o += UI.stockCard(g, b);
+    if (PR().hasPrice(b)) o += UI.priceCard(g, b);
+    o += UI.linksCard(g, b);
+    // how it runs
     const owner = TG.B.owner(g, b);
-    o += `<div class="card"><h3 style="margin-top:0">How it runs</h3><div class="kv">
-      <span>Prices</span><span><select data-change="bizSet" data-k="price">${[['low', 'Low (more customers)'], ['normal', 'Normal'], ['premium', 'Premium (more per sale, fewer customers)']].map(([v, l]) => `<option value="${v}"${b.price === v ? ' selected' : ''}>${l}</option>`).join('')}</select></span>
-      <span>Work pace</span><span><select data-change="bizSet" data-k="pace">${[['careful', 'Careful (fewer accidents, less output)'], ['normal', 'Normal'], ['rush', 'Rush (more output, more wear & accidents)']].map(([v, l]) => `<option value="${v}"${b.pace === v ? ' selected' : ''}>${l}</option>`).join('')}</select></span>
-      <span>You work here yourself</span><span>${owner ? UI.btn('Yes: stop', 'ownerOp', '', 'sm') : UI.btn('No: work here', 'ownerOp', b.id, 'sm')}</span></div>
-      <div class="mute">You can personally run one business: it adds a skilled worker and covers management, but you can't be everywhere. ${g.player.ownerBiz && !owner ? `(You currently run ${esc((TG.B.get(g, g.player.ownerBiz) || {}).name || '')}.)` : ''}</div>
-      <div class="mute">${prop ? `Property: ${esc(prop.name)}, ${esc(TG.P.locLabel(prop))}, ${esc(TG.P.sizeLabel(prop))}${prop.leased ? `, leased ${m(prop.rent)}/mo` : ', owned'}` : ''}</div></div>`;
+    o += `<div class="card"><h3>⚙️ How it runs</h3>
+      ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}
+      ${UI.irow('own', '👤', 'You work here', null, `You can run one business yourself: adds a skilled worker and covers ordering.${g.player.ownerBiz && !owner ? ' (Now at ' + ((TG.B.get(g, g.player.ownerBiz) || {}).name || '') + '.)' : ''}`, owner ? UI.btn('✅ Yes', 'ownerOp', '', 'xs goodb') : UI.btn('No', 'ownerOp', b.id, 'xs'))}</div>`;
     const risks = TG.B.topRisks(g, b).slice(0, 8);
-    o += `<div class="card"><h3 style="margin-top:0">Risks next month</h3><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></div>`;
-    if (last) o += `<div class="card"><details><summary>Last month's income & expenses</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table></details></div>`;
+    o += `<div class="card"><details><summary>⚠️ Risks next month</summary><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></details></div>`;
+    if (last) o += `<div class="card"><details><summary>🧾 Money in & out</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table>${h.length > 2 ? UI.spark(h.slice(-36).map((x) => x.profit), '#2563eb') : ''}</details></div>`;
     const ev = g.log.filter((e) => e.bizId === b.id || e.biz === b.name).slice(-12).reverse();
-    if (ev.length) o += `<div class="card"><h3 style="margin-top:0">Recent events</h3>${ev.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> ${e.type === 'decision' ? `<b>${esc(e.by)}</b>: ` : ''}${esc(e.text)}</div>`).join('')}</div>`;
+    if (ev.length) o += `<div class="card"><details><summary>📰 What happened</summary>${ev.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> ${e.type === 'decision' ? `<b>${esc(e.by)}</b>: ` : ''}${esc(e.text)}</div>`).join('')}</details></div>`;
     return o;
   }
+  UI.A.bizPace = (p) => { biz().pace = p; UI.refresh(); };
   UI.A.bizSet = (v, el) => { const b = biz(); b[el.dataset.k] = v; UI.toast('Updated.'); UI.refresh(); };
   UI.A.ownerOp = (id) => { TG.G.player.ownerBiz = id || null; UI.refresh(); };
 
+  // "this month" flow + "next month"
+  UI.flowCard = (g, b) => {
+    const f = b.flow; if (!f || !f.rows || !f.rows.length) return `<div class="card"><h3>📅 This month</h3><div class="mute">Press ▶ Next Month to see what happens.</div></div>`;
+    const row = (x, i, pre) => { const key = pre + b.id + i; return `<div class="irow"><span class="dot ${x.c}"></span><span class="ic">${x.i}</span><span class="lb" data-act="tip" data-arg="${key}" data-nosave="1">${esc(x.t)}</span><span class="vl">${UI.fmtN(x.v, x.u)}</span>${x.why ? UI.tipBtn(key) : ''}${UI.tipLine(key, x.why)}</div>`; };
+    return `<div class="card"><h3>📅 This month</h3>${f.rows.map((x, i) => row(x, i, 'fr')).join('')}</div>` + (f.next && f.next.length ? `<div class="card"><h3>🔮 Next month</h3>${f.next.map((x, i) => row(x, i, 'fn')).join('')}</div>` : '');
+  };
+
+  // price: market price next to yours
+  UI.priceCard = (g, b) => {
+    const mk = PR().market(g, b); const r = PR().ratio(g, b); const gd = PR().good(b) || {};
+    const ask = b.ask != null ? b.ask : null; const dec = mk < 50 ? 2 : 0; const fmt = (v) => '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const kind = gd.kind === 'commodity' || b.farm ? 'Buyers can buy elsewhere: above market they buy less from you and unsold goods sit, spoil or rot.' : 'Above market: fewer customers and your reputation drops. Below market: more customers but less profit each.';
+    return `<div class="card"><h3>🏷️ Price ${gd.icon || ''} <span class="mute">per ${esc(gd.unit || 'unit')}</span> ${UI.tipBtn('price' + b.id)}</h3>${UI.tipLine('price' + b.id, kind)}
+      <div class="pricebox"><span class="mk">📉 Market ${fmt(mk)}</span><span class="mk">🏷️ You ${ask != null ? fmt(ask) : 'follow market'}</span>${UI.pill(PR().label(r) + (ask != null ? ` (${Math.round(r * 100)}%)` : ''), { g: 'good', y: 'warn', r: 'bad' }[PR().tone(r)])}</div>
+      <div class="row" style="margin-top:8px"><input type="number" id="askIn" step="${dec ? '0.01' : '1'}" min="0" value="${(ask != null ? ask : mk).toFixed(dec)}">${UI.btn('✅ Set', 'askSet', null, 'sm pri')}${UI.btn('➖10%', 'askStep', '-1', 'sm')}${UI.btn('➕10%', 'askStep', '1', 'sm')}${UI.btn('= Market', 'askMkt', null, 'sm')}</div></div>`;
+  };
+  UI.A.askSet = () => { const b = biz(); const v = UI.num('askIn', 0); if (!(v > 0)) return UI.toast('Type a price.', true); const r = PR().set(TG.G, b, v); UI.toast(`Price set to ${m(r.price)}.`); UI.refresh(); };
+  UI.A.askStep = (s) => { const g = TG.G, b = biz(); const cur = b.ask != null ? b.ask : PR().market(g, b); PR().set(g, b, cur * (1 + 0.1 * Number(s))); UI.refresh(); };
+  UI.A.askMkt = () => { biz().ask = null; UI.toast('Following the market price.'); UI.refresh(); };
+
+  // capacity = weakest link
+  UI.linksCard = (g, b) => {
+    const d = TG.B.def(b); const ctx = TG.B.ctx(g, b); const lc = b.lastCtx || {}; let L = [];
+    const cats = TG.CONFIG.equipCats;
+    if (d.model === 'service') {
+      const k = TG.M.models.service.caps(g, b, ctx);
+      L.push({ i: '👥', t: 'Staff', v: k.keyCap, tip: 'What your key workers can handle. Hire, train, or buy tools that speed them up.' });
+      for (const l of k.links) { const ed = TG.E.def(b, l.id); const c = (d.equipCatsLabel && d.equipCatsLabel[ed.cat]) || cats[ed.cat] || ['⚙️', ed.label]; L.push({ i: c[0], t: c[1], v: l.cap, tip: `${ed.label}s and anything in the same group. Buy more in Equipment.` }); }
+      if (Number.isFinite(k.spaceCap)) L.push({ i: '📐', t: 'Space', v: k.spaceCap, tip: 'The most your building can fit. Needs a bigger property.' });
+      if (Number.isFinite(k.supCap)) L.push({ i: '🧹', t: 'Helpers', v: k.supCap, tip: 'Support staff (cleaners, desk...).' });
+      if (b.stock) L.push({ i: TG.ST.def(b).icon, t: 'Storage', v: TG.ST.cap(b), tip: 'How much stock fits. Run out and you turn customers away.' });
+    } else if (b.farm) {
+      const cv = TG.M.models.farm.cover(g, b, ctx); const f = b.farm;
+      L.push({ i: '🚜', t: 'Tractors', v: cv.tcov * 100, u: '%', tip: `${cv.tcap.toFixed(1)} of ${cv.tneed.toFixed(1)} tractors' worth working.` });
+      L.push({ i: '👩‍🌾', t: 'Farmhands', v: cv.hcov * 100, u: '%', tip: 'Enough hands for the land or herd?' });
+      if (f.ent === 'crops') { L.push({ i: '🌱', t: 'Planting', v: cv.pcov * 100, u: '%', tip: 'Tractors + planters.' }); L.push({ i: '🌾', t: 'Harvest', v: cv.hvcov * 100, u: '%', tip: 'Tractors + combines.' }); }
+    } else if (b.tech) { L.push({ i: '🖥️', t: 'Servers', v: TG.E.capacity(b, 'server'), tip: 'Users your servers handle. More users than this = outages.' }); }
+    else if (b.factory) { L.push({ i: '🏭', t: 'Lines', v: TG.E.capacity(b, 'line'), tip: 'Units per month your lines can make.' }); if (b.stock) L.push({ i: '🪨', t: 'Raw storage', v: TG.ST.cap(b), tip: 'Raw materials you can hold.' }); }
+    if (!L.length) return '';
+    const isPct = L[0].u === '%';
+    const caps = L.map((x) => x.v); const mn = Math.min(...caps); const mx = Math.max(...caps.filter(Number.isFinite), 1);
+    const dem = lc.demand;
+    return `<div class="card"><h3>⛓️ What limits you ${UI.tipBtn('links' + b.id)}</h3>${UI.tipLine('links' + b.id, 'You can only serve as many as your weakest link. Fix the red one first: hire, buy equipment, add storage or move.')}
+      ${L.map((x, i) => `<div class="link ${x.v === mn && (isPct ? x.v < 100 : true) ? 'weak' : ''}" data-act="tip" data-arg="ln${b.id}${i}" data-nosave="1"><span class="ico">${x.i}</span><span class="grow">${esc(x.t)}${UI.bar(x.v, isPct ? 100 : mx)}</span><b>${UI.fmtN(x.v, x.u)}</b></div>${UI.tipLine('ln' + b.id + i, x.tip)}`).join('')}
+      ${dem != null && !isPct && d.model === 'service' ? `<div class="link"><span class="ico">🧲</span><span class="grow">Customers wanted</span><b>${Math.round(dem).toLocaleString()}</b></div>` : ''}</div>`;
+  };
   // ---------- staff ----------
   const traitTxt = (e) => {
     const t = [];
@@ -120,36 +169,62 @@
     UI.A.emp(id); UI.refresh();
   };
 
-  // ---------- equipment ----------
+  // ---------- equipment (grouped by what it does) ----------
+  const effectTxt = (g, b, ed) => {
+    if (ed.desc) return ed.desc;
+    const gd = TG.PR.good(b) || {};
+    if (ed.cap) return `+${ed.cap.toLocaleString()} ${gd.unit ? gd.unit + 's' : ''} a month`;
+    if (ed.store || ed.storeTons || ed.storeUnits) return `+${(ed.store || ed.storeTons || ed.storeUnits).toLocaleString()} storage`;
+    if (ed.demandBoost) return `+${Math.round(ed.demandBoost * 100)}% customers`;
+    if (ed.staffBoost) return `staff +${Math.round(ed.staffBoost * 100)}% faster`;
+    if (ed.ticketBoost) return `+${Math.round(ed.ticketBoost * 100)}% per sale`;
+    return 'Needed to run';
+  };
   function equip(g, b) {
     const d = TG.B.def(b), C = TG.CONFIG; const E = TG.E;
-    let o = `<div class="card"><h3 style="margin-top:0">Buy or lease</h3><div class="row"><select id="eqType">${d.equip.map((x) => `<option value="${x.id}">${esc(x.label)} (std ${m(E.price(g, b, x.id, 'standard'))}${x.cap ? `, handles ${x.cap.toLocaleString()}` : ''})</option>`).join('')}</select>
-      <select id="eqTier">${Object.entries(C.equipTiers).map(([k, t]) => `<option value="${k}"${k === 'standard' ? ' selected' : ''}>${t.label}: price x${t.price}, breaks x${t.brk}, output x${t.out}${t.warranty ? `, ${t.warranty}mo warranty` : ''}</option>`).join('')}</select></div>
-      <div class="btns">${UI.btn('Buy', 'eqBuy', 'buy', 'pri')}${UI.btn(`Lease (${U.pct(C.equipment.leaseMonthlyPct, 1)} of price per month, maintenance included)`, 'eqBuy', 'lease')}</div>
-      <div class="mute">Used gear is cheap but has hidden wear (inspect to see it). Premium gear is advanced: repairs cost more without a mechanic.</div></div>`;
-    if (!b.equip.length) return o + `<div class="card mute">No equipment. Without it there's no capacity.</div>`;
-    o += `<div class="card"><h3 style="margin-top:0">Your equipment (${b.equip.length})</h3>`;
-    for (const it of b.equip) {
-      const bc = it.broken ? null : E.breakChance(g, b, it); const w = E.effWear(it);
-      const st = it.broken === 'destroyed' ? UI.pill('destroyed', 'bad') : it.broken ? UI.pill(`broken (${it.broken})`, 'bad') : UI.risk(bc.p);
-      const wearShown = it.hidden > 0 && !it.inspected ? `${Math.round(it.wear)}%+?` : `${Math.round(w)}%`;
-      o += `<div class="ev ${it.broken ? 'bad' : ''}"><div class="row sp"><b>${esc(it.label)} #${E.num(b, it)}</b>${st}</div>
-        <div class="small">${C.equipTiers[it.tier].label} · ${(it.age / 12).toFixed(1)} yrs · wear ${wearShown} · resale ${m(E.resale(g, b, it))}${it.leased ? ` · leased ${m(it.leasePay)}/mo` : ''}${it.warranty > 0 ? ` · warranty ${it.warranty}mo` : ''}${it.maint ? ' · 🛡 maintenance plan' : ''}</div>
-        ${UI.bar(w, 100, true)}${bc ? `<div class="mute">Break chance: ${esc(bc.factors.join(', '))}</div>` : ''}
-        <div class="btns">${it.broken && it.broken !== 'destroyed' ? UI.btn(`Repair ${it.warranty > 0 || it.leased ? '(covered)' : m(E.repairCost(g, b, it))}`, 'eqDo', `${it.id}|repair`, 'sm goodb') : ''}
-        ${!it.broken ? UI.btn(`Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}`, 'eqDo', `${it.id}|service`, 'sm') : ''}
-        ${!it.leased ? UI.btn(it.maint ? 'Cancel plan' : `Maint. plan ${m(E.def(b, it.type).price * C.equipment.maintPlanCostPct * g.world.priceIdx)}/mo`, 'eqDo', `${it.id}|maint`, 'sm') : ''}
-        ${it.hidden > 0 && !it.inspected ? UI.btn(`Inspect ${m(E.def(b, it.type).price * C.equipment.inspectCost * g.world.priceIdx)}`, 'eqDo', `${it.id}|inspect`, 'sm') : ''}
-        ${UI.btn('Replace (std)', 'eqDo', `${it.id}|replace`, 'sm')}${UI.btn(it.leased ? 'Return lease' : 'Sell', 'eqDo', `${it.id}|sell`, 'sm badb')}</div></div>`;
+    const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease;
+    let o = `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
+      ${UI.tipLine('eqhow', `${C.equipTiers[tier].label}: price x${C.equipTiers[tier].price}, breaks x${C.equipTiers[tier].brk}, output x${C.equipTiers[tier].out}. Used gear may hide wear. Lease = ${U.pct(C.equipment.leaseMonthlyPct, 1)} of price a month, repairs included.`)}</div>`;
+    const cats = []; const byCat = {};
+    for (const ed of d.equip) { const c = ed.cat || 'other'; if (!byCat[c]) { byCat[c] = []; cats.push(c); } byCat[c].push(ed); }
+    const pools = E.pools(b).map((p) => p.pool);
+    for (const c of cats) {
+      const cd = (d.equipCatsLabel && d.equipCatsLabel[c]) || C.equipCats[c] || ['⚙️', 'Other', ''];
+      o += `<div class="card"><div class="cathead"><span class="ic">${cd[0]}</span><span class="grow">${esc(cd[1])}</span>${cd[2] ? UI.tipBtn('cat' + c) : ''}</div>${UI.tipLine('cat' + c, cd[2])}`;
+      for (const ed of byCat[c]) {
+        const n = E.count(b, ed.id), mx = E.maxCount(b, ed.id); const pr = E.price(g, b, ed.id, tier);
+        const pool = ed.pool || ed.id; const crit = pools.indexOf(pool) >= 0;
+        const sub = `${esc(effectTxt(g, b, ed))}${ed.upkeep ? ` · upkeep ${m(ed.upkeep * g.world.priceIdx)}/mo` : ''}${crit ? ` · <b>${Math.round(E.capacity(b, pool)).toLocaleString()}</b> now` : ''}`;
+        o += UI.irow('eq' + ed.id, ed.icon || cd[0], ed.label, `${n}${mx < 999 ? '/' + mx : ''}`, `${effectTxt(g, b, ed)}. Costs ${m(pr)}${lease ? ' (or ' + m(pr * C.equipment.leaseMonthlyPct) + '/mo leased)' : ''}. Wears out with use.`, UI.btn(lease ? `📄 ${m(pr * C.equipment.leaseMonthlyPct)}/mo` : `🛒 ${m(pr)}`, 'eqBuy', ed.id, 'xs goodb', n >= mx), sub);
+      }
+      const mine = b.equip.filter((it) => { const ed = E.def(b, it.type); return ed && (ed.cat || 'other') === c; });
+      if (mine.length) o += `<details><summary>🔧 Yours (${mine.length})${mine.some((x) => x.broken) ? ' <span class="pill bad">broken!</span>' : ''}</summary>${mine.map((it) => itemRow(g, b, it)).join('')}</details>`;
+      o += '</div>';
     }
-    return o + '</div>';
+    return o;
   }
-  UI.A.eqBuy = (mode) => {
-    const g = TG.G, b = biz(); const type = UI.val('eqType'), tier = UI.val('eqTier');
-    if (mode === 'lease' && tier === 'used') return UI.toast('Used gear cannot be leased.', true);
-    const it = TG.E.buy(g, b, type, tier, mode === 'lease' ? { leased: true } : null);
+  function itemRow(g, b, it) {
+    const C = TG.CONFIG, E = TG.E; const bc = it.broken ? null : E.breakChance(g, b, it); const w = E.effWear(it);
+    const st = it.broken === 'destroyed' ? UI.pill('gone', 'bad') : it.broken ? UI.pill('broken', 'bad') : UI.risk(bc.p);
+    const wearShown = it.hidden > 0 && !it.inspected ? `${Math.round(it.wear)}%+?` : `${Math.round(w)}%`;
+    const k = 'it' + it.id;
+    return `<div class="ev ${it.broken ? 'bad' : w > 70 ? 'warn' : 'good'}"><div class="row sp"><b data-act="tip" data-arg="${k}" data-nosave="1">${esc(it.label)} #${E.num(b, it)}</b>${st}</div>
+      <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased' : ''}${it.maint ? ' · 🛡️ plan' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
+      ${UI.tipLine(k, `${C.equipTiers[it.tier].label}. Worth ${m(E.resale(g, b, it))}.${it.leased ? ' Lease ' + m(it.leasePay) + '/mo.' : ''}${it.warranty > 0 ? ' Warranty ' + it.warranty + ' mo.' : ''}${bc ? ' Break risk: ' + bc.factors.join(', ') + '.' : ''}`)}
+      <div class="btns">${it.broken && it.broken !== 'destroyed' ? UI.btn(`🔧 Fix ${it.warranty > 0 || it.leased ? '(free)' : m(E.repairCost(g, b, it))}`, 'eqDo', `${it.id}|repair`, 'xs goodb') : ''}
+      ${!it.broken ? UI.btn(`🧰 Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}`, 'eqDo', `${it.id}|service`, 'xs') : ''}
+      ${!it.leased ? UI.btn(it.maint ? '🛡️ Stop plan' : `🛡️ Plan ${m(E.def(b, it.type).price * C.equipment.maintPlanCostPct * g.world.priceIdx)}/mo`, 'eqDo', `${it.id}|maint`, 'xs') : ''}
+      ${it.hidden > 0 && !it.inspected ? UI.btn(`🔍 ${m(E.def(b, it.type).price * C.equipment.inspectCost * g.world.priceIdx)}`, 'eqDo', `${it.id}|inspect`, 'xs') : ''}
+      ${UI.btn('🔁 New', 'eqDo', `${it.id}|replace`, 'xs')}${UI.btn(it.leased ? '↩️ Return' : '💵 Sell', 'eqDo', `${it.id}|sell`, 'xs badb')}</div></div>`;
+  }
+  UI.A.eqTierSet = (k) => { UI.S.eqTier = k; if (k === 'used') UI.S.eqLease = false; UI.refresh(); };
+  UI.A.eqLeaseSet = () => { if ((UI.S.eqTier || 'standard') === 'used') return UI.toast('Used gear cannot be leased.', true); UI.S.eqLease = !UI.S.eqLease; UI.refresh(); };
+  UI.A.eqBuy = (type) => {
+    const g = TG.G, b = biz(); const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease && tier !== 'used';
+    if (TG.E.count(b, type) >= TG.E.maxCount(b, type)) return UI.toast('No room for more of these.', true);
+    const it = TG.E.buy(g, b, type, tier, lease ? { leased: true } : null);
     if (!it) return UI.toast(`Not enough cash (${m(TG.E.price(g, b, type, tier))}).`, true);
-    UI.toast(`${mode === 'lease' ? 'Leased' : 'Bought'} ${it.label}.`); UI.refresh();
+    UI.toast(`${lease ? 'Leased' : 'Bought'} ${it.label}.`); UI.refresh();
   };
   UI.A.eqDo = (arg) => {
     const g = TG.G, b = biz(); const [id, act] = arg.split('|'); const it = b.equip.find((x) => x.id === id); if (!it) return;

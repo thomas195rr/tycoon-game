@@ -81,7 +81,7 @@
   UI.A.importGo = () => { try { TG.Game.importCode(UI.val('impCode')); UI.closeModal(); UI.save(); UI.toast('Save loaded.'); UI.go('home'); } catch (e) { UI.toast(e.message || 'Invalid code.', true); } };
   UI.A.newGameOpen = () => UI.newGameScreen(false);
   UI.A.clearSave = () => UI.confirm('Delete the saved game and start over?', 'clearGo');
-  UI.A.clearGo = () => { TG.Game.clearSave(); TG.G = null; UI.closeModal(); UI.newGameScreen(true); };
+  UI.A.clearGo = () => { TG.Game.clearSave(); if (TG.IDB) TG.IDB.put('tycoon_save_v1', null); TG.G = null; UI.closeModal(); UI.newGameScreen(true); };
 
   // ---------- help ----------
   function help() {

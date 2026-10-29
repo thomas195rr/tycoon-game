@@ -24,6 +24,18 @@
     const zy = (h - 2 - (0 - mn) / (mx - mn || 1) * (h - 4)).toFixed(1);
     return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><line x1="0" x2="${w}" y1="${zy}" y2="${zy}" stroke="#d1d5db" stroke-width="1"/><polyline fill="none" stroke="${color || '#15803d'}" stroke-width="2" points="${pts}"/></svg>`;
   };
+  // ---- icon-first helpers ----
+  UI.S.tips = UI.S.tips || {};
+  // (i) button: tap to show a short line, tap again to hide it
+  UI.tipBtn = (key) => `<button class="tipb" data-act="tip" data-arg="${esc(key)}" data-nosave="1" aria-label="info">i</button>`;
+  UI.tipLine = (key, text) => (UI.S.tips[key] && text ? `<div class="tip">${esc(text)}</div>` : '');
+  UI.A.tip = (k) => { UI.S.tips[k] = !UI.S.tips[k]; UI.refresh(); };
+  // icon row: icon, label (tap = info), value, actions
+  UI.irow = (key, icon, label, value, tip, acts, sub) => `<div class="irow"><span class="ic">${icon}</span><span class="lb" data-act="tip" data-arg="${esc(key)}" data-nosave="1">${esc(label)}${sub ? `<small>${sub}</small>` : ''}</span>${tip ? UI.tipBtn(key) : ''}${value != null ? `<span class="vl">${value}</span>` : ''}${acts ? `<span class="acts">${acts}</span>` : ''}${UI.tipLine(key, tip)}</div>`;
+  // big stat tile (tap = info)
+  UI.tile = (key, icon, value, label, tone, tip) => `<div class="tile ${tone || ''}" data-act="tip" data-arg="${esc(key)}" data-nosave="1"><div class="ti">${icon}</div><div class="tv">${value}</div><div class="tl">${esc(label)}</div></div>${UI.S.tips[key] && tip ? `<div class="tip" style="grid-column:1/-1;margin:0">${esc(tip)}</div>` : ''}`;
+  UI.dot = (c) => `<span class="dot ${c || ''}"></span>`;
+  UI.fmtN = (v, u) => (u === '$' ? U.money(v) : u === '%' ? Math.round(v) + '%' : Math.round(v).toLocaleString() + (u ? (u[0] === '/' ? '' : ' ') + u : ''));
   UI.num = (id, def) => { const el = document.getElementById(id); const v = el ? Number(String(el.value).replace(/[^0-9.\-]/g, '')) : NaN; return Number.isFinite(v) ? v : def; };
   UI.val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
 
@@ -45,20 +57,29 @@
   UI.A.closeModal = () => { UI.closeModal(); UI.render(); };
 
   // ---------- frame ----------
-  const NAV = [['home', '🏠', 'Home'], ['biz', '🏢', 'Business'], ['market', '🗺️', 'Market'], ['money', '💰', 'Money'], ['more', '☰', 'More']];
+  const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
   UI.go = (screen, extra) => { UI.screen = screen; if (extra) Object.assign(UI, extra); UI.render(); window.scrollTo(0, 0); };
   UI.A.go = (arg) => { const [s, id] = String(arg).split(':'); if (s === 'bizd') UI.bizId = id; UI.go(s); };
   UI.A.tab = (arg) => { const i = arg.indexOf(':'); UI.tab[arg.slice(0, i)] = arg.slice(i + 1); UI.render(); };
 
+  UI.saveChip = () => {
+    const st = TG.Game.saveState || {};
+    if (st.ok === false) return `<span class="chip save no" id="saveInd" data-act="exportSave">⚠️ Not saved</span>`;
+    if (st.ok) { const d = new Date(st.at); return `<span class="chip save ok" id="saveInd" data-act="saveInfo" data-nosave="1">💾 Saved ✓ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</span>`; }
+    return `<span class="chip save" id="saveInd" data-act="saveInfo" data-nosave="1">💾</span>`;
+  };
   UI.header = () => {
     const g = TG.G; const nw = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
-    const pend = g.decisions.length;
-    return `<header class="top"><span class="date">📅 ${U.dateStr(g.month)}</span>
-      <span class="stat">Cash <b class="${g.cash < 0 ? 'bad' : ''}">${UI.m(g.cash)}</b></span>
-      <span class="stat">Net worth <b>${UI.m(nw)}</b></span>
-      <span class="stat">${TG.W.phaseLabel(g)}</span>
-      ${pend ? `<span class="stat" data-act="decisions" style="cursor:pointer">⚠️ <b>${pend}</b> decision${pend > 1 ? 's' : ''}</span>` : ''}</header>`;
+    const pend = g.decisions.length; const ph = g.world.phase;
+    return `<header class="top"><span class="chip">📅 ${U.dateStr(g.month)}</span>
+      <span class="chip cash ${g.cash < 0 ? 'neg' : ''}">💵 ${UI.m(g.cash)}</span>
+      <span class="chip">📈 ${UI.m(nw)}</span>
+      <span class="chip">${ph === 'boom' ? '☀️' : ph === 'recession' ? '🌧️' : '⛅'} ${TG.W.phaseLabel(g)}</span>
+      ${pend ? `<span class="chip dec" data-act="decisions">⚠️ ${pend}</span>` : ''}${UI.saveChip()}</header>
+      ${TG.Game.saveState && TG.Game.saveState.ok === false ? `<div class="banner" style="margin:8px 10px 0">⚠️ This browser is not keeping your save (${esc(TG.Game.saveState.err || 'storage blocked')}). ${UI.btn('📤 Export save', 'exportSave', null, 'sm pri')}</div>` : ''}`;
   };
+  UI.A.saveInfo = () => { const st = TG.Game.saveState || {}; UI.toast(st.ok ? `Saved on this ${st.where || 'device'} after every month and every tap.` : 'Not saved yet.'); };
+  TG.Game.onSaved = () => { const el = document.getElementById('saveInd'); if (el) el.outerHTML = UI.saveChip(); };
   UI.footer = () => {
     const v = UI.S.skipVal || '';
     return `<footer class="turn"><div class="in">
@@ -123,9 +144,20 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'skipN') UI.A.skip(); });
   document.addEventListener('change', (e) => { const el = e.target.closest('[data-change]'); if (!el) return; const fn = UI.A[el.dataset.change]; if (fn) { fn(el.value, el); UI.save(); } });
 
+  // save when the app is hidden or closed (phones kill background tabs)
+  const saveNow = () => { try { if (TG.G) UI.save(); } catch (e) { return; } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+  window.addEventListener('pagehide', saveNow);
+  window.addEventListener('beforeunload', saveNow);
   UI.boot = () => {
-    const g = TG.Game.load();
-    if (g) { TG.G = g; UI.render(); if (!TG.store.ok) UI.toast('Browser storage is blocked here: use Settings > Export save to keep progress.', true); }
-    else UI.newGameScreen(true);
+    const done = (g) => {
+      if (g) { TG.G = g; UI.render(); if (!TG.store.ok) UI.toast('Browser storage is blocked here: tap ⚠️ to export your save.', true); }
+      else UI.newGameScreen(true);
+    };
+    let fired = false; const once = (g) => { if (!fired) { fired = true; done(g); } };
+    try { TG.Game.loadAsync().then(once, () => once(TG.Game.load())); } catch (e) { once(TG.Game.load()); }
+    setTimeout(() => once(TG.Game.load()), 2500);
+    // installable app (service worker only works over http/https, not file://)
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => null);
   };
 })();

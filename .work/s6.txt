@@ -1,6 +1,0 @@
-@@@ FILE ../js/business.js
-<<<
-      if (opts.ent === 'cattle') c += Math.round(TG.M.farmHerdCap(prop, ent) * 0.5) * ent.stockCost * g.world.priceIdx;
->>>
-      if (opts.ent === 'cattle' || opts.ent === 'dairy') c += Math.round(TG.M.farmHerdCap(prop, ent) * 0.5) * TG.W.price(g, 'beef', 0) * (opts.ent === 'dairy' ? 0.95 : 0.8);
-===

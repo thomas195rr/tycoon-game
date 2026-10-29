@@ -6,48 +6,45 @@
     const g = TG.G; const h = g.history; const last = h[h.length - 1];
     let out = '';
     if (!g.businesses.length && !g.re.holdings.length) {
-      out += `<div class="card" style="border-color:#15803d"><h3 style="margin-top:0">👋 Getting started</h3>
-        <ol class="plain"><li>Open <b>Market</b> and pick the business you want to start: listings are rated for it, with pros and cons.</li>
-        <li>Buy, mortgage or lease a property, then press <b>Start business</b> (quick setup buys the basic equipment and hires staff).</li>
-        <li>Press <b>Next Month</b>. Read the report: it explains why things happened. Fix problems, grow, repeat.</li></ol>
-        <div class="btns">${UI.btn('🗺️ Go to the market', 'go', 'market', 'pri')}${UI.btn('🏘️ Or start in real estate', 'goMoneyTab', 're')}</div>
-        <div class="mute" style="margin-top:6px">You have ${m(g.cash)} and a credit score of ${Math.round(g.player.credit)}. ${g.player.noLoanUntil > g.month ? `Lenders refuse loans for ${g.player.noLoanUntil - g.month} more months.` : ''}</div></div>`;
+      out += `<div class="card hi"><h3>👋 Let's start!</h3>
+        <div class="irow"><span class="ic">1️⃣</span><span class="lb">Pick a business and a place in 🗺️ Shop</span></div>
+        <div class="irow"><span class="ic">2️⃣</span><span class="lb">Press ▶ Next Month</span></div>
+        <div class="irow"><span class="ic">3️⃣</span><span class="lb">See what happened, fix the red things, grow</span></div>
+        <div class="btns">${UI.btn('🗺️ Go shopping', 'go', 'market', 'pri')}${UI.btn('🏘️ Houses to rent out', 'goMoneyTab', 're')}</div>
+        ${g.player.noLoanUntil > g.month ? `<div class="mute">🏦 Banks won't lend for ${g.player.noLoanUntil - g.month} more months.</div>` : ''}</div>`;
     }
-    // alerts
+    out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
+      ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
+      ${UI.tile('h_pf', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', 'Profit after costs and tax.')}
+      ${UI.tile('h_cr', '🏦', Math.round(g.player.credit), 'Credit score', g.player.credit >= 700 ? 'g' : g.player.credit >= 600 ? 'y' : 'r', 'Higher = cheaper loans. Paying late lowers it.')}</div>`;
     const al = [];
-    if (g.decisions.length) al.push(`<div class="ev warn" data-act="decisions" style="cursor:pointer">⚠️ <b>${g.decisions.length} decision${g.decisions.length > 1 ? 's' : ''} waiting.</b> Tap to decide. Unanswered ones go to a manager next month, or the default happens.</div>`);
-    if (g.cash < 0) al.push(`<div class="ev bad">💸 <b>Cash is negative (${m(g.cash)}).</b> ${TG.CONFIG.finance.bankruptcyMonths - g.negMonths} month(s) before creditors act. Sell assets, borrow, cut costs or bring in investors (Money tab).</div>`);
-    for (const ls of g.lawsuits) al.push(`<div class="ev bad">⚖️ Lawsuit: ${esc(ls.label)} (${m(ls.amount)}), ${ls.status === 'fighting' ? `in court, ${U.pct(ls.win || 0)} win odds` : 'no response yet'}, ${ls.left} month(s) left</div>`);
+    if (g.decisions.length) al.push(`<div class="ev warn" data-act="decisions" style="cursor:pointer">⚠️ <b>${g.decisions.length} thing${g.decisions.length > 1 ? 's' : ''} to decide.</b> Tap here.</div>`);
+    if (g.cash < 0) al.push(`<div class="ev bad">💸 <b>Out of cash (${m(g.cash)}).</b> ${TG.CONFIG.finance.bankruptcyMonths - g.negMonths} month(s) to fix it: sell, borrow or cut costs.</div>`);
+    for (const ls of g.lawsuits) al.push(`<div class="ev bad">⚖️ Sued: ${esc(ls.label)} (${m(ls.amount)}), ${ls.left} month(s) left</div>`);
     for (const b of g.businesses) {
-      const br = b.equip.filter((x) => x.broken); if (br.length) al.push(`<div class="ev bad" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">🔧 ${esc(b.name)}: ${br.length} broken item(s): ${esc(br.map((x) => x.label).join(', '))}</div>`);
+      const br = b.equip.filter((x) => x.broken); if (br.length) al.push(`<div class="ev bad" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">🔧 ${esc(b.name)}: ${br.length} broken</div>`);
       if (b.lastCtx && b.lastCtx.note) al.push(`<div class="ev info" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">💡 ${esc(b.name)}: ${esc(b.lastCtx.note)}</div>`);
     }
-    if (g.lastReport && g.lastReport.warns) for (const w of g.lastReport.warns.slice(0, 4)) al.push(`<div class="ev warn">⚠️ ${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}${w.p ? ` (${U.pct(w.p, 1)} chance)` : ''}<div class="why">${esc(w.why || '')}</div></div>`);
-    if (al.length) out += `<div class="card"><h3 style="margin-top:0">Alerts</h3>${al.join('')}</div>`;
-    // money summary
-    out += `<div class="card"><div class="row sp"><div><div class="mute">Net worth</div><div class="big">${m(g.lastNW)}</div></div>
-      <div><div class="mute">Cash</div><div class="big ${g.cash < 0 ? 'bad' : ''}">${m(g.cash)}</div></div>
-      <div><div class="mute">Last month</div><div class="big">${last ? UI.signed(last.profit) : '-'}</div></div></div>
-      ${h.length > 2 ? `<div class="mute" style="margin-top:6px">Net worth, last ${Math.min(h.length, 60)} months</div>${UI.spark(h.slice(-60).map((x) => x.nw))}<div class="mute">Monthly profit</div>${UI.spark(h.slice(-60).map((x) => x.profit), '#1d4ed8')}` : ''}
-      <div class="btns">${g.lastReport ? UI.btn('📄 Last month report', 'lastReport') : ''}${UI.btn('📰 News', 'goMoreTab', 'news')}${UI.btn('📜 Event log', 'goMoreTab', 'log')}</div></div>`;
-    // businesses
-    if (g.businesses.length) {
-      out += `<h3>Your businesses</h3>`;
-      for (const b of g.businesses) out += UI.bizCard(b);
-    }
-    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row sp"><b>🏘️ Real estate</b><span>${g.re.holdings.length} properties, ${TG.RE.unitsOwned(g)} units</span></div><div class="mute">Value ${m(TG.RE.totalValue(g))}; last month rent ${m(g.re.m.rev)} vs costs ${m(g.re.m.cost)}</div></div>`;
-    // top risks
+    if (g.lastReport && g.lastReport.warns) for (const w of g.lastReport.warns.slice(0, 3)) al.push(`<div class="ev warn">⚠️ ${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}</div>`);
+    if (al.length) out += `<div class="card"><h3>🔔 Look at these</h3>${al.join('')}</div>`;
+    if (g.businesses.length) { out += `<h3>🏪 My businesses</h3>`; for (const b of g.businesses) out += UI.bizCard(b); }
+    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row"><span class="ico">🏘️</span><b class="grow">Houses & flats</b><b>${TG.RE.unitsOwned(g)} 🚪</b></div><div class="mute">Rent ${m(g.re.m.rev)} · costs ${m(g.re.m.cost)}</div></div>`;
+    out += `<div class="card">${h.length > 2 ? `<div class="mute">📈 Worth</div>${UI.spark(h.slice(-60).map((x) => x.nw))}<div class="mute">💰 Profit each month</div>${UI.spark(h.slice(-60).map((x) => x.profit), '#2563eb')}` : ''}
+      <div class="btns">${g.lastReport ? UI.btn('📄 Last month', 'lastReport') : ''}${UI.btn('📰 News', 'goMoreTab', 'news')}${UI.btn('📜 History', 'goMoreTab', 'log')}</div></div>`;
     const risks = [];
     for (const b of g.businesses) for (const r of TG.B.topRisks(g, b).slice(0, 3)) risks.push(Object.assign({ biz: b.name }, r));
     risks.sort((a, b) => b.p - a.p);
-    if (risks.length) out += `<div class="card"><h3 style="margin-top:0">Biggest risks next month</h3><table>${risks.slice(0, 6).map((r) => `<tr><td>${esc(r.biz)}: ${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('')}</table></div>`;
+    if (risks.length) out += `<div class="card"><details><summary>🎲 Biggest risks next month</summary><table>${risks.slice(0, 6).map((r) => `<tr><td>${esc(r.biz)}: ${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('')}</table></details></div>`;
     return out;
   };
   UI.bizCard = (b) => {
     const g = TG.G, d = TG.CONFIG.businesses[b.type]; const h = b.hist[b.hist.length - 1];
-    const lc = b.lastCtx || {};
-    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b>${h ? UI.signed(h.profit) : '<span class="mute">new</span>'}</div>
-      <div class="mute">${b.licensePending > 0 ? `⏳ Licensing: ${b.licensePending} months left · ` : ''}Rep ${Math.round(b.rep)}/100 · ${TG.S.allStaff(b).length} staff · ${b.equip.length} equipment${g.player.ownerBiz === b.id ? ' · 👤 you run it' : b.spec.gm ? ' · GM runs it' : ' · ⚠️ unmanaged'}${lc.cap != null ? ` · ${lc.served != null ? Math.round(lc.served).toLocaleString() : 0}/${Math.round(lc.cap).toLocaleString()} capacity used` : ''}</div></div></div></div>`;
+    const lc = b.lastCtx || {}; const fl = b.flow && b.flow.rows ? b.flow.rows : [];
+    const bad = fl.filter((x) => x.c === 'r').length, warn = fl.filter((x) => x.c === 'y').length;
+    const tone = !h ? '' : h.profit < 0 || bad ? 'r' : warn > 2 ? 'y' : 'g';
+    const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
+    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(h.profit) : '<span class="mute">new</span>'}</span></div>
+      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you' : b.spec.gm ? ' · 👔 boss' : ' · ⚠️ no boss'}${lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}%` : ''}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };
   UI.A.goMoreTab = (t) => { UI.tab.more = t; UI.go('more'); };
