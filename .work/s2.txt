@@ -1,0 +1,45 @@
+@@@ FILE ../js/pricing.js
+<<<
+    if (s.perSqft) base += b.sqft * s.perSqft;
+    else if (d.svc && !d.svc.mobile) base = Math.max(base, b.sqft * d.svc.perSpace * 0.6);
+>>>
+    if (s.perSqft) base += b.sqft * s.perSqft;
+    else if (d.svc) {
+      // built-in storage (shelves, the truck's own fridge...) holds about 3/4 of what your machines can serve in a month
+      const pools = TG.E.pools(b); let eq = Infinity; for (const p of pools) eq = Math.min(eq, TG.E.capacity(b, p.pool));
+      if (!pools.length) eq = 0; const sp = d.svc.mobile ? Infinity : b.sqft * d.svc.perSpace;
+      base = Math.max(base, 0.75 * Math.min(eq, sp));
+    }
+===
+<<<
+    if (h) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.02, 1.1) : out === 'ok' ? R.range(0.93, 1.12) : (R.chance(0.5) ? R.range(0.72, 0.88) : R.range(1.25, 1.4)); }
+    else if (TG.B.owner(g, b)) { who = 'You'; mult = R.range(0.95, 1.1); }
+    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]) + 0.08; prem = S.staffReorderPremium; }
+>>>
+    const own = TG.B.owner(g, b);
+    if (h && !(own && h.role === 'ceo')) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.04, 1.1) : out === 'ok' ? R.range(0.98, 1.14) : (R.chance(0.5) ? R.range(0.75, 0.9) : R.range(1.25, 1.4)); }
+    else if (own) { who = 'You'; mult = R.range(1.0, 1.1); }
+    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]); prem = S.staffReorderPremium; }
+===
+@@@ FILE ../js/config-extras.js
+<<<
+  C.supply = { staffReorderPremium: 0.08, staffReorderCover: [0.75, 1.0], targetMonths: 1.05, badOver: 1.35, badUnder: 0.8, sellBack: 0.5 };
+>>>
+  C.supply = { staffReorderPremium: 0.06, staffReorderCover: [0.9, 1.08], sellBack: 0.5 };
+===
+@@@ FILE ../js/models.js
+<<<
+      if (sd) {
+        const base = TG.ST.cap({ type: b.type, sqft: b.sqft, equip: [] });
+        const sto = d.equip.filter((x) => x.store).sort((x, y) => x.price / x.store - y.price / y.store)[0];
+        const sup = d.equip.find((x) => x.support && x.store);
+        let room = base + (sup ? sup.store : 0);
+        if (sto && est * 1.05 > room) out.equip.push({ type: sto.id, count: Math.ceil((est * 1.05 - room) / sto.store) + (sup && sto.id === sup.id ? 1 : 0) });
+      }
+>>>
+      if (sd) {
+        const room = Math.max(sd.baseStore || 0, est * 0.75) + U.sum(d.equip.filter((x) => x.support && x.store), (x) => x.store);
+        const sto = TG.ST.bestStore(b);
+        if (sto && est * 1.08 > room) out.equip.push({ type: sto.id, count: Math.ceil((est * 1.08 - room) / sto.store) + (sto.support ? 1 : 0) });
+      }
+===

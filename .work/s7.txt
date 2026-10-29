@@ -1,0 +1,6 @@
+@@@ FILE ../test/bots.js
+<<<
+if (b.hist.length >= 12 && p12f > 0 && g.cash > 400000 && rnd() < 0.08) TG.M.farmBuyLand(g, b, 80, false);
+>>>
+if (b.hist.length >= 12 && p12f > 0 && rnd() < 0.08) { const est = 80 * (TG.M.farmLandPrice(g, b) + (b.farm.ent === 'orchard' ? TG.CONFIG.businesses.farm.farm.enterprises.orchard.establishPerAcre * g.world.priceIdx : 0)); if (g.cash > est + 300000) TG.M.farmBuyLand(g, b, 80, false); }
+===

@@ -81,6 +81,7 @@ module.exports = function makeBots(TG) {
       if (crit && g.cash > TG.E.price(g, b, crit.id, 'standard') * 3) TG.E.buy(g, b, crit.id, 'standard');
     }
     if (lc.limit === 'staff' && lc.demand > lc.cap * 1.15 && p3 > 0 && g.cash > 20000) { const kr = TG.M.keyRole(d); if (kr) hireBest(g, b, kr); }
+    if (b.stock && g.cash > 15000 && TG.ST.cap(b) < Math.min(lc.demand || 0, lc.cap || 0) * 1.1) TG.ST.addStorage(g, b, Math.min(lc.demand, lc.cap) * 1.1);
     if (lc.limit === 'support' && lc.demand > lc.cap * 1.1 && g.cash > 20000) { const sr = Object.keys(d.roles).find((r) => d.roles[r].support); if (sr) hireBest(g, b, sr); }
     if (b.ads.budget === 0 && p3 > 0 && b.rep < 60 && ['service', 'franchise'].includes(d.model)) b.ads.budget = Math.round(Math.min(3000, Math.max(300, (b.revAvg || 0) * 0.03)));
     // model specific
@@ -90,7 +91,7 @@ module.exports = function makeBots(TG) {
     if (b.proj) { const crew = TG.M.models.projects.crew(b, TG.B.ctx(g, b)); let need = U.sum(b.proj.active, (p) => p.crew); for (const o of b.proj.offers.slice()) { if (need + o.crew > crew * 1.3 || (o.bond && !b.fixes.bonds)) continue; const r = TG.M.bid(g, b, o.id, 'normal'); if (r.won) need += o.crew; } }
     if (b.fr) for (const a of b.fr.apps.slice()) { if (a.signal > 0.55 && g.cash > 50000) TG.M.franchiseApprove(g, b, a.id); else TG.M.franchiseReject(g, b, a.id); }
     if (b.farm && b.farm.sellPolicy !== 'auto') b.farm.sellPolicy = 'auto';
-    if (b.farm) { const p12f = U.sum(b.hist.slice(-12), (x) => x.profit); if (b.hist.length >= 12 && p12f > 0 && g.cash > 400000 && rnd() < 0.08) TG.M.farmBuyLand(g, b, 80, false); if (b.farm.ent === 'cattle') { const cap = TG.M.farmHerdCap({ acres: b.farm.acres, water: b.farm.water, soil: b.farm.soil }, TG.CONFIG.businesses.farm.farm.enterprises.cattle); if (b.farm.herd < cap * 0.7 && g.cash > 100000) TG.M.farmBuyCattle(g, b, Math.round(Math.min(cap * 0.8 - b.farm.herd, 50))); } }
+    if (b.farm) { const p12f = U.sum(b.hist.slice(-12), (x) => x.profit); if (b.hist.length >= 12 && p12f > 0 && rnd() < 0.08) { const est = 80 * (TG.M.farmLandPrice(g, b) + (b.farm.ent === 'orchard' ? TG.CONFIG.businesses.farm.farm.enterprises.orchard.establishPerAcre * g.world.priceIdx : 0)); if (g.cash > est + 300000) TG.M.farmBuyLand(g, b, 80, false); } if (b.farm.ent === 'cattle') { const cap = TG.M.farmHerdCap({ acres: b.farm.acres, water: b.farm.water, soil: b.farm.soil }, TG.CONFIG.businesses.farm.farm.enterprises.cattle); if (b.farm.herd < cap * 0.7 && g.cash > 100000) TG.M.farmBuyCattle(g, b, Math.round(Math.min(cap * 0.8 - b.farm.herd, 50))); } }
     if (b.factory) { const lines = TG.M.models.factory.lines(b).length; if (lc.util > 0.95 && p3 > 50000 && lines < TG.M.models.factory.maxLines(b) && g.cash > TG.E.price(g, b, 'line', 'standard') * 2.5) TG.E.buy(g, b, 'line', 'standard'); }
     if (b.tech && !b.tech.researched && g.cash > 80000) { const f = d.fixes.find((x) => x.id === 'research'); if (f) TG.B.buyFix(g, b, 'research'); }
     // keep a cash buffer: pay down the credit line
@@ -109,7 +110,7 @@ module.exports = function makeBots(TG) {
     if (rnd() < 0.2 && g.cash > 2000) TG.I.buy(g, pick(['MOON', 'HYPE', 'PNY', 'GROW']), Math.round(g.cash * 0.25), true);
     if (rnd() < 0.3 && g.cash > 5000) for (let i = 0; i < 5; i++) TG.I.casinoBet(g, pick(['red', 'num', 'slots', 'dice']), Math.min(TG.I.betLimit(g), Math.round(g.cash * 0.1)));
     b.ads.budget = Math.round(Math.max(b.ads.budget, (b.revAvg || 5000) * 0.15));
-    b.pace = 'rush'; b.price = pick(['low', 'premium']);
+    b.pace = 'rush'; if (TG.PR.hasPrice(b) && rnd() < 0.5) TG.PR.set(g, b, TG.PR.market(g, b) * pick([0.6, 1.4, 2.5]));
     if (b.brand) TG.M.brandOrder(g, b, 20000, false);
     if (b.proj) for (const o of b.proj.offers.slice()) TG.M.bid(g, b, o.id, 'low');
     if (b.fr) for (const a of b.fr.apps.slice()) TG.M.franchiseApprove(g, b, a.id);
@@ -136,7 +137,9 @@ module.exports = function makeBots(TG) {
       () => TG.B.buyFix(g, b, pick(d.fixes).id),
       () => { const f = pick(Object.keys(b.fixes)); if (f) TG.B.dropFix(g, b, f); },
       () => { b.ads.budget = pick([0, 500, 3000, 20000]); b.ads.channel = pick(Object.keys(TG.CONFIG.reputation.adChannels)); },
-      () => { b.price = pick(['low', 'normal', 'premium']); b.pace = pick(['careful', 'normal', 'rush']); },
+      () => { if (TG.PR.hasPrice(b)) TG.PR.set(g, b, rnd() < 0.3 ? null : TG.PR.market(g, b) * pick([0.3, 0.8, 0.95, 1.1, 1.5, 4])); b.pace = pick(['careful', 'normal', 'rush']); },
+      () => { if (b.stock) { if (rnd() < 0.5) TG.ST.buy(g, b, rnd() * 3000); else TG.ST.sell(g, b, rnd() * 500); b.stock.auto = rnd() < 0.8; } },
+      () => { if (b.farm) { if (rnd() < 0.5) TG.M.farmBuySeeds(g, b, rnd() * 300); else TG.M.farmSellCattle(g, b, rnd() * 30, pick(['ready', 'cows'])); b.farm.autoSeeds = rnd() < 0.8; } },
       () => TG.F.takeLoan(g, pick(['business', 'emergency']), Math.round(rnd() * 200000)),
       () => { const l = pick(g.loans); if (l) TG.F.prepay(g, l.id, rnd() * 50000); },
       () => TG.F.locDraw(g, rnd() * 50000), () => TG.F.locRepay(g, rnd() * 50000),

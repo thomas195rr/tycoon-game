@@ -33,11 +33,9 @@
       // storage: enough to hold about a month of supplies
       const sd = d.supply;
       if (sd) {
-        const base = TG.ST.cap({ type: b.type, sqft: b.sqft, equip: [] });
-        const sto = d.equip.filter((x) => x.store).sort((x, y) => x.price / x.store - y.price / y.store)[0];
-        const sup = d.equip.find((x) => x.support && x.store);
-        let room = base + (sup ? sup.store : 0);
-        if (sto && est * 1.05 > room) out.equip.push({ type: sto.id, count: Math.ceil((est * 1.05 - room) / sto.store) + (sup && sto.id === sup.id ? 1 : 0) });
+        const room = Math.max(sd.baseStore || 0, est * 0.75) + U.sum(d.equip.filter((x) => x.support && x.store), (x) => x.store);
+        const sto = TG.ST.bestStore(b);
+        if (sto && est * 1.08 > room) out.equip.push({ type: sto.id, count: Math.ceil((est * 1.08 - room) / sto.store) + (sto.support ? 1 : 0) });
       }
       for (const r in d.roles) {
         const rd = d.roles[r];
@@ -306,7 +304,8 @@
         // seed: whoever runs the farm buys it ahead of planting (staff pay a premium); you can buy it yourself too
         const plantSoon = e.plant.indexOf(moy) >= 0 || e.plant.indexOf(U.moy(g.month + 1)) >= 0;
         if (plantSoon && f.autoSeeds) {
-          const left = e.plant.filter((m) => m >= moy).length || e.plant.length; const need = f.acres / e.plant.length * left - f.seeds;
+          const left = e.plant.filter((m) => m >= moy).length || e.plant.length; const pcv = Math.min(cov.pcov, Math.pow(cov.hcov, 0.5));
+          const need = f.acres / e.plant.length * left * pcv - f.seeds;
           if (need > 0.5) { const h = TG.D.handler(g, b, 'farm'); const prem = h || ctx.own ? 0 : C.supply.staffReorderPremium; this.buySeeds(g, b, need, prem); }
         }
         if (e.plant.indexOf(moy) >= 0) {
@@ -378,7 +377,9 @@
       for (const c of f.young) if (c.age >= e.matureAge) matured += c.n;
       f.young = f.young.filter((c) => c.age < e.matureAge && c.n > 0.01);
       M.herdSync(f);
-      const keep = Math.max(0, Math.min(matured * e.replaceShare * (f.ent === 'dairy' ? 2.5 : 1), cap - f.herd + matured));
+      // keep enough heifers to replace old cows, more (up to half) while there is free pasture
+      const base = matured * e.replaceShare * (f.ent === 'dairy' ? 2.5 : 1);
+      const keep = Math.min(matured, Math.max(base, Math.min(matured * 0.5, cap * 0.95 - f.herd)));
       f.cows += keep; f.ready += matured - keep; m.matured = matured; m.kept = keep;
       // old cows retire (culled and sold for meat at a discount)
       const culls = f.cows / Math.max(12, e.lifespan - 24); f.cows -= culls; m.culled = culls;
@@ -506,12 +507,14 @@
     return { ok: true, qty, price };
   };
   M.farmBuyCattle = (g, b, head) => {
-    const e = M.models.farm.e(b); head = Math.round(head); if (!(head > 0)) return { ok: false, msg: 'Pick how many.' };
-    const cost = Math.round(head * e.stockCost * g.world.priceIdx);
+    head = Math.round(head); if (!(head > 0)) return { ok: false, msg: 'Pick how many.' };
+    const cost = Math.round(head * M.cowPrice(g, b));
     if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Livestock purchases', b.id, true);
     if (b.farm.cows == null) M.herdInit(b.farm, b.farm.herd || 0);
     b.farm.cows += head; M.herdSync(b.farm); return { ok: true, cost };
   };
+  // a bred cow costs more than a market steer (you pay for her future calves); dairy cows cost more again
+  M.cowPrice = (g, b) => TG.W.price(g, 'beef', 0) * (b.farm.ent === 'dairy' ? 1.35 : 1.15);
   // sell animals now at market: the ready pool, or breeding cows (at a discount)
   M.farmSellCattle = (g, b, head, which) => {
     const f = b.farm; if (f.cows == null) M.herdInit(f, f.herd || 0);
@@ -530,7 +533,7 @@
     const pr = prop || { acres: b.farm.acres, water: b.farm.water, soil: b.farm.soil };
     const cowsFor = (en) => Math.round(M.farmHerdCap(pr, fd.enterprises[en]) * 0.4 / 2.07);
     if (ent === 'orchard') cost = b.farm.acres * fd.enterprises.orchard.establishPerAcre * g.world.priceIdx;
-    if (ent === 'cattle' || ent === 'dairy') cost = cowsFor(ent) * fd.enterprises[ent].stockCost * g.world.priceIdx;
+    if (ent === 'cattle' || ent === 'dairy') cost = cowsFor(ent) * TG.W.price(g, 'beef', 0) * (ent === 'dairy' ? 1.35 : 1.15);
     cost = Math.round(cost);
     if (g.cash < cost) return { ok: false, msg: `Switching costs ${U.money(cost)}.` };
     TG.F.spend(g, cost, 'Farm conversion', b.id, true);

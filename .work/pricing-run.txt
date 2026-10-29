@@ -1,0 +1,30 @@
+cafe          auto:501k  0.6x:70k  0.85x:343k  1x:499k  1.15x:504k  1.4x:126k  2x:6k  4x:6k  best 1.15x
+foodtruck     auto:391k  0.6x:6k  0.85x:289k  1x:390k  1.15x:339k  1.4x:6k  2x:6k  4x:6k  best 1x
+bakery        auto:435k  0.6x:6k  0.85x:228k  1x:434k  1.15x:432k  1.4x:6k  2x:6k  4x:6k  best 1x
+salon         auto:531k  0.6x:153k  0.85x:381k  1x:530k  1.15x:616k  1.4x:6k  2x:6k  4x:6k  best 1.15x
+carwash       auto:664k  0.6x:478k  0.85x:599k  1x:662k  1.15x:518k  1.4x:82k  2x:19k  4x:17k  best 1x
+lawn          auto:588k  0.6x:6k  0.85x:454k  1x:559k  1.15x:416k  1.4x:6k  2x:6k  4x:6k  best 1x
+auto          auto:511k  0.6x:30k  0.85x:279k  1x:545k  1.15x:608k  1.4x:394k  2x:6k  4x:6k  best 1.15x
+gym           auto:471k  0.6x:178k  0.85x:357k  1x:468k  1.15x:430k  1.4x:60k  2x:6k  4x:6k  best 1x
+farm          auto:661k  0.6x:551k  0.85x:563k  1x:660k  1.15x:623k  1.4x:541k  2x:327k  4x:325k  best 1x
+freight       auto:718k  0.6x:490k  0.85x:627k  1x:716k  1.15x:773k  1.4x:529k  2x:403k  4x:401k  best 1.15x
+brand         auto:728k  0.6x:444k  0.85x:628k  1x:727k  1.15x:588k  1.4x:370k  2x:304k  4x:304k  best 1x
+hotel         auto:4831k  0.6x:4148k  0.85x:4761k  1x:4810k  1.15x:4260k  1.4x:2907k  2x:2347k  4x:2343k  best 1x
+law           auto:6216k  0.6x:4199k  0.85x:6074k  1x:6214k  1.15x:4837k  1.4x:1695k  2x:1986k  4x:3241k  best 1x
+clinic        auto:5041k  0.6x:2383k  0.85x:3979k  1x:5050k  1.15x:5576k  1.4x:3250k  2x:311k  4x:241k  best 1.15x
+factory       auto:5476k  0.6x:233k  0.85x:3602k  1x:5186k  1.15x:7257k  1.4x:4678k  2x:1102k  4x:1069k  best 1.15x
+tech          auto:3423k  0.6x:3458k  0.85x:3517k  1x:3425k  1.15x:3017k  1.4x:2548k  2x:2278k  4x:2250k  best 0.85x
+--- upgrade spam vs normal careful play (median NW) ---
+cafe          normal 501k  all-upgrades 498k  (-0.5%)
+foodtruck     normal 391k  all-upgrades 422k  (+7.9%)
+bakery        normal 435k  all-upgrades 452k  (+3.9%)
+salon         normal 531k  all-upgrades 572k  (+7.6%)
+carwash       normal 664k  all-upgrades 728k  (+9.8%)
+lawn          normal 588k  all-upgrades 584k  (-0.7%)
+auto          normal 511k  all-upgrades 504k  (-1.4%)
+gym           normal 471k  all-upgrades 386k  (-18.0%)
+hotel         normal 4831k  all-upgrades 5022k  (+3.9%)
+clinic        normal 5041k  all-upgrades 4598k  (-8.8%)
+brand         normal 728k  all-upgrades 679k  (-6.6%)
+factory       normal 5476k  all-upgrades 5916k  (+8.0%)
+ALL PRICING/EQUIPMENT CHECKS PASSED

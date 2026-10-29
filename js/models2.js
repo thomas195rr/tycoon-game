@@ -109,6 +109,8 @@
       const bulk = b.fixes.bulk && b.fixes.bulk.until > g.month;
       if (b.fixes.bulk && !bulk) { delete b.fixes.bulk; TG.rep.event(g, b, 'info', 'Bulk supplier contract ended', 'Contract term over'); }
       // raw materials: ordered into the raw-material store, then used by the lines
+      // managers slow the lines when finished stock piles up (workers still get paid)
+      if (f.stock > prod * fd.maxStockMonths) { const cut = U.clamp(1 - (f.stock - prod * fd.maxStockMonths) / Math.max(1, prod * 2), 0.25, 1); prod *= cut; }
       TG.ST.ensure(b); TG.ST.restock(g, b, prod);
       const want = prod; prod = TG.ST.use(b, prod);
       if (fo.materialAdd) TG.F.spend(g, Math.round(prod * fd.materialCost * g.world.priceIdx * fo.materialAdd), 'Raw materials', b.id);
@@ -142,7 +144,7 @@
       else if (workerUnits < lineCap * 0.9) ctx.note = `Short on line workers: running at ${U.pct(prod / lineCap)}`;
       if (pNow < floor) ctx.note = (ctx.note ? ctx.note + '. ' : '') + 'Market price is below cost-plus: oversupply';
     },
-    inventoryValue(g, b) { return Math.round(b.factory.stock * TG.CONFIG.businesses.factory.factory.materialCost * g.world.priceIdx * 1.3); },
+    inventoryValue(g, b) { return Math.round(b.factory.stock * Math.min(TG.CONFIG.businesses.factory.factory.materialCost * g.world.priceIdx * 1.3, TG.W.price(g, 'goods', b.factory.stock * 6) * 0.6)); },
     extraRisks(g, b, ctx) {
       if (b.staff.length < TG.CONFIG.staff.strikeMinStaff) return [];
       const m = U.avg(b.staff, (e) => e.morale, 60);

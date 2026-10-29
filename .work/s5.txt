@@ -1,0 +1,32 @@
+@@@ FILE ../js/models.js
+<<<
+    const e = M.models.farm.e(b); head = Math.round(head); if (!(head > 0)) return { ok: false, msg: 'Pick how many.' };
+    const cost = Math.round(head * e.stockCost * g.world.priceIdx);
+>>>
+    head = Math.round(head); if (!(head > 0)) return { ok: false, msg: 'Pick how many.' };
+    const cost = Math.round(head * M.cowPrice(g, b));
+===
+<<<
+  // sell animals now at market: the ready pool, or breeding cows (at a discount)
+>>>
+  // a bred cow costs more than a market steer (you pay for her future calves); dairy cows cost more again
+  M.cowPrice = (g, b) => TG.W.price(g, 'beef', 0) * (b.farm.ent === 'dairy' ? 1.35 : 1.15);
+  // sell animals now at market: the ready pool, or breeding cows (at a discount)
+===
+<<<
+    if (ent === 'cattle' || ent === 'dairy') cost = cowsFor(ent) * fd.enterprises[ent].stockCost * g.world.priceIdx;
+>>>
+    if (ent === 'cattle' || ent === 'dairy') cost = cowsFor(ent) * TG.W.price(g, 'beef', 0) * (ent === 'dairy' ? 1.35 : 1.15);
+===
+<<<
+          const left = e.plant.filter((m) => m >= moy).length || e.plant.length; const need = f.acres / e.plant.length * left - f.seeds;
+>>>
+          const left = e.plant.filter((m) => m >= moy).length || e.plant.length; const pcv = Math.min(cov.pcov, Math.pow(cov.hcov, 0.5));
+          const need = f.acres / e.plant.length * left * pcv - f.seeds;
+===
+@@@ FILE ../js/config-extras.js
+<<<
+    matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.12, barnFeed: 1.6,
+>>>
+    matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.18, barnFeed: 1.6,
+===

@@ -15,7 +15,7 @@
     if (type === 'farm' && opts) {
       const ent = d.farm.enterprises[opts.ent || 'crops'];
       if (opts.ent === 'orchard' && !prop.orchard) c += ent.establishPerAcre * prop.acres * g.world.priceIdx;
-      if (opts.ent === 'cattle') c += Math.round(TG.M.farmHerdCap(prop, ent) * 0.5) * ent.stockCost * g.world.priceIdx;
+      if (opts.ent === 'cattle' || opts.ent === 'dairy') c += Math.round(TG.M.farmHerdCap(prop, ent) * 0.5) * TG.W.price(g, 'beef', 0) * (opts.ent === 'dairy' ? 0.95 : 0.8);
     }
     return Math.round(c);
   };

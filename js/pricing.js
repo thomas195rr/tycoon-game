@@ -62,7 +62,7 @@
     if (s.unitCostFrom === 'materialCost') c = d.factory.materialCost;
     else c = d.svc.cogs * d.svc.ticket;
     if (g.world.shortage[d.cat]) c *= 1.15;
-    if (d.svc && TG.B.owner(g, b) && d.tier === 'small') c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
+    if (d.svc && TG.B.owner(g, b)) c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
     if (d.factory && b.fixes && b.fixes.bulk && b.fixes.bulk.until > g.month) c *= 0.85;
     return c * g.world.priceIdx;
   };
@@ -71,7 +71,12 @@
     const d = TG.CONFIG.businesses[b.type];
     let base = s.baseStore || 0;
     if (s.perSqft) base += b.sqft * s.perSqft;
-    else if (d.svc && !d.svc.mobile) base = Math.max(base, b.sqft * d.svc.perSpace * 0.6);
+    else if (d.svc) {
+      // built-in storage (shelves, the truck's own fridge...) holds about 3/4 of what your machines can serve in a month
+      const pools = TG.E.pools(b); let eq = Infinity; for (const p of pools) eq = Math.min(eq, TG.E.capacity(b, p.pool));
+      if (!pools.length) eq = 0; const sp = d.svc.mobile ? Infinity : b.sqft * d.svc.perSpace;
+      base = Math.max(base, 0.75 * Math.min(eq, sp));
+    }
     let add = 0;
     for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.store && !it.broken) add += ed.store; }
     return Math.round(base + add);
@@ -104,9 +109,10 @@
     const S = TG.CONFIG.supply;
     let who = null, mult, prem = 0, out = 'ok';
     const h = TG.D.handler(g, b, 'stock');
-    if (h) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.02, 1.1) : out === 'ok' ? R.range(0.93, 1.12) : (R.chance(0.5) ? R.range(0.72, 0.88) : R.range(1.25, 1.4)); }
-    else if (TG.B.owner(g, b)) { who = 'You'; mult = R.range(0.95, 1.1); }
-    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]) + 0.08; prem = S.staffReorderPremium; }
+    const own = TG.B.owner(g, b);
+    if (h && !(own && h.role === 'ceo')) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.04, 1.1) : out === 'ok' ? R.range(0.98, 1.14) : (R.chance(0.5) ? R.range(0.75, 0.9) : R.range(1.25, 1.4)); }
+    else if (own) { who = 'You'; mult = R.range(1.0, 1.1); }
+    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]); prem = S.staffReorderPremium; }
     const want = Math.max(0, need * mult - st.qty);
     const got = ST.buy(g, b, want, prem);
     st.lastBy = who; st.lastOut = out;
@@ -117,6 +123,14 @@
   ST.use = (b, n) => { const st = b.stock; if (!st) return n; const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; return u; };
   ST.spoil = (b) => { const st = b.stock, s = ST.def(b); if (!st || !s) return 0; const x = st.qty * s.spoil; st.qty -= x; st.spoilM = x; return x; };
   ST.value = (g, b) => (b.stock ? b.stock.qty * ST.unitCost(g, b) * 0.8 : 0);
+  // cheapest storage item per unit of space
+  ST.bestStore = (b) => TG.CONFIG.businesses[b.type].equip.filter((x) => x.store).sort((x, y) => x.price / x.store - y.price / y.store)[0] || null;
+  // buy enough storage to hold `need` units; returns count bought
+  ST.addStorage = (g, b, need, tier) => {
+    const it = ST.bestStore(b); if (!it) return 0; let n = 0;
+    while (ST.cap(b) < need && n < 20) { const x = TG.E.buy(g, b, it.id, tier || 'standard'); if (!x) break; n++; }
+    return n;
+  };
   TG.ST = ST;
 
   // ================= FLOW (this month / next month) =================

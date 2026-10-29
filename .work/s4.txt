@@ -1,0 +1,7 @@
+@@@ FILE ../test/bots.js
+<<<
+    if (lc.limit === 'staff' && lc.demand > lc.cap * 1.15 && p3 > 0 && g.cash > 20000) { const kr = TG.M.keyRole(d); if (kr) hireBest(g, b, kr); }
+>>>
+    if (lc.limit === 'staff' && lc.demand > lc.cap * 1.15 && p3 > 0 && g.cash > 20000) { const kr = TG.M.keyRole(d); if (kr) hireBest(g, b, kr); }
+    if (b.stock && g.cash > 15000 && TG.ST.cap(b) < Math.min(lc.demand || 0, lc.cap || 0) * 1.1) TG.ST.addStorage(g, b, Math.min(lc.demand, lc.cap) * 1.1);
+===

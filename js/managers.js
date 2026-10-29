@@ -254,6 +254,12 @@
         }
       }
     }
+    // 5b) stock kept running out: add storage (cheapest per unit)
+    h = D.handler(g, b, 'stock');
+    if (h && b.stock && lc.limit === 'stock' && b.hist.length >= 2) {
+      const need = (lc.served || 0) * 1.25; const before = TG.ST.cap(b);
+      if (before < need && g.cash > 20000) { const n = TG.ST.addStorage(g, b, need); if (n) TG.rep.decision(g, b, h.label, `Added ${n} storage (${before.toLocaleString()} → ${TG.ST.cap(b).toLocaleString()}) because stock kept running out`, 'good'); }
+    }
     // 6) CEO big moves (optional setting): buy the most useful upgrade when cash is plentiful
     if (g.ceo && g.settings.ceoBigMoves && profit3 > 0 && R.chance(0.25)) {
       const d = TG.CONFIG.businesses[b.type];

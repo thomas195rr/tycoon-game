@@ -13,12 +13,12 @@
   // ---------------- PRICING ----------------
   C.pricing = {
     minRatio: 0.3, maxRatio: 4,          // allowed price range vs market
-    elasticUp: 2.8,                      // demand falls fast above market (revenue falls too)
+    elasticUp: 3.4,                      // demand falls fast above market (revenue falls too)
     elasticDown: 1.15,                   // demand rises slowly below market
     maxBoost: 1.5,                       // most extra demand from cutting price
-    collapseAt: 1.4, collapseK: 4,       // beyond 40% over market buyers walk away
+    collapseAt: 1.25, collapseK: 5,      // beyond 25% over market buyers walk away
     commodityUp: 4.5,                    // commodity buyers (crops, cattle, goods) have many other sellers
-    fairUp: 45, fairFreeBand: 0.1,       // reputation target lost per 100% over market (beyond a 10% band)
+    fairUp: 70, fairFreeBand: 0.08,      // reputation target lost per 100% over market (beyond an 8% band)
     fairDown: 12, fairDownMax: 4,        // small goodwill from being cheap
     techChurnPerOver: 0.035,             // tech: extra monthly churn per 100% over market
   };
@@ -169,7 +169,7 @@
   ]);
   SET('factory', { line: { cat: 'lines', pool: 'line' }, forklift: 'handling' }, [
     { id: 'rawsilo', label: 'Raw material silo', cat: 'storage', price: 150000, store: 20000, upkeep: 300, brk: 0.004, life: 240, desc: '+20,000 stock' },
-    { id: 'robotarm', label: 'Robotic arm cell', cat: 'handling', price: 400000, staffBoost: 0.12, upkeep: 3000, brk: 0.012, life: 120, desc: 'Workers +12%' },
+    { id: 'robotarm', label: 'Robotic arm cell', cat: 'handling', price: 850000, staffBoost: 0.1, upkeep: 9000, brk: 0.014, life: 120, desc: 'Workers +10%' },
   ]);
   SET('tech', { server: { cat: 'servers', pool: 'server' } }, [
     { id: 'cdn', label: 'CDN & caching', cat: 'servers', pool: 'server', price: 25000, cap: 30000, upkeep: 1500, brk: 0.01, life: 60, desc: '+30,000 users' },
@@ -190,7 +190,7 @@
   };
   for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1 };
   BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost' };
-  C.supply = { staffReorderPremium: 0.08, staffReorderCover: [0.75, 1.0], targetMonths: 1.05, badOver: 1.35, badUnder: 0.8, sellBack: 0.5 };
+  C.supply = { staffReorderPremium: 0.06, staffReorderCover: [0.9, 1.08], sellBack: 0.5 };
   // make-ahead: bakeries and food trucks prepare before customers arrive; unsold goods are waste
   BZ.bakery.svc.makeAhead = 1.1; BZ.foodtruck.svc.makeAhead = 1.06;
   BZ.gym.svc.churn = 0.045;  // members leaving per month (gym flow)
@@ -200,12 +200,12 @@
   const FD = BZ.farm.farm;
   Object.assign(FD.enterprises.crops, { seedPerAcre: 110, inputPerAcre: 150, seedTonsPerAcre: 0.08 });
   Object.assign(FD.enterprises.cattle, {
-    matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.12, barnFeed: 1.6,
+    matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.18, barnFeed: 1.6,
   });
   FD.enterprises.dairy = Object.assign({}, FD.enterprises.cattle, { label: 'Dairy cows', market: 'milk', milkPerCow: 0.75, feed: 190, headPerHand: 60, lifespan: 72, stockCost: 1800, saleRate: 0, best: 'grassland', parlorNeeded: true });
   FD.baseStoreTons = 60; FD.storePerAcre = 0.12;
   BZ.farm.equipCatsLabel = {};
-  C.markets.beef.base = 2550;
+  C.markets.beef.base = 2700;
 
   // ---------------- ICONS (UI) ----------------
   C.icons = {
