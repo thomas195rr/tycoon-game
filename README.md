@@ -7,7 +7,7 @@ A turn-based, mobile-first business tycoon game that runs in the browser with no
 - **From source:** open `index.html` (works from `file://`; all scripts are classic scripts, no modules).
 - Rebuild the single file after editing: `node tools/build.js`.
 
-- **Play online / add to home screen:** https://thomas195rr.github.io/tycoon-game/ — on iPhone use Share > Add to Home Screen; on Android/Chrome use Install app.
+- **Play online / add to home screen:** serve this folder over https (planned: GitHub Pages at https://thomas195rr.github.io/tycoon-game/). On iPhone use Share > Add to Home Screen; on Android/Chrome use Install app.
 
 Progress autosaves after every month and every tap, and again when the app is hidden or closed (`visibilitychange` / `pagehide`). Each save goes to `localStorage` and to an IndexedDB copy; on start the newest of the two is loaded. The header shows **💾 Saved ✓ time**. If the browser blocks storage (some sandboxes or embeds), a red banner offers **Export save**: use **More > Settings > Export save code** and **Import** to keep progress.
 
