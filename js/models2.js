@@ -18,7 +18,7 @@
         let units = inc.units;
         const pIssue = br.factoryIssue * (b.fixes.inspect ? 0.3 : 1);
         if (R.chance(pIssue)) { const x = R.range(br.defect[0], br.defect[1]); const lost = Math.round(units * x); units -= lost; TG.rep.event(g, b, 'bad', `Factory quality issue: ${lost.toLocaleString()} of ${inc.units.toLocaleString()} items unsellable`, `${U.pct(pIssue)} chance per batch${b.fixes.inspect ? ' (inspections cut it)' : '; no factory inspections'}`); }
-        s.stock += units; s.stockCost += inc.cost;
+        s.stock += units; s.stockCost += inc.cost; s.arrivedM = (s.arrivedM || 0) + units;
         TG.rep.event(g, b, 'info', `Batch of ${units.toLocaleString()} items arrived`, `Ordered ${br.leadMonths} months ago`);
       }
       const share = TG.W.share(g, 'apparel');
@@ -29,21 +29,36 @@
       if (flop) TG.rep.event(g, b, 'bad', 'Ad spend burned with almost no sales', `${C.reputation.adChannels[b.ads.channel].label} campaigns flop ${U.pct(C.reputation.adChannels[b.ads.channel].flop)} of the time${adMgr ? '' : '; no experienced ads manager'}`);
       const qualF = 0.8 + 0.4 * ctx.quality / 100;
       const dm = B().demandMult(g, b, ctx, { noAds: true });
-      let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5);
+      const r = TG.PR.ratio(g, b);
+      let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5) * TG.PR.demandF(r);
       if (R.chance(br.viral * (0.5 + b.rep / 100))) { const x = R.range(br.viralMult[0], br.viralMult[1]); orders *= x; TG.rep.event(g, b, 'good', `Went viral! Orders x${x.toFixed(1)} this month`, 'Rare viral moment'); }
       let packCap = U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) * (fo.packerMult || 1) + (ctx.own ? 900 : 0);
       if (b.equip.some((x) => x.type === 'shelving' && !x.broken)) packCap *= 1.15;
+      packCap *= 1 + TG.E.boost(b, 'staffBoost');
       packCap *= M.paceMult(b) * (1 - ctx.down);
       const sold = Math.max(0, Math.floor(Math.min(orders, s.stock, packCap)));
       const lost = Math.max(0, orders - sold);
       if (lost > 200 && lost > orders * 0.25) TG.rep.event(g, b, 'bad', `Missed ${Math.round(lost).toLocaleString()} orders`, sold >= s.stock - 1 ? 'Stock ran out' : `Fulfilment capacity ${Math.round(packCap)} orders`);
       const avgCost = s.stock > 0 ? s.stockCost / s.stock : 0;
-      const price = TG.W.price(g, 'apparel', sold * 6) * M.priceMult(b);
+      const price = b.ask != null ? TG.PR.ask(g, b) : TG.W.price(g, 'apparel', sold * 6);
       TG.F.earn(g, Math.round(sold * price), 'Online sales', b.id); TG.W.sell(g, 'apparel', sold);
       TG.F.book(g, Math.round(sold * avgCost), 'Cost of goods sold', b.id);
       s.stockCost -= sold * avgCost; s.stock -= sold;
       TG.F.spend(g, Math.round(sold * br.shipPerUnit * g.world.priceIdx), 'Shipping', b.id);
-      const room = b.sqft * br.unitsPerSqft;
+      const room = M.brandRoom(b);
+      // out-of-season fade
+      const faded = Math.floor(s.stock * br.fade); const fadeCost = s.stock > 0 ? s.stockCost * faded / s.stock : 0;
+      if (faded > 0) { s.stock -= faded; s.stockCost -= fadeCost; TG.F.book(g, Math.round(fadeCost), 'Out-of-season stock', b.id); }
+      const FL = TG.FL; FL.start(b); const arrived = s.arrivedM || 0; s.arrivedM = 0;
+      FL.row(b, '📥', 'Arrived', arrived, 'items', arrived ? 'g' : '');
+      FL.row(b, '👕', 'Sold', sold, 'items', 'g', `at ${U.money(price)} each`);
+      if (lost > 0.5) FL.row(b, '🚪', 'Missed orders', lost, '', lost > orders * 0.2 ? 'r' : 'y', sold >= s.stock + sold - 1 ? 'Out of stock' : 'Packing capacity');
+      if (faded > 0) FL.row(b, '🍂', 'Went out of season', faded, 'items', faded > sold * 0.3 ? 'r' : 'y', `${U.pct(br.fade, 1)} of stock fades each month`);
+      FL.row(b, '📦', 'In stock', s.stock, '/' + Math.round(room), s.stock > room ? 'r' : s.stock < orders ? 'y' : 'g', s.stock > room ? 'Over storage: costs triple' : '');
+      const inc = U.sum(s.incoming.filter((x) => x.due === g.month + 1), (x) => x.units);
+      FL.next(b, '🧲', 'Orders expected', s.avgOrders == null ? orders : s.avgOrders * 0.7 + orders * 0.3, '', 'g');
+      if (inc) FL.next(b, '🚚', 'Arriving', inc, 'items', 'g');
+      FL.next(b, '🍂', 'Will fade', s.stock * br.fade, 'items', 'y');
       const storage = s.stock * br.storagePerUnit * (s.stock > room ? 3 : 1) * g.world.priceIdx;
       TG.F.spend(g, Math.round(storage), 'Storage', b.id);
       s.followers = Math.max(0, s.followers + sold * br.followerRate - s.followers * br.followerChurn);
@@ -56,6 +71,7 @@
     inventoryValue(g, b) { return Math.round(b.brand.stockCost * 0.8 + U.sum(b.brand.incoming, (x) => x.cost) * 0.9); },
     extraRisks(g, b) { const br = TG.CONFIG.businesses.brand.brand; return [{ label: 'Next batch has a factory quality issue', p: br.factoryIssue * (b.fixes.inspect ? 0.3 : 1), why: b.fixes.inspect ? 'factory inspections' : 'no factory inspections' }]; },
   };
+  M.brandRoom = (b) => b.sqft * TG.CONFIG.businesses.brand.brand.unitsPerSqft + TG.E.sumField(b, 'storeUnits');
   M.brandOrder = (g, b, units, test) => {
     const br = TG.CONFIG.businesses.brand.brand; units = Math.round(units);
     const min = test ? br.testBatch : br.minBatch;
@@ -82,36 +98,51 @@
     init(g, b) { b.factory = { stock: 0, policy: 'hold', premium: 0 }; },
     lines(b) { return b.equip.filter((x) => x.type === 'line'); },
     maxLines(b) { return Math.max(1, Math.floor(b.sqft / TG.CONFIG.businesses.factory.factory.sqftPerLine)); },
-    needs(g, b) { const n = Math.max(1, this.lines(b).length); const d = TG.CONFIG.businesses.factory; return { equip: [{ type: 'line', count: n }, { type: 'forklift', count: 1 }], staff: [{ role: 'worker', count: Math.ceil(n * d.equip[0].cap / d.roles.worker.cap * (1 - ((b.fixesOn && b.fixesOn.workerCut) || 0))) }] }; },
+    needs(g, b) { const n = Math.max(1, this.lines(b).length); const d = TG.CONFIG.businesses.factory; return { equip: [{ type: 'line', count: n }, { type: 'forklift', count: 1 }].concat(TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] }) < n * d.equip[0].cap * 1.05 ? [{ type: 'rawsilo', count: Math.ceil((n * d.equip[0].cap * 1.05 - TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] })) / 20000) }] : []), staff: [{ role: 'worker', count: Math.ceil(n * d.equip[0].cap / d.roles.worker.cap * (1 - ((b.fixesOn && b.fixesOn.workerCut) || 0))) }] }; },
     baseRev(g, b) { return Math.max(1, this.lines(b).length) * 12000 * TG.CONFIG.markets.goods.base * g.world.priceIdx; },
     month(g, b, ctx) {
       const C = TG.CONFIG, d = C.businesses.factory, fd = d.factory, f = b.factory, fo = b.fixesOn || {};
       const lineCap = TG.E.capacity(b, 'line');
       const wc = (fo.workerCut || 0);
-      const workerUnits = U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) / Math.max(0.2, 1 - wc);
+      const workerUnits = U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) / Math.max(0.2, 1 - wc) * (1 + TG.E.boost(b, 'staffBoost'));
       let prod = Math.max(0, Math.min(lineCap, workerUnits) * M.paceMult(b) * (1 - ctx.down));
       const bulk = b.fixes.bulk && b.fixes.bulk.until > g.month;
       if (b.fixes.bulk && !bulk) { delete b.fixes.bulk; TG.rep.event(g, b, 'info', 'Bulk supplier contract ended', 'Contract term over'); }
-      const matMult = 1 + (fo.materialAdd || 0) - (bulk ? 0.15 : 0);
-      const matCost = prod * fd.materialCost * g.world.priceIdx * matMult * (g.world.shortage.home ? 1.2 : 1);
-      if (g.cash < matCost && g.cash > 0) prod *= g.cash / matCost;
-      TG.F.spend(g, Math.round(prod * fd.materialCost * g.world.priceIdx * matMult * (g.world.shortage.home ? 1.2 : 1)), 'Raw materials', b.id);
+      // raw materials: ordered into the raw-material store, then used by the lines
+      TG.ST.ensure(b); TG.ST.restock(g, b, prod);
+      const want = prod; prod = TG.ST.use(b, prod);
+      if (fo.materialAdd) TG.F.spend(g, Math.round(prod * fd.materialCost * g.world.priceIdx * fo.materialAdd), 'Raw materials', b.id);
+      if (g.world.shortage.home) TG.F.spend(g, Math.round(prod * fd.materialCost * g.world.priceIdx * 0.05), 'Raw materials', b.id);
       f.stock += prod;
       if (fo.rnd && R.chance(fo.rnd)) { f.premium = Math.min(0.3, f.premium + 0.04); g.markets.goods.demand12 *= 1.02; TG.rep.event(g, b, 'good', 'R&D launched a new product line (+4% price premium)', '3% monthly chance with an R&D department'); }
       const pNow = TG.W.price(g, 'goods', f.stock * 6) * (1 + f.premium) * (0.9 + 0.2 * ctx.quality / 100);
       const floor = fd.materialCost * g.world.priceIdx * 1.5;
       let sell = f.stock;
-      if (f.policy === 'hold' && pNow < floor) sell = Math.max(0, f.stock - prod * fd.maxStockMonths);
+      if (f.policy === 'hold' && pNow < floor && b.ask == null) sell = Math.max(0, f.stock - prod * fd.maxStockMonths);
       sell = Math.min(sell, f.stock);
-      if (sell > 0) { TG.F.earn(g, Math.round(sell * pNow), 'Product sales', b.id); TG.W.sell(g, 'goods', sell); f.stock -= sell; }
+      const r = b.ask != null ? U.clamp(b.ask / Math.max(0.01, pNow), 0.3, 4) : 1;
+      const offered = sell; sell = Math.floor(sell * TG.PR.sellF(r));
+      const price = b.ask != null ? b.ask : pNow;
+      if (sell > 0) { TG.F.earn(g, Math.round(sell * price), 'Product sales', b.id); TG.W.sell(g, 'goods', sell); f.stock -= sell; }
       TG.F.spend(g, Math.round(f.stock * fd.storagePerUnit * g.world.priceIdx), 'Storage', b.id);
+      const spoiledRaw = TG.ST.spoil(b);
+      ctx.priceR = r;
+      const FL = TG.FL; FL.start(b);
+      FL.row(b, '📥', 'Raw materials in', b.stock.inM, 'units', 'g', 'Ordered by ' + (b.stock.lastBy || 'nobody'));
+      FL.row(b, '🏭', 'Made', prod, 'units', prod < want * 0.95 ? 'y' : 'g', prod < want * 0.95 ? 'Not enough raw materials' : '');
+      FL.row(b, '🛒', 'Sold', sell, 'units', 'g', `at ${U.money(price)} each`);
+      if (offered - sell > 0.5) FL.row(b, '🚫', 'Buyers said no', offered - sell, 'units', 'r', 'Your price is over market');
+      FL.row(b, '📦', 'Finished stock', f.stock, 'units', f.stock > prod * 3 ? 'y' : 'g', `Storage ${U.money(fd.storagePerUnit * g.world.priceIdx)}/unit/mo`);
+      FL.row(b, '🪨', 'Raw left', b.stock.qty, '/' + TG.ST.cap(b), 'g');
+      FL.next(b, '🏭', 'Can make', Math.min(lineCap, workerUnits), 'units', 'g');
+      FL.next(b, '🏷️', 'Market price', pNow, '$', pNow < floor ? 'r' : 'g', pNow < floor ? 'Below cost-plus: oversupply' : '');
       ctx.cap = Math.round(lineCap); ctx.served = Math.round(prod); ctx.demand = Math.round(lineCap);
       ctx.util = lineCap > 0 ? prod / lineCap : 0; ctx.busy = U.clamp(workerUnits > 0 ? lineCap / workerUnits : 1.3, 0, 1.3);
       if (lineCap === 0) ctx.note = 'All production lines are down';
       else if (workerUnits < lineCap * 0.9) ctx.note = `Short on line workers: running at ${U.pct(prod / lineCap)}`;
       if (pNow < floor) ctx.note = (ctx.note ? ctx.note + '. ' : '') + 'Market price is below cost-plus: oversupply';
     },
-    inventoryValue(g, b) { return Math.round(b.factory.stock * TG.CONFIG.businesses.factory.factory.materialCost * g.world.priceIdx); },
+    inventoryValue(g, b) { return Math.round(b.factory.stock * TG.CONFIG.businesses.factory.factory.materialCost * g.world.priceIdx * 1.3); },
     extraRisks(g, b, ctx) {
       if (b.staff.length < TG.CONFIG.staff.strikeMinStaff) return [];
       const m = U.avg(b.staff, (e) => e.morale, 60);
@@ -209,7 +240,7 @@
     baseRev(g, b) { return Math.max(40000, b.tech.users * TG.CONFIG.businesses.tech.tech.arpu * g.world.priceIdx); },
     month(g, b, ctx) {
       const C = TG.CONFIG, T = C.businesses.tech.tech, t = b.tech;
-      const engEff = U.sum(ctx.key, (e) => 0.5 + e.skill / 100) + (ctx.own ? 0.4 : 0);
+      const engEff = (U.sum(ctx.key, (e) => 0.5 + e.skill / 100) + (ctx.own ? 0.4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
       if (t.phase === 'build') {
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
@@ -224,19 +255,26 @@
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
       let organic = t.users * T.organic * t.pmf * 2 * (b.rep / 50) + 150 * t.pmf;
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
-      let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * (g.world.trends.tech || 1) * (1 - share) * (TG.CONFIG.reputation.priceDemand[b.price] || 1);
+      let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * (g.world.trends.tech || 1) * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
       const serverCap = TG.E.capacity(b, 'server');
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
-      const churnRate = Math.max(0.01, T.churnBase - 0.07 * t.pmf + (1 - engCov) * 0.05 + (b.price === 'premium' ? 0.02 : b.price === 'low' ? -0.01 : 0));
+      const churnRate = Math.max(0.01, T.churnBase - 0.07 * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
+      const prevU = t.users;
       const churn = t.users * churnRate;
       t.users = Math.max(0, Math.round(t.users + newU - churn));
       t.peak = Math.max(t.peak, t.users);
       g.markets.software.cur = (g.markets.software.cur || 0) + t.users / 12;
-      const rev = t.users * T.arpu * M.priceMult(b) * g.world.priceIdx;
+      const rev = t.users * TG.PR.ask(g, b);
+      const FL = TG.FL; FL.start(b);
+      FL.row(b, '🙋', 'New users', newU, '', 'g'); FL.row(b, '👋', 'Users lost', churn, '', churn > newU ? 'r' : 'y', `${U.pct(churnRate, 1)} leave each month`);
+      FL.row(b, '📱', 'Users now', t.users, '/' + Math.round(serverCap), overload ? 'r' : 'g', overload ? 'Servers overloaded: outages' : '');
+      FL.row(b, '💵', 'Price', TG.PR.ask(g, b), '$/user', TG.PR.tone(TG.PR.ratio(g, b)));
+      FL.next(b, '📱', 'Users expected', Math.max(0, t.users + newU - t.users * churnRate), '', 'g');
+      FL.next(b, '👋', 'Will leave', t.users * churnRate, '', 'y');
       TG.F.earn(g, Math.round(rev), 'Subscriptions', b.id);
       TG.F.spend(g, Math.round(t.users * T.serverCostPerUser * g.world.priceIdx), 'Hosting', b.id);
       ctx.cap = Math.round(serverCap); ctx.demand = Math.round(t.users); ctx.served = Math.round(newU);

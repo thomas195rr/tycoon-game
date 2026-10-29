@@ -1,0 +1,130 @@
+/* pricing.js - v2: live market prices with player-set sale prices (TG.P) and supplies/stock (TG.ST).
+   Price effects are deliberately steep above market so a huge price is never the winning move. */
+(function () {
+  const TG = globalThis.TG; const R = TG.R, U = TG.U;
+  const P = {};
+  const cfg = () => TG.CONFIG.pricing;
+  // the good a business sells (farm depends on enterprise)
+  P.good = (b) => {
+    const d = TG.CONFIG.businesses[b.type];
+    if (b.farm) return TG.CONFIG.farmGoods[b.farm.ent] || TG.CONFIG.farmGoods.crops;
+    return d.good || null;
+  };
+  // market price per unit right now (moves with economy, trends, competitors and everyone's supply incl. yours)
+  P.market = (g, b) => {
+    const gd = P.good(b); if (!gd || !g.markets[gd.market]) return 0;
+    let p = TG.W.price(g, gd.market, 0);
+    if (gd.base) p = p / TG.CONFIG.markets[gd.market].base * gd.base; // e.g. tech ARPU vs software index
+    return p;
+  };
+  P.hasPrice = (b) => !!P.good(b) && !b.proj && !b.fr;
+  // the player's price (null = follow market)
+  P.ask = (g, b) => (b.ask != null && b.ask > 0 ? b.ask : P.market(g, b));
+  P.ratio = (g, b) => {
+    if (b.ask == null || !(b.ask > 0)) return 1;
+    const m = P.market(g, b); if (!(m > 0)) return 1;
+    return U.clamp(b.ask / m, cfg().minRatio, cfg().maxRatio);
+  };
+  // how many customers you keep at price ratio r (service-type goods)
+  P.demandF = (r) => {
+    const c = cfg();
+    if (r <= 1) return Math.min(c.maxBoost, Math.pow(r, -c.elasticDown));
+    let f = Math.pow(r, -c.elasticUp);
+    if (r > c.collapseAt) f *= Math.exp(-c.collapseK * (r - c.collapseAt));
+    return f;
+  };
+  // share of what you offer that buyers take at your ask (commodities: many other sellers)
+  P.sellF = (r) => (r <= 1 ? 1 : Math.pow(r, -cfg().commodityUp) * (r > cfg().collapseAt ? Math.exp(-cfg().collapseK * (r - cfg().collapseAt)) : 1));
+  // reputation target shift from pricing fairness
+  P.fair = (r) => {
+    const c = cfg();
+    if (r > 1 + c.fairFreeBand) return -(r - 1 - c.fairFreeBand) * c.fairUp;
+    if (r < 1 - c.fairFreeBand) return Math.min(c.fairDownMax, (1 - c.fairFreeBand - r) * c.fairDown);
+    return 0;
+  };
+  P.set = (g, b, price) => {
+    if (price == null || price === '' || !(Number(price) > 0)) { b.ask = null; return { ok: true, follow: true }; }
+    const m = P.market(g, b); const p = Number(price);
+    const lo = m * cfg().minRatio, hi = m * cfg().maxRatio;
+    b.ask = Math.round(U.clamp(p, lo, hi) * 100) / 100;
+    return { ok: true, price: b.ask };
+  };
+  P.label = (r) => (r > 1.25 ? 'way over market' : r > 1.05 ? 'over market' : r < 0.8 ? 'way under market' : r < 0.95 ? 'under market' : 'at market');
+  P.tone = (r) => (r > 1.25 || r < 0.75 ? 'r' : r > 1.08 || r < 0.92 ? 'y' : 'g');
+  TG.PR = P;
+
+  // ================= SUPPLIES / STOCK =================
+  const ST = {};
+  ST.def = (b) => TG.CONFIG.businesses[b.type].supply || null;
+  ST.unitCost = (g, b) => {
+    const d = TG.CONFIG.businesses[b.type], s = ST.def(b); if (!s) return 0;
+    let c;
+    if (s.unitCostFrom === 'materialCost') c = d.factory.materialCost;
+    else c = d.svc.cogs * d.svc.ticket;
+    if (g.world.shortage[d.cat]) c *= 1.15;
+    if (d.svc && TG.B.owner(g, b) && d.tier === 'small') c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
+    if (d.factory && b.fixes && b.fixes.bulk && b.fixes.bulk.until > g.month) c *= 0.85;
+    return c * g.world.priceIdx;
+  };
+  ST.cap = (b) => {
+    const s = ST.def(b); if (!s) return 0;
+    const d = TG.CONFIG.businesses[b.type];
+    let base = s.baseStore || 0;
+    if (s.perSqft) base += b.sqft * s.perSqft;
+    else if (d.svc && !d.svc.mobile) base = Math.max(base, b.sqft * d.svc.perSpace * 0.6);
+    let add = 0;
+    for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.store && !it.broken) add += ed.store; }
+    return Math.round(base + add);
+  };
+  ST.ensure = (b) => { if (ST.def(b) && !b.stock) b.stock = { qty: 0, auto: true, inM: 0, usedM: 0, spoilM: 0, wasteM: 0 }; return b.stock; };
+  // buy supplies; premium = extra % paid (staff ordering without a manager); returns qty bought
+  ST.buy = (g, b, qty, premium, label) => {
+    const st = ST.ensure(b); if (!st) return 0;
+    const room = Math.max(0, ST.cap(b) - st.qty);
+    qty = Math.max(0, Math.min(Math.round(qty), room));
+    const unit = ST.unitCost(g, b) * (1 + (premium || 0));
+    if (qty * unit > Math.max(0, g.cash)) qty = Math.max(0, Math.floor(Math.max(0, g.cash) / unit));
+    if (qty <= 0) return 0;
+    TG.F.spend(g, Math.round(qty * unit), label || 'Supplies & cost of sales', b.id);
+    st.qty += qty; st.inM = (st.inM || 0) + qty;
+    return qty;
+  };
+  // sell leftover supplies back (half price)
+  ST.sell = (g, b, qty) => {
+    const st = ST.ensure(b); if (!st) return 0; qty = Math.max(0, Math.min(Math.round(qty), Math.floor(st.qty)));
+    if (!qty) return 0;
+    const v = Math.round(qty * ST.unitCost(g, b) * TG.CONFIG.supply.sellBack);
+    st.qty -= qty; TG.F.earn(g, v, 'Asset sales', b.id, true); return v;
+  };
+  // monthly restock before serving. need = units expected to be used this month.
+  ST.restock = (g, b, need) => {
+    const st = ST.ensure(b); if (!st) return null;
+    st.inM = 0; st.usedM = 0; st.spoilM = 0; st.wasteM = 0;
+    if (!st.auto) return { by: 'off' };
+    const S = TG.CONFIG.supply;
+    let who = null, mult, prem = 0, out = 'ok';
+    const h = TG.D.handler(g, b, 'stock');
+    if (h) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.02, 1.1) : out === 'ok' ? R.range(0.93, 1.12) : (R.chance(0.5) ? R.range(0.72, 0.88) : R.range(1.25, 1.4)); }
+    else if (TG.B.owner(g, b)) { who = 'You'; mult = R.range(0.95, 1.1); }
+    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]) + 0.08; prem = S.staffReorderPremium; }
+    const want = Math.max(0, need * mult - st.qty);
+    const got = ST.buy(g, b, want, prem);
+    st.lastBy = who; st.lastOut = out;
+    if (out === 'bad' && h && got > 0 && R.chance(0.4)) TG.rep.decision(g, b, h.label, mult > 1 ? `Over-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)` : `Under-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)`, 'bad');
+    return { by: who, got, prem };
+  };
+  // use stock; returns units actually used
+  ST.use = (b, n) => { const st = b.stock; if (!st) return n; const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; return u; };
+  ST.spoil = (b) => { const st = b.stock, s = ST.def(b); if (!st || !s) return 0; const x = st.qty * s.spoil; st.qty -= x; st.spoilM = x; return x; };
+  ST.value = (g, b) => (b.stock ? b.stock.qty * ST.unitCost(g, b) * 0.8 : 0);
+  TG.ST = ST;
+
+  // ================= FLOW (this month / next month) =================
+  // rows: {i: icon, t: label, v: value, u: unit, c: 'g'|'y'|'r'|'' , why}
+  const FL = {};
+  FL.start = (b) => { b.flowNew = { rows: [], next: [] }; return b.flowNew; };
+  FL.row = (b, i, t, v, u, c, why) => { if (!b.flowNew) FL.start(b); b.flowNew.rows.push({ i, t, v: Math.round(v), u: u || '', c: c || '', why: why || '' }); };
+  FL.next = (b, i, t, v, u, c, why) => { if (!b.flowNew) FL.start(b); b.flowNew.next.push({ i, t, v: Math.round(v), u: u || '', c: c || '', why: why || '' }); };
+  FL.commit = (g, b) => { if (b.flowNew) { b.flow = Object.assign({ m: g.month }, b.flowNew); b.flowNew = null; } };
+  TG.FL = FL;
+})();

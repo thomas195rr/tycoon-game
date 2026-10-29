@@ -277,7 +277,7 @@
     if (h && !f.policyRoll) f.policyRoll = { m: g.month, out: D.roll(h) };
     if (f.policyRoll && f.policyRoll.m !== g.month && h) f.policyRoll = { m: g.month, out: D.roll(h) };
     if (f.policyRoll && f.policyRoll.out === 'bad') ratio = 2 - ratio;
-    return ratio < 0.92 && f.storageCap > f.stored ? 'store' : 'sell';
+    return ratio < 0.92 && TG.M.farmStoreFree(b) > 1 ? 'store' : 'sell';
   };
 
   // ---------- CEO ----------

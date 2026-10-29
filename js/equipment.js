@@ -23,6 +23,7 @@
   E.buy = (g, b, typeId, tier, opts) => {
     opts = opts || {};
     const price = E.price(g, b, typeId, tier);
+    if (!opts.free && E.count(b, typeId) >= E.maxCount(b, typeId)) return null;
     if (!opts.leased && !opts.free && g.cash < price && !opts.allowDebt) return null;
     const it = E.create(g, b, typeId, tier, opts);
     if (opts.leased) TG.F.spend(g, it.leasePay, 'Equipment lease', b.id, true);
@@ -67,7 +68,24 @@
   // output multiplier of a working item
   E.out = (it) => (it.broken ? 0 : TG.CONFIG.equipTiers[it.tier].out);
 
-  E.capacity = (b, typeId) => U.sum(b.equip.filter((x) => x.type === typeId), (x) => E.out(x) * E.def(b, typeId).cap);
+  // capacity of a pool: every item whose pool (default: its own id) matches adds its cap
+  E.poolOf = (ed) => ed.pool || ed.id;
+  E.capacity = (b, poolId) => U.sum(b.equip, (x) => { const ed = E.def(b, x.type); return ed && E.poolOf(ed) === poolId ? E.out(x) * (ed.cap || 0) : 0; });
+  // critical capacity pools of a business: [{pool, primary (first item def), label}]
+  E.pools = (b) => { const out = [], seen = {}; for (const ed of TG.CONFIG.businesses[b.type].equip) { if (!ed.critical) continue; const p = E.poolOf(ed); if (seen[p]) continue; seen[p] = 1; out.push({ pool: p, primary: TG.CONFIG.businesses[b.type].equip.find((x) => E.poolOf(x) === p && x.critical) }); } return out; };
+  // a boost field (ticketBoost, staffBoost, demandBoost): one working item per type counts
+  E.boost = (b, field) => { const seen = {}; let t = 0; for (const it of b.equip) { if (it.broken || seen[it.type]) continue; const ed = E.def(b, it.type); if (ed && ed[field]) { seen[it.type] = 1; t += ed[field]; } } return t; };
+  E.sumField = (b, field) => U.sum(b.equip, (x) => { const ed = E.def(b, x.type); return ed && ed[field] && !x.broken ? ed[field] * (field === 'store' || field === 'storeTons' || field === 'storeUnits' || field === 'head' ? 1 : E.out(x)) : 0; });
+  E.count = (b, typeId) => b.equip.filter((x) => x.type === typeId && x.broken !== 'destroyed').length;
+  // most of an item you can own (seats limited by floor space; boosts are one-per-type but extras act as spares)
+  E.maxCount = (b, typeId) => {
+    const ed = E.def(b, typeId); if (!ed) return 0;
+    if (ed.seat) { const s = TG.CONFIG.businesses[b.type].svc; return Math.max(1, Math.ceil(b.sqft * s.perSpace / ed.cap)); }
+    if (ed.perTruck) return Math.max(1, E.count(b, 'truck'));
+    if (ed.max) return ed.max;
+    if (ed.ticketBoost || ed.staffBoost || ed.demandBoost) return 2;
+    return 999;
+  };
 
   E.resale = (g, b, it) => {
     const eq = TG.CONFIG.equipment;
@@ -129,6 +147,7 @@
       if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);
       if (it.leased) TG.F.spend(g, it.leasePay, 'Equipment lease', b.id);
       if (it.broken) continue;
+      if (d.upkeep) TG.F.spend(g, Math.round(d.upkeep * g.world.priceIdx), 'Equipment upkeep', b.id);
       const bc = E.breakChance(g, b, it);
       it.lastP = bc.p;
       if (bc.p >= eq.warnAt && R.chance(0.6)) ctx.warnings.push({ text: `${it.label} #${E.num(b, it)} is making a strange noise`, why: `${U.pct(bc.p, 0)} monthly break chance: ${bc.factors.join(', ')}`, p: bc.p });

@@ -202,10 +202,10 @@
   Object.assign(FD.enterprises.cattle, {
     matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.12, barnFeed: 1.6,
   });
-  FD.enterprises.dairy = Object.assign({}, FD.enterprises.cattle, { label: 'Dairy cows', market: 'milk', milkPerCow: 0.75, feed: 38, headPerHand: 90, lifespan: 72, stockCost: 1800, saleRate: 0, best: 'grassland', parlorNeeded: true });
+  FD.enterprises.dairy = Object.assign({}, FD.enterprises.cattle, { label: 'Dairy cows', market: 'milk', milkPerCow: 0.75, feed: 190, headPerHand: 60, lifespan: 72, stockCost: 1800, saleRate: 0, best: 'grassland', parlorNeeded: true });
   FD.baseStoreTons = 60; FD.storePerAcre = 0.12;
   BZ.farm.equipCatsLabel = {};
-  C.markets.beef.base = 2650;
+  C.markets.beef.base = 2550;
 
   // ---------------- ICONS (UI) ----------------
   C.icons = {

@@ -35,7 +35,7 @@
       id: U.uid('b'), type, name: opts.name || (d.name + (n ? ' #' + (n + 1) : '')), propId, region: prop.region, loc: prop.loc,
       labor: prop.labor, traffic: prop.traffic, sqft: prop.sqft, acres: prop.acres, founded: g.month,
       rep: d.startRep != null ? d.startRep : C.reputation.start, staff: [], spec: {}, equip: [], fixes: {}, ins: {},
-      ads: { budget: 0, channel: 'social' }, pace: 'normal', price: 'normal', hits: [], boost: null, recv: [], hist: [],
+      ads: { budget: 0, channel: 'social' }, pace: 'normal', ask: null, hits: [], boost: null, recv: [], hist: [],
       m: { rev: 0, cost: 0, lines: {} }, revAvg: 0, outside: 0, closed: 0, licensePending: d.license ? d.license.months : 0,
       qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost,
     };
@@ -163,7 +163,7 @@
       case 'weather': return w.sev > 0 ? 0.5 + w.sev * 3 : 0.4;
       case 'drought': return w.kind === 'drought' || w.kind === 'heat' ? 4 : 0.5;
       case 'rush': return b.pace === 'rush' ? 1.6 : b.pace === 'careful' ? 0.7 : 1;
-      case 'priceHigh': return b.price === 'premium' ? 2 : b.price === 'low' ? 0.6 : 1;
+      case 'priceHigh': { const r = TG.PR.ratio(g, b); return r > 1.05 ? Math.min(4, 1 + (r - 1) * 4) : r < 0.95 ? 0.6 : 1; }
       case 'world_shortage': return g.world.shortage[B.def(b).cat] ? 3 : 0.7;
       case 'crime': return (TG.CONFIG.locations[b.loc] || { crime: 1 }).crime * (g.world.crime > 0 ? 2 : 1);
       case 'rep': return b.rep < 30 ? 1.4 : b.rep > 70 ? 0.7 : 1;
@@ -180,7 +180,7 @@
     noSafety: () => 'safety officer', noMech: () => 'mechanic', noAccountant: () => 'accountant', noLawyer: () => 'lawyer',
     equipWear: () => 'equipment wear', supportWear: () => 'support equipment condition', scale: (c, b) => `${b.staff.length} staff`,
     econ: (c, b, g) => `${TG.W.phaseLabel(g).toLowerCase()} economy`, weather: (c) => (c.weather.sev ? TG.CONFIG.weather.kinds[c.weather.kind].label.toLowerCase() : 'mild weather'),
-    drought: (c) => (c.weather.kind === 'drought' ? 'drought' : 'normal water'), rush: (c, b) => `${b.pace} pace`, priceHigh: (c, b) => `${b.price} pricing`,
+    drought: (c) => (c.weather.kind === 'drought' ? 'drought' : 'normal water'), rush: (c, b) => `${b.pace} pace`, priceHigh: (c, b) => `price ${TG.PR.label(c.priceR || 1)}`,
     world_shortage: () => 'supply shortage', crime: () => 'local crime', rep: (c, b) => `reputation ${Math.round(b.rep)}`, labor: () => 'labor pool', emissions: () => 'emissions rules',
   };
   const NO = { noHR: 1, noOps: 1, noSafety: 1, noMech: 1, noAccountant: 1, noLawyer: 1 };
@@ -362,7 +362,7 @@
   // ---------- reputation ----------
   B.repMonth = (g, b, ctx) => {
     const C = TG.CONFIG.reputation, d = B.def(b);
-    let target = ctx.quality + (C.priceFairness[b.price] || 0) + ((b.fixesOn && b.fixesOn.repTarget) || 0);
+    let target = ctx.quality + (TG.PR.hasPrice(b) && TG.PR.good(b) && TG.PR.good(b).kind === 'service' ? TG.PR.fair(TG.PR.ratio(g, b)) : 0) + ((b.fixesOn && b.fixesOn.repTarget) || 0);
     if (ctx.util > 1.0) target -= 5; // turning customers away
     target = U.clamp(target, 0, 100);
     const rate = (d.svc && d.svc.repRate) || C.upRate;
@@ -398,9 +398,8 @@
     if (b.boost) m *= b.boost.mult;
     const ad = opts.noAds ? { boost: 0 } : B.adBoost(g, b); if (!opts.noAds) { ctx.adFlop = ad.flop; ctx.adBoost = ad.boost; }
     m *= 1 + ad.boost + (fo.demand || 0);
-    if (!opts.noPrice) m *= TG.CONFIG.reputation.priceDemand[b.price] || 1;
     m *= 1 - (d.weatherSens || 0) * ctx.weather.sev * 0.35;
-    for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.demandBoost && !it.broken) { m *= 1 + ed.demandBoost; break; } }
+    m *= 1 + TG.E.boost(b, 'demandBoost');
     return m;
   };
 
@@ -430,6 +429,7 @@
   };
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
+    TG.FL.commit(g, b);
     b.hits = b.hits.filter((h) => --h.months > 0);
     if (b.boost && --b.boost.months <= 0) b.boost = null;
     b.qHits = b.qHits.filter((h) => --h.months > 0);
@@ -442,7 +442,7 @@
     if (b.hist.length > TG.CONFIG.maxHistory) b.hist.shift();
     const last3 = b.hist.slice(-3);
     b.revAvg = U.avg(last3, (x) => x.rev);
-    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', limit: ctx.limit || null, limitEquip: ctx.limitEquip || null };
+    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
     for (const w of ctx.warnings) TG.rep.warn(g, b, w.text, w.why, w.p);
     // takeover by investors
     const C = TG.CONFIG.finance;
