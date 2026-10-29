@@ -1,0 +1,232 @@
+/* config-businesses.js - business definitions (part of the one config object TG.CONFIG).
+   Add a business by adding an entry using one of the models:
+   service | farm | freight | brand | factory | projects | tech | franchise.
+   Risk sev keys: revPct [a,b] share of avg monthly revenue lost; cash [a,b]; rep [a,b] points lost;
+   down [a,b] capacity lost this month; suit [a,b] lawsuit in months of revenue; quit true|'best';
+   demandHit [mult, months]; injury (chance of injury lawsuit); ins = insurance type that covers it. */
+(function () {
+  const C = globalThis.TG.CONFIG;
+  const risk = C._risk, fix = C._fix;
+  const flat = (v) => Array(12).fill(v);
+  Object.assign(C.businesses, {
+    cafe: {
+      name: 'Cafe', icon: '☕', tier: 'small', model: 'service', cat: 'food',
+      blurb: 'Rewarding if you manage it closely: menu, staff, regulars and location all matter.',
+      setupCost: 38000, space: { unit: 'sqft', min: 500, ideal: 1600 },
+      locPref: { city: 1, suburb: 0.85, town: 0.6, rural: 0.2, remote: 0.05 },
+      site: { traffic: 0.55, labor: 0.15, space: 0.15, loc: 0.15 },
+      econSens: 0.5, weatherSens: 0.15, season: [0.9, 0.9, 1, 1, 1, 0.95, 0.9, 0.9, 1.05, 1.1, 1.1, 1.15],
+      svc: { ticket: 10.5, baseDemand: 4300, perSpace: 2.9, cogs: 0.31, utilPerSpace: 1.0, repExp: 0.9 },
+      roles: { barista: { label: 'Barista', wage: [2400, 4000], cap: 1350, key: true, min: 1 } },
+      equip: [
+        { id: 'espresso', label: 'Espresso machine', price: 14000, cap: 4200, critical: true, brk: 0.012, life: 96 },
+        { id: 'fridge', label: 'Fridge', price: 4500, support: true, brk: 0.008, life: 120, failRisk: 'health' },
+      ],
+      insurance: ['liability', 'property', 'equipment'],
+      risks: [
+        risk('rude', 'Rude barista causes a scene, review bomb follows', 0.03, ['attitude', 'temper', 'busy', 'noHR'], { rep: [4, 10] }, 'staff attitude'),
+        risk('supply', 'Milk or bean supply delay, menu items unavailable', 0.03, ['world_shortage'], { down: [0.08, 0.22] }, 'single supplier'),
+        risk('health', 'Health inspection fail (poor fridge temps)', 0.012, ['supportWear', 'skill', 'noOps'], { rep: [6, 12], cash: [1000, 4000], down: [0.1, 0.3] }, 'fridge condition and food handling'),
+        risk('chain', 'New chain cafe opens across the street', 0.006, ['econ'], { demandHit: [0.82, 18] }, 'local competition'),
+        risk('spoil', 'Food spoilage from over-ordering', 0.04, ['noOps', 'skill'], { revPct: [0.02, 0.06] }, 'ordering discipline'),
+      ],
+      fixes: [
+        fix('training', 'Barista training course', 3000, 250, { rude: 0.55, spoil: 0.8 }, { skillGrowth: 1.5 }),
+        fix('service', 'Service contract on the espresso machine', 0, 260, {}, { equipBreak: { espresso: 0.5 } }),
+        fix('backup', 'Backup supplier (costs a bit more per order)', 0, 0, { supply: 0.3 }, { cogsAdd: 0.01 }),
+        fix('monitor', 'Fridge temperature monitor', 1500, 20, { health: 0.45, spoil: 0.7 }),
+        fix('loyalty', 'Loyalty card program (regulars)', 2000, 150, {}, { demand: 0.06, hitSoften: 0.5 }),
+      ],
+      goodEvents: ['viral', 'celebrity', 'regulars'],
+    },
+    foodtruck: {
+      name: 'Food truck', icon: '🌮', tier: 'small', model: 'service', cat: 'food',
+      blurb: 'Cheap entry and mobile, but the truck itself is a single point of failure.',
+      setupCost: 9000, space: { unit: 'sqft', min: 150, ideal: 800 },
+      locPref: { city: 0.95, suburb: 0.9, town: 0.8, rural: 0.5, remote: 0.15 },
+      site: { traffic: 0.45, labor: 0.1, space: 0.1, loc: 0.35 },
+      econSens: 0.5, weatherSens: 0.6, season: [0.6, 0.65, 0.85, 1, 1.15, 1.25, 1.3, 1.25, 1.1, 0.95, 0.75, 0.65],
+      svc: { ticket: 11, baseDemand: 2400, perSpace: 99, cogs: 0.33, utilPerSpace: 0.3, repExp: 0.8, mobile: true },
+      roles: { cook: { label: 'Cook', wage: [2300, 3700], cap: 1250, key: true, min: 1 } },
+      equip: [
+        { id: 'truck', label: 'Food truck', price: 48000, cap: 2700, critical: true, brk: 0.016, life: 120 },
+        { id: 'generator', label: 'Generator', price: 6000, support: true, brk: 0.014, life: 72, failRisk: 'genfail' },
+      ],
+      insurance: ['liability', 'equipment'],
+      risks: [
+        risk('genfail', 'Generator fails, zero revenue that day', 0.01, ['supportWear'], { down: [0.05, 0.15] }, 'generator condition'),
+        risk('weather', 'Bad weather kills foot traffic', 0.05, ['weather'], { down: [0.15, 0.4] }, 'weather exposure'),
+        risk('permit', 'Permit denied for a busy spot', 0.03, ['rep'], { down: [0.08, 0.25] }, 'no pre-booked events'),
+        risk('fire', 'Grease fire', 0.007, ['skill', 'rush', 'noSafety'], { cash: [3000, 18000], down: [0.3, 0.9], ins: 'equipment', injury: 0.3 }, 'cooking practice and fire gear'),
+        risk('cancel', 'Event cancelled after you prepped food', 0.04, ['weather', 'econ'], { revPct: [0.04, 0.1] }, 'no event contracts'),
+      ],
+      fixes: [
+        fix('maint', 'Truck maintenance plan', 0, 280, {}, { equipBreak: { truck: 0.55 } }),
+        fix('suppress', 'Fire suppression system', 3500, 25, { fire: 0.3 }),
+        fix('contracts', 'Pre-booked event contracts', 1000, 120, { permit: 0.5, cancel: 0.5 }, { demand: 0.04 }),
+        fix('weatheraware', 'Weather-aware scheduling (indoor events)', 0, 100, { weather: 0.5, cancel: 0.7 }),
+      ],
+      goodEvents: ['viral', 'festival'],
+    },
+    bakery: {
+      name: 'Bakery', icon: '🥐', tier: 'small', model: 'service', cat: 'food',
+      blurb: 'Early hours, perishable stock, strong local loyalty.',
+      setupCost: 42000, space: { unit: 'sqft', min: 700, ideal: 2000 },
+      locPref: { city: 0.95, suburb: 0.9, town: 0.75, rural: 0.3, remote: 0.05 },
+      site: { traffic: 0.5, labor: 0.15, space: 0.15, loc: 0.2 },
+      econSens: 0.4, weatherSens: 0.1, season: [0.9, 0.95, 1, 1.05, 1, 0.95, 0.9, 0.9, 1, 1.05, 1.15, 1.3],
+      svc: { ticket: 9.5, baseDemand: 4000, perSpace: 2.7, cogs: 0.29, utilPerSpace: 1.1, repExp: 0.9 },
+      roles: { baker: { label: 'Baker', wage: [2700, 4600], cap: 1500, key: true, min: 1 } },
+      equip: [
+        { id: 'oven', label: 'Deck oven', price: 19000, cap: 3200, critical: true, brk: 0.012, life: 120, breakRevLoss: 0.05 },
+        { id: 'mixer', label: 'Commercial mixer', price: 6000, cap: 5000, critical: true, brk: 0.009, life: 120 },
+      ],
+      insurance: ['liability', 'property', 'equipment'],
+      risks: [
+        risk('stale', 'Unsold stock goes stale', 0.25, ['econ', 'noOps'], { revPct: [0.015, 0.04] }, 'no end-of-day deals'),
+        risk('allergen', 'Allergen mislabel: customer reaction and lawsuit', 0.007, ['skill', 'rush'], { rep: [8, 14], suit: [1, 4], ins: 'liability' }, 'labeling training'),
+        risk('headbaker', 'Head baker quits and recipes suffer', 0.014, ['morale', 'noHR'], { quit: 'best', quality: [10, 6] }, 'undocumented recipes'),
+        risk('chain', 'Supermarket bakery undercuts you', 0.005, ['econ'], { demandHit: [0.85, 12] }, 'local competition'),
+      ],
+      fixes: [
+        fix('eod', 'End-of-day discount or donation deals', 0, 60, { stale: 0.4 }, { demand: 0.02 }),
+        fix('allergen', 'Allergen labeling training', 2500, 60, { allergen: 0.3 }),
+        fix('recipes', 'Documented recipes (quality survives turnover)', 3000, 0, {}, { qualityShield: true }),
+      ],
+      goodEvents: ['viral', 'regulars', 'catering'],
+    },
+    salon: {
+      name: 'Barbershop / salon', icon: '💈', tier: 'small', model: 'service', cat: 'beauty',
+      blurb: 'Revenue lives with the stylists; good ones bring their own clients.',
+      setupCost: 22000, space: { unit: 'sqft', min: 400, ideal: 1300 },
+      locPref: { city: 1, suburb: 0.9, town: 0.7, rural: 0.25, remote: 0.05 },
+      site: { traffic: 0.45, labor: 0.25, space: 0.1, loc: 0.2 },
+      econSens: 0.4, weatherSens: 0.05, season: [0.9, 0.9, 1, 1, 1.05, 1.05, 1, 1, 1, 1, 1.05, 1.15],
+      svc: { ticket: 50, baseDemand: 760, perSpace: 0.7, cogs: 0.12, utilPerSpace: 0.9, repExp: 0.8, staffDemand: 0.5 },
+      roles: { stylist: { label: 'Stylist', wage: [2300, 5200], cap: 235, key: true, min: 1 } },
+      equip: [
+        { id: 'chair', label: 'Styling chair station', price: 2600, cap: 190, critical: true, brk: 0.006, life: 120 },
+        { id: 'dryer', label: 'Dryers & tools', price: 3000, support: true, brk: 0.01, life: 60, failRisk: 'tools' },
+      ],
+      insurance: ['liability', 'property'],
+      risks: [
+        risk('tools', 'Tools fail mid-appointment', 0.01, ['supportWear'], { rep: [1, 3], down: [0.03, 0.08] }, 'tool condition'),
+        risk('star', 'Star stylist leaves and takes clients', 0.02, ['morale', 'noHR'], { quit: 'best', demandHit: [0.85, 6] }, 'stylist loyalty'),
+        risk('botched', 'Botched cut or color goes viral', 0.012, ['skill', 'rush'], { rep: [8, 15] }, 'stylist skill'),
+        risk('renters', 'Chair renters skip rent', 0.03, ['econ'], { cash: [500, 2500] }, 'chair rental terms'),
+        risk('burn', 'Chemical burn complaint', 0.009, ['skill'], { rep: [3, 6], suit: [0.5, 2], ins: 'liability' }, 'chemical handling'),
+      ],
+      fixes: [
+        fix('nonsolicit', 'Non-solicit agreements (may not hold up)', 1500, 0, { star: 0.7 }),
+        fix('commission', 'Commission bonus for top stylists', 0, 0, { star: 0.45 }, { revCostPct: 0.03, morale: 6 }),
+        fix('workshops', 'Skill workshops', 0, 350, { botched: 0.5, burn: 0.5 }, { skillGrowth: 1.6 }),
+      ],
+      goodEvents: ['viral', 'celebrity'],
+    },
+    carwash: {
+      name: 'Car wash', icon: '🚿', tier: 'small', model: 'service', cat: 'auto',
+      blurb: 'Simple to run, but equipment and weather swing everything.',
+      setupCost: 30000, space: { unit: 'sqft', min: 1500, ideal: 6000 },
+      locPref: { city: 0.7, suburb: 1, town: 0.8, rural: 0.35, remote: 0.05 },
+      site: { traffic: 0.45, labor: 0.05, space: 0.2, water: 0.1, loc: 0.2 },
+      econSens: 0.5, weatherSens: 0.7, season: [0.8, 0.85, 1.05, 1.1, 1.1, 1.05, 1.05, 1.05, 1, 0.95, 0.85, 0.85],
+      svc: { ticket: 11, baseDemand: 2900, perSpace: 2.0, cogs: 0.13, utilPerSpace: 0.35, repExp: 0.6 },
+      roles: { attendant: { label: 'Attendant', wage: [2200, 3300], cap: 2000, key: true, min: 1 } },
+      equip: [
+        { id: 'tunnel', label: 'Wash tunnel', price: 110000, cap: 6000, critical: true, brk: 0.014, life: 144 },
+        { id: 'vacuum', label: 'Vacuum station', price: 8000, cap: 8000, critical: false, brk: 0.01, life: 96, demandBoost: 0.05 },
+      ],
+      insurance: ['liability', 'property', 'equipment', 'damage'],
+      risks: [
+        risk('rain', 'Rainy weeks crush demand', 0.08, ['weather'], { down: [0.15, 0.4] }, 'weather exposure'),
+        risk('damage', 'Damage claim from a customer car', 0.02, ['skill', 'equipWear'], { cash: [800, 6000], ins: 'damage' }, 'equipment condition and staff care'),
+        risk('water', 'Water bill spike or drought restrictions', 0.02, ['drought'], { revPct: [0.05, 0.15] }, 'water use'),
+      ],
+      fixes: [
+        fix('members', 'Monthly membership plans', 3000, 100, { rain: 0.55 }, { demand: 0.05 }),
+        fix('service', 'Equipment service plan', 0, 650, {}, { equipBreak: { tunnel: 0.5 } }),
+        fix('recycle', 'Water recycling system', 25000, 80, { water: 0.3 }, { cogsAdd: -0.04 }),
+      ],
+      goodEvents: ['viral', 'fleet'],
+    },
+    lawn: {
+      name: 'Lawn care / landscaping', icon: '🌿', tier: 'small', model: 'service', cat: 'home',
+      blurb: 'Easy start and seasonal: crews and mowers are the whole business.',
+      setupCost: 4000, space: { unit: 'sqft', min: 150, ideal: 1500 },
+      locPref: { city: 0.55, suburb: 1, town: 0.85, rural: 0.5, remote: 0.15 },
+      site: { traffic: 0.4, labor: 0.2, space: 0.05, loc: 0.35 },
+      econSens: 0.4, weatherSens: 0.4, season: [0.08, 0.1, 0.5, 1.05, 1.2, 1.2, 1.15, 1.1, 1.05, 0.9, 0.4, 0.1],
+      svc: { ticket: 55, baseDemand: 760, perSpace: 99, cogs: 0.14, utilPerSpace: 0.2, repExp: 0.7, mobile: true },
+      roles: { crew: { label: 'Crew member', wage: [2100, 3300], cap: 200, key: true, min: 1 } },
+      equip: [
+        { id: 'mower', label: 'Commercial mower', price: 9000, cap: 230, critical: true, brk: 0.018, life: 84 },
+        { id: 'trailer', label: 'Truck & trailer', price: 30000, cap: 700, critical: true, brk: 0.01, life: 120 },
+      ],
+      insurance: ['liability', 'equipment'],
+      risks: [
+        risk('noshow', 'Crew no-shows', 0.05, ['reliability', 'morale'], { down: [0.05, 0.18] }, 'crew reliability'),
+        risk('damage', 'Crew damages a client property', 0.02, ['skill', 'rush'], { cash: [500, 6000], rep: [2, 5], ins: 'liability' }, 'crew care'),
+      ],
+      fixes: [
+        fix('snow', 'Snow removal side service (plow)', 9000, 50, {}, { seasonFloor: 0.55 }),
+        fix('crewlead', 'Crew lead reliability bonus', 0, 400, { noshow: 0.4 }, { morale: 4 }),
+      ],
+      goodEvents: ['contract', 'viral'],
+    },
+    auto: {
+      name: 'Auto repair shop', icon: '🔧', tier: 'small', model: 'service', cat: 'auto',
+      blurb: 'A trust business: honest shops get word of mouth, shady ones get exposed.',
+      setupCost: 30000, space: { unit: 'sqft', min: 1200, ideal: 4500 },
+      locPref: { city: 0.7, suburb: 0.95, town: 1, rural: 0.5, remote: 0.15 },
+      site: { traffic: 0.35, labor: 0.25, space: 0.15, road: 0.1, loc: 0.15 },
+      econSens: 0.2, weatherSens: 0.05, season: [1.1, 1.05, 1, 0.95, 0.95, 1, 1, 1, 0.95, 1, 1.05, 1.1],
+      svc: { ticket: 380, baseDemand: 230, perSpace: 0.07, cogs: 0.38, utilPerSpace: 0.6, repExp: 1.0 },
+      roles: { tech: { label: 'Mechanic tech', wage: [3300, 6500], cap: 62, key: true, min: 1 } },
+      equip: [
+        { id: 'lift', label: 'Car lift', price: 9500, cap: 95, critical: true, brk: 0.009, life: 180, injuryOnCat: 0.4 },
+        { id: 'scanner', label: 'Diagnostic scanner', price: 7000, cap: 260, critical: true, brk: 0.01, life: 72 },
+      ],
+      insurance: ['liability', 'property', 'equipment'],
+      risks: [
+        risk('error', 'Mechanic error: car fails after repair', 0.025, ['skill', 'rush', 'busy'], { rep: [4, 9], cash: [400, 4000], suit: [0.2, 1], suitChance: 0.25, ins: 'liability' }, 'technician skill'),
+        risk('parts', 'Parts back-ordered, cars pile up', 0.04, ['world_shortage'], { down: [0.08, 0.3] }, 'single parts supplier'),
+        risk('upsell', 'Overcharging scandal', 0.004, ['priceHigh', 'honestyLow'], { rep: [12, 25] }, 'pricing and upselling'),
+        risk('injury', 'Customer injury in the shop', 0.005, ['noSafety', 'equipWear'], { suit: [1, 3], ins: 'liability', injury: 1 }, 'shop safety'),
+      ],
+      fixes: [
+        fix('cert', 'Mechanic certification training', 4000, 100, { error: 0.5 }, { skillGrowth: 1.5 }),
+        fix('parts2', 'Second parts supplier', 0, 150, { parts: 0.4 }),
+        fix('warranty', 'Warranty on work (costs money, builds trust)', 0, 0, {}, { revCostPct: 0.02, demand: 0.08, repTarget: 5 }),
+        fix('safety', 'Shop safety program', 3000, 100, { injury: 0.4 }),
+      ],
+      goodEvents: ['viral', 'fleet'],
+    },
+    gym: {
+      name: 'Gym', icon: '🏋️', tier: 'small', model: 'service', cat: 'fitness',
+      blurb: 'Membership money is steady, but the January rush fades and equipment wears hard.',
+      setupCost: 35000, space: { unit: 'sqft', min: 2500, ideal: 9000 },
+      locPref: { city: 0.9, suburb: 1, town: 0.75, rural: 0.25, remote: 0.05 },
+      site: { traffic: 0.4, labor: 0.1, space: 0.3, loc: 0.2 },
+      econSens: 0.45, weatherSens: 0.02, season: [1.3, 1.2, 1.05, 1, 0.97, 0.92, 0.9, 0.9, 0.97, 0.98, 0.95, 0.9],
+      svc: { ticket: 58, baseDemand: 700, perSpace: 0.1, cogs: 0.05, utilPerSpace: 0.45, repExp: 0.8 },
+      roles: { coach: { label: 'Coach / front desk', wage: [2300, 4300], cap: 260, key: true, min: 1 } },
+      equip: [
+        { id: 'cardio', label: 'Cardio machine', price: 5200, cap: 65, critical: true, brk: 0.012, life: 84 },
+        { id: 'weights', label: 'Weight rack set', price: 3600, cap: 90, critical: true, brk: 0.006, life: 144, injuryOnCat: 0.5 },
+      ],
+      insurance: ['liability', 'property', 'equipment'],
+      risks: [
+        risk('equipinjury', 'Equipment breaks and someone gets hurt', 0.008, ['equipWear', 'noSafety'], { suit: [0.5, 2], rep: [3, 7], ins: 'liability', injury: 1 }, 'equipment inspections'),
+        risk('advice', 'Trainer gives bad advice, injury lawsuit', 0.007, ['skill'], { suit: [0.5, 2], ins: 'liability', injury: 1 }, 'trainer certification'),
+        risk('cheapgym', 'Cheaper gym opens nearby', 0.007, ['econ'], { demandHit: [0.82, 24] }, 'local competition'),
+      ],
+      fixes: [
+        fix('annual', 'Annual contracts', 1500, 0, {}, { seasonDamp: 0.5 }),
+        fix('inspect', 'Equipment inspection schedule', 0, 250, { equipinjury: 0.4 }, { wearMult: 0.85 }),
+        fix('certified', 'Certified trainers only', 0, 300, { advice: 0.4 }, { skillFloor: 45 }),
+        fix('classes', 'Classes & community events', 0, 500, {}, { demand: 0.07, hitSoften: 0.5 }),
+      ],
+      goodEvents: ['viral', 'fitnesscraze'],
+    },
+  });
+})();
