@@ -19,10 +19,10 @@ const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdi
   };
   const pressAll = async (label) => {
     const done = new Set();
-    for (let guard = 0; guard < 120; guard++) {
-      const next = await page.evaluate((skip, done) => { const els = [...document.querySelectorAll('[data-act]:not([disabled])')].filter((x) => !skip.includes(x.dataset.act) && x.dataset.act !== 'tab' && x.offsetParent !== null); const el = els.find((x) => !done.includes(x.dataset.act + '|' + (x.dataset.arg || '').replace(/[a-z]\d+/g, '#'))); if (!el) return null; for (const i of document.querySelectorAll('input[type=number]')) if (!i.value && i.id !== 'skipN') i.value = '20'; return el.dataset.act + '|' + (el.dataset.arg || '').replace(/[a-z]\d+/g, '#'); }, SKIP, [...done]);
+    for (let guard = 0; guard < 200; guard++) {
+      const next = await page.evaluate((skip, done) => { const els = [...document.querySelectorAll('[data-act]:not([disabled])')].filter((x) => !skip.includes(x.dataset.act) && x.dataset.act !== 'tab' && x.offsetParent !== null); const key = (x) => x.dataset.act + '|' + (x.dataset.arg || '').replace(/[a-z]\d+/g, '#'); const el = els.find((x) => x.dataset.act !== 'tip' && !done.includes(key(x))) || (done.filter((d) => d.startsWith('tip|')).length < 6 ? els.find((x) => !done.includes(key(x))) : null); if (!el) return null; for (const i of document.querySelectorAll('input[type=number]')) if (!i.value && i.id !== 'skipN') i.value = '20'; return el.dataset.act + '|' + (el.dataset.arg || '').replace(/[a-z]\d+/g, '#'); }, SKIP, [...done]);
       if (!next) break; done.add(next);
-      await page.evaluate((key) => { const els = [...document.querySelectorAll('[data-act]:not([disabled])')].filter((x) => x.offsetParent !== null); const el = els.find((x) => x.dataset.act + '|' + (x.dataset.arg || '').replace(/[a-z]\d+/g, '#') === key); if (el) el.click(); }, next);
+      await page.evaluate((key) => { const els = [...document.querySelectorAll('[data-act]:not([disabled])')].filter((x) => x.offsetParent !== null); const el = els.find((x) => x.dataset.act + '|' + (x.dataset.arg || '').replace(/[a-z]\d+/g, '#') === key); const t0 = TG.UI.tab.biz; if (el) el.click(); if (TG.UI.screen === 'bizd' && TG.UI.tab.biz !== t0 && !document.getElementById('modal')) { TG.UI.tab.biz = t0; TG.UI.render(); } }, next);
       pressed++; acts.add(next.split('|')[0]);
       await check(`${label} ${next}`);
       // modals: press their buttons too (once), then close
@@ -40,11 +40,24 @@ const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdi
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[data-act="tab"]')].map((x) => x.dataset.arg));
     for (const tb of tabs) { await page.evaluate((tb) => { const i = tb.indexOf(':'); TG.UI.tab[tb.slice(0, i)] = tb.slice(i + 1); TG.UI.render(); }, tb); await check(t + ' ' + tb); await shot(page, t + ' ' + tb); await pressAll(t + ' ' + tb); }
   }
-  // farm enterprises other than the default (crops / dairy / orchard rows, seed and grain buttons)
-  for (const ent of ['crops', 'dairy', 'orchard', 'cattle']) {
-    await page.evaluate((ent) => { const g = TG.G; g.cash = 2e8; const b = g.businesses.find((x) => x.type === 'farm'); TG.M.farmSwitch(g, b, ent); for (let i = 0; i < 4; i++) TG.Game.nextMonth(g); TG.UI.closeModal(); TG.UI.bizId = b.id; TG.UI.tab.biz = 'overview'; TG.UI.screen = 'bizd'; TG.UI.render(); }, ent);
-    await check('farm ' + ent); await shot(page, 'farm ' + ent); await pressAll('farm ' + ent);
-    await page.evaluate(() => { TG.UI.tab.biz = 'model'; TG.UI.render(); }); await check('farm land ' + ent); await pressAll('farm land ' + ent);
+  // farm with all three areas (cows, crops, orchard), then dairy: every farm tab and button, incl. move / buy-land modals
+  for (const kind of ['beef', 'dairy']) {
+    await page.evaluate((kind) => { const g = TG.G; g.cash = 2e8; const b = g.businesses.find((x) => x.type === 'farm'); const M = TG.M; const f = M.farmEnsure(b);
+      if (!f.areas.cows.acres || !f.areas.orchard.acres || !f.areas.crops.acres) { M.farmBuyLand(g, b, 300, false); for (const k of M.farmAreas) M.farmMove(g, b, 'free', k, 100); }
+      for (let i = 0; i < 3; i++) TG.Game.nextMonth(g); if (f.areas.cows.kind !== kind) M.farmCowKind(g, b, kind); M.farmBuyCattle(g, b, 20); TG.Game.nextMonth(g);
+      TG.UI.closeModal(); TG.UI.bizId = b.id; TG.UI.screen = 'bizd'; }, kind);
+    for (const tb of ['overview', 'model', 'staff', 'mgr', 'upg']) {
+      await page.evaluate((tb) => { TG.UI.tab.biz = tb; TG.UI.render(); }, tb);
+      await check(`farm ${kind} ${tb}`); await shot(page, `farm ${kind} ${tb}`); await pressAll(`farm ${kind} ${tb}`);
+    }
+    // modals: move acres (every from/to button, then move) and buy land
+    const mv = await page.evaluate(() => { const out = []; const clickAll = (act) => { for (const el of [...document.querySelectorAll(`#modal [data-act="${act}"]`)].map((x) => x.dataset.arg)) { const e = document.querySelector(`#modal [data-act="${act}"][data-arg="${el}"]`); if (e) { e.click(); out.push(act + ':' + el); } } };
+      TG.UI.tab.biz = 'model'; TG.UI.render(); TG.UI.A.moveModal('free'); clickAll('mvFrom'); clickAll('mvTo'); const fr = document.querySelector('#modal [data-act="mvFrom"][data-arg="crops"]'); if (fr) fr.click(); const to = document.querySelector('#modal [data-act="mvTo"][data-arg="orchard"]'); if (to) to.click();
+      document.getElementById('mvN').value = '5'; document.querySelector('#modal [data-act="mvN"]').click(); const cost = document.querySelector('#modal .ev').innerText; document.querySelector('#modal [data-act="mvGo"]').click(); out.push('moved:' + cost);
+      TG.UI.A.landModal(); document.getElementById('farmAc').value = '10'; document.querySelector('#modal [data-act="farmLand"][data-arg="cash"]').click(); out.push('land:' + !document.getElementById('modal'));
+      return out; });
+    if (!mv.some((x) => x.startsWith('moved:')) || !mv.includes('land:true')) errors.push('farm modals failed: ' + mv.join(' '));
+    await check(`farm ${kind} modals`);
   }
   for (const s of [['money', ['fin', 're', 'inv', 'casino']], ['more', ['mgr', 'news', 'log', 'ach', 'set', 'help']], ['home', [null]], ['biz', [null]]]) {
     for (const tb of s[1]) { await page.evaluate((s, tb) => { if (tb) TG.UI.tab[s] = tb; TG.UI.go(s); }, s[0], tb); await check(s[0] + ' ' + tb); await pressAll(s[0] + ' ' + tb); }

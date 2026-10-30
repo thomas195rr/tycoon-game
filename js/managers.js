@@ -174,13 +174,26 @@
     if (h) {
       for (const it of b.equip) {
         const w = E.effWear(it);
-        if (!it.broken && w > 58 && g.cash > 20000) { const out = D.roll(h); if (out !== 'bad') E.service(g, b, it.id); else if (R.chance(0.3)) TG.rep.decision(g, b, h.label, `Skipped servicing ${it.label} (${Math.round(w)}% wear)`, 'bad'); }
-        if (it.broken && it.broken !== 'destroyed' && !g.decisions.some((d) => d.itemId === it.id) && g.cash > E.repairCost(g, b, it) * 2) E.repair(g, b, it.id, h.label);
+        const ord = b.orders || {}; const svcAt = ord.serviceAt == null ? 58 : ord.serviceAt;
+        if (!it.broken && w > svcAt && svcAt < 100 && g.cash > 20000) { const out = D.roll(h); if (out !== 'bad') E.service(g, b, it.id); else if (R.chance(0.3)) TG.rep.decision(g, b, h.label, `Skipped servicing ${it.label} (${Math.round(w)}% wear)`, 'bad'); }
+        if (ord.fix !== false && it.broken && it.broken !== 'destroyed' && !g.decisions.some((d) => d.itemId === it.id) && g.cash > E.repairCost(g, b, it) * 2) E.repair(g, b, it.id, h.label);
       }
     }
     // 3) raises for unhappy good people
     h = D.handler(g, b, 'raise');
     if (h) for (const e of S.allStaff(b)) if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); }
+    // 3b) your order: keep spare staff so call-outs don't leave work undone
+    h = D.handler(g, b, 'hire');
+    const spare = (b.orders && b.orders.spare) || 0;
+    if (h && spare > 0 && b.hist.length >= 2) for (const w of b.work || []) {
+      if (w.kind !== 'staff' || !w.role || !(w.load > 0) || !w.cap) continue;
+      const n = b.staff.filter((e) => e.role === w.role).length; const per = w.cap / Math.max(1, n);
+      if (w.cap < w.load * (1 + spare) && (b.target[w.role] || 0) <= n) {
+        const add = Math.max(1, Math.ceil((w.load * (1 + spare) - w.cap) / Math.max(1, per)));
+        b.target[w.role] = n + Math.min(add, 3);
+        TG.rep.decision(g, b, h.label, `Added ${Math.min(add, 3)} ${TG.S.roleDef(b, w.role).label.toLowerCase()} position(s): your order is ${U.pct(spare)} spare, they had ${U.pct(Math.max(0, w.cap / w.load - 1))}`, 'good');
+      }
+    }
     // 4) model-specific
     if (b.brand) {
       h = D.handler(g, b, 'stock');
@@ -273,17 +286,47 @@
     }
   };
 
-  // farm sell-vs-store policy ('auto'): managers judge prices vs the yearly average
-  D.farmPolicy = (g, b) => {
-    const f = b.farm; const e = TG.M.models.farm.e(b); const mk = g.markets[e.market]; if (!mk) return 'sell';
+  // farm sell-vs-store policy ('auto'): managers judge today's price vs the yearly average
+  D.farmPolicy = (g, b, good) => {
+    const f = b.farm; const mk = g.markets[good || 'grain']; if (!mk) return 'sell';
     const hist = mk.hist || []; const avg = hist.length ? U.avg(hist.slice(-12), (x) => x.p || x) : mk.price;
-    const now = TG.W.price(g, e.market, 0);
-    const h = D.handler(g, b, 'farm');
+    const now = TG.W.price(g, good || 'grain', 0);
+    const h = D.handler(g, b, 'farm') || D.foreman(g, b);
     let ratio = now / Math.max(1, avg);
-    if (h && !f.policyRoll) f.policyRoll = { m: g.month, out: D.roll(h) };
-    if (f.policyRoll && f.policyRoll.m !== g.month && h) f.policyRoll = { m: g.month, out: D.roll(h) };
+    if (h && (!f.policyRoll || f.policyRoll.m !== g.month)) f.policyRoll = { m: g.month, out: D.roll(h) };
     if (f.policyRoll && f.policyRoll.out === 'bad') ratio = 2 - ratio;
     return ratio < 0.92 && TG.M.farmStoreFree(b) > 1 ? 'store' : 'sell';
+  };
+  // with no manager, your most skilled worker carries out standing orders (less reliably)
+  D.foreman = (g, b) => {
+    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); const best = b.staff.filter((e) => e.role === kr).sort((x, y) => y.skill - x.skill)[0];
+    if (!best) return null;
+    return { e: best, label: `Head ${TG.S.roleDef(b, kr).label.toLowerCase()} ${best.name}`, role: 'foreman', p: U.clamp(0.25 + best.skill / 250, 0.25, 0.6), foreman: true };
+  };
+  D.orderTaker = (g, b, kind) => D.handler(g, b, kind) || D.foreman(g, b);
+  // farm order: spray & feed the soil of an area when it drops below your line
+  D.farmOrders = (g, b) => {
+    const f = b.farm, o = f.orders || (f.orders = TG.M.farmDefaultOrders());
+    for (const k of TG.M.farmAreas) {
+      const so = o.spray && o.spray[k]; const a = f.areas[k]; if (!so || !so.on || !a.acres || a.soil >= so.below) continue;
+      const h = D.orderTaker(g, b, 'farm'); if (!h) continue;
+      const out = D.roll(h); const L = TG.M.areaLabel(k);
+      if (out === 'bad' && R.chance(0.5)) { TG.rep.decision(g, b, h.label, `Forgot your order to spray the ${L} (soil ${U.pct(a.soil)}, your line ${U.pct(so.below)})`, 'bad'); continue; }
+      if (out === 'ok' && h.foreman && R.chance(0.4)) continue; // a busy head worker gets to it next month
+      const r = TG.M.farmTreat(g, b, k, h.label, out === 'bad' ? 1.5 : 1);
+      if (r.ok) TG.rep.decision(g, b, h.label, `Sprayed & fed the ${L}: soil ${U.pct(r.from)} → ${U.pct(r.to)} for ${U.money(r.cost)}${out === 'bad' ? ' (used 50% too much spray)' : ''}`, out === 'bad' ? 'bad' : 'good');
+    }
+  };
+  // farm order: buy seed before planting (a manager buys at the normal price; a head farmhand pays a little more)
+  D.farmSeedOrder = (g, b, cov) => {
+    const f = b.farm, a = f.areas.crops, e = TG.M.areaE(b, 'crops'), moy = U.moy(g.month);
+    if (!f.orders || !f.orders.seed || !a.acres) return;
+    const left = e.plant.filter((m) => m >= moy).length || e.plant.length; const pcv = Math.min(cov.pcov, Math.pow(cov.hcov, 0.5));
+    let need = a.acres / e.plant.length * left * pcv - f.seeds; if (need <= 0.5) return;
+    const h = D.orderTaker(g, b, 'farm'); if (!h) return;
+    const out = D.roll(h); if (out === 'bad') need *= R.chance(0.5) ? 1.3 : 0.6;
+    const n = TG.M.models.farm.buySeeds(g, b, need, h.foreman ? TG.CONFIG.supply.staffReorderPremium : 0);
+    if (out === 'bad' && n > 0) TG.rep.decision(g, b, h.label, `Bought seed for ${n} acres, ${need > a.acres / e.plant.length * left ? 'more than needed' : 'not enough'} for ${Math.round(a.acres)} crop acres`, 'bad');
   };
 
   // ---------- CEO ----------

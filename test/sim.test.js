@@ -17,7 +17,13 @@ function check(g, label) {
   const bad = []; scan(g, 'g', bad, 0);
   for (const b of g.businesses) {
     if (b.brand && (b.brand.stock < -1e-6 || b.brand.stockCost < -1)) bad.push(`${b.name} brand stock ${b.brand.stock}`);
-    if (b.farm && (b.farm.stored < -1e-6 || b.farm.herd < 0)) bad.push(`${b.name} farm stored ${b.farm.stored} herd ${b.farm.herd}`);
+    if (b.farm) {
+      const f = b.farm, A = f.areas;
+      if (f.stored.grain < -1e-6 || f.stored.fruit < -1e-6 || f.seeds < -1e-6) bad.push(`${b.name} farm stock negative ${JSON.stringify(f.stored)} seeds ${f.seeds}`);
+      for (const k in A) { const a = A[k]; if (a.acres < 0 || a.soil < 0 || a.soil > 1.0001 || (a.herd || 0) < 0 || (a.cows || 0) < -1e-6) bad.push(`${b.name} ${k} acres ${a.acres} soil ${a.soil} herd ${a.herd}`); }
+      if (TG.M.farmUsed(f) > f.acres + 0.5) bad.push(`${b.name} farm areas ${TG.M.farmUsed(f)} > total ${f.acres}`);
+    }
+    if ((b.backlog || 0) < 0 || b.backlog > 1) bad.push(`${b.name} backlog ${b.backlog}`);
     if (b.factory && b.factory.stock < -1e-6) bad.push(`${b.name} factory stock ${b.factory.stock}`);
     if (b.staff.some((e) => e.wage < 0)) bad.push('negative wage');
     if (b.rep < 0 || b.rep > 100) bad.push(`${b.name} rep ${b.rep}`);
@@ -71,6 +77,12 @@ for (let s = 1; s <= SEEDS; s++) {
       }, (g) => { if (biz && g.businesses.includes(biz)) bots[style](g, biz); else if (style === 'careful') bots.resolveSmart(g); }, Math.min(MONTHS, 600));
       if (g) results.push({ type, style, seed: s, nw: g.lastNW, bk: g.player.bankruptcies, open: biz && g.businesses.includes(biz) });
     }
+  }
+  // farm: every land mix, careful + random actions (areas, moving acres, spraying)
+  for (const ent of ['crops', 'orchard', 'cattle', 'dairy', 'mixed']) {
+    let biz = null;
+    run(`farm-${ent}#${s}`, 6000 + s * 17 + ent.length, (g) => { g.cash = 2000000; biz = bots.startBiz(g, 'farm', { ent }); if (!biz) problems.push(`farm ${ent} could not start`); },
+      (g) => { if (biz && g.businesses.includes(biz)) { bots.careful(g, biz); if (g.month % 3 === 0) bots.random(g); } else bots.resolveSmart(g); }, Math.min(MONTHS, 360));
   }
   // scenarios
   { const CB = require('./crime-bots')(TG); for (const st of ['careful', 'reckless', 'heister']) { let biz = null; run(`crime:${st}#${s}`, 4000 + s * 13 + st.length, (g) => { g.cash = 400000; biz = bots.startBiz(g, 'cafe'); }, (g) => { if (biz && g.businesses.includes(biz)) bots.careful(g, biz); else bots.resolveSmart(g); CB[st](g); }, Math.min(MONTHS, 360)); } }

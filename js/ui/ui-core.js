@@ -85,8 +85,8 @@
     const v = UI.S.skipVal || '';
     return `<footer class="turn"><div class="in">
       <button class="btn next" data-act="next">Next Month ▶</button>
-      <input type="number" id="skipN" min="1" max="2400" placeholder="months" value="${esc(v)}" inputmode="numeric">
-      <span class="yrs" id="skipYrs">${v ? U.yrsMo(Number(v)) : 'type months'}</span>
+      <input type="number" id="skipN" min="1" max="2400" placeholder="#" aria-label="months to skip" value="${esc(v)}" inputmode="numeric">
+      <span class="yrs" id="skipYrs">${v ? U.yrsMo(Number(v)) : 'months'}</span>
       <button class="btn" data-act="skip">Skip ⏩</button></div></footer>`;
   };
   const navList = () => (TG.G && TG.CR && TG.CR.on(TG.G) ? NAV.slice(0, 4).concat([['crime', '🕶️', 'Crime']], NAV.slice(4)) : NAV);
@@ -143,7 +143,7 @@
     if (TG.G && !el.dataset.nosave) UI.save();
   });
   document.addEventListener('input', (e) => {
-    if (e.target.id === 'skipN') { UI.S.skipVal = e.target.value; const n = Number(e.target.value); const y = document.getElementById('skipYrs'); if (y) y.textContent = n >= 1 ? U.yrsMo(Math.floor(n)) : 'type months'; }
+    if (e.target.id === 'skipN') { UI.S.skipVal = e.target.value; const n = Number(e.target.value); const y = document.getElementById('skipYrs'); if (y) y.textContent = n >= 1 ? U.yrsMo(Math.floor(n)) : 'months'; }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'skipN') UI.A.skip(); });
   document.addEventListener('change', (e) => { const el = e.target.closest('[data-change]'); if (!el) return; const fn = UI.A[el.dataset.change]; if (fn) { fn(el.value, el); UI.save(); } });

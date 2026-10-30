@@ -217,6 +217,11 @@
       }
       g.v = 2;
     }
+    // v5: farms split into cow / crop / orchard areas; old irrigation becomes sprinklers; every business gets manager orders
+    for (const b of g.businesses) {
+      b.orders = b.orders || {}; if (b.backlog == null) b.backlog = 0;
+      if (b.farm) { TG.M.farmEnsure(b); TG.M.farmMigrateEquip(g, b); }
+    }
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };

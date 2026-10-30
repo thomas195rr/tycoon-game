@@ -27,6 +27,14 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Every business needs staff:** the "work it yourself" option and the Replace button are gone (sell, then buy).
 - **Skills in real numbers**, manager perks unlocked by level, a **next-month forecast** for each business and **forecast vs actual** after the month. Candidates show what they would add before you hire.
 
+## Version 5 highlights
+- **Farm land by area:** give acres to a 🐄 cow area, a 🌾 crop area and a 🍎 orchard area (Land tab, in that order). Each area has its own soil, water and price. Buying land is a small button; new land arrives as ⬜ free acres. Moving acres between areas costs money and takes 1-2 months (orchards must be planted), so it is not a free switch. Old saves move the old farm into the matching area and turn old irrigation into sprinklers.
+- **Soil %:** drops every month (faster when high, slower when low). Spray & feed brings it back (once a month per area; less effect near the top, so keeping it near 100% costs more). Soil sets yield (x0.55 at 0% to x1.15 at 100%) and pest odds. Everything is shown in numbers.
+- **Water %** = how much of the area your sprinklers cover. Sprinklers are machines (they wear and break). Low water raises the odds of dry-outs (crops/trees) and sick cows in heat; weather and season change the odds, and the reason is shown.
+- **🧑‍💼 Manager tab** for every business: your standing orders (how many to keep, keep spare staff, service machines at X% wear, fix broken machines right away, reorder supplies; farms: spray when soil is below X%, buy seed, harvest policy). Your manager carries them out; skill decides how well (forgotten orders, wasted spray, rushed hires). The old "Team plan" is gone.
+- **👥 Staff tab** for every business: per job, people, work needed vs what they can do (bar), spare %. People call out or slack; with no spare, work is left undone and the odds of that business's disasters go up (shown as "x1.6 disaster odds") until the team catches up.
+- **Upgrades say exactly what they do**, in numbers, for all 18 businesses (e.g. the mega processing plant: +35% for grain/fruit and +20% for milk/beef, only with 12,500 t a year through it; "vertical integration" is now "Own seed & feed supply": seed, feed, spray and trees 20% cheaper).
+
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.
 
@@ -108,11 +116,12 @@ Turn order (`TG.Game.nextMonth`):
   - every scenario
 
   It checks for crashes, NaN/Infinity, negative stock and save round-trips.
-- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet. It also presses every free/repeatable button 1000 times in one month (PR, raise, bonus, train, service, crew train/bonus, turf, theft, heists, sabotage, cash moves) and asserts no net gain, checks that laundering always loses money, that raid/conviction odds never reach zero, and that jail blocks crime actions.
+- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet. It also presses every free/repeatable button 1000 times in one month (PR, raise, bonus, train, service, crew train/bonus, turf, theft, heists, sabotage, cash moves, farm spraying) and asserts no net gain, checks that moving farm acres around never makes money or soil, checks that laundering always loses money, that raid/conviction odds never reach zero, and that jail blocks crime actions.
 - `node test/crime.test.js [seeds]` runs `tools/crime-balance.js` and asserts that crime plans do not beat careful legit play and that reckless crime is ruined most of the time.
+- `node test/migrate.test.js` loads v4-style farm saves and checks they become the new area layout and keep running.
 - `node tools/balance.js 8 120 [--json]` compares ROI and risk of ruin per business at similar capital.
 - `node tools/econ.js` shows unit economics. `node tools/diag.js` shows a single-business diagnostic.
 - Browser tests (optional; need `puppeteer-core` and Chrome):
   - `NODE_PATH=... node test/ui.test.js --clicks 600 [--width 375] [--file dist/tycoon.html]` does random clicking and checks errors, overflow, bad text and save restore.
   - `NODE_PATH=... node test/ui-cover.test.js [--width 375]` presses every button on every tab for all 18 businesses, and on every crime tab (free and in jail).
-  - `NODE_PATH=... node tools/shots.js` saves phone-size screenshots (crime, forecast, hiring) to `tools/`.
+  - `NODE_PATH=... node tools/shots.js` saves phone-size screenshots (land areas, staff, manager orders, upgrades) to `tools/`.

@@ -76,18 +76,20 @@
   }
   function stockDetail(g, b) {
     let o = '';
-    if (b.farm && TG.M.isLivestock(b.farm)) {
-      const f = b.farm, e = TG.M.models.farm.e(b); const y = f.young || [];
+    if (b.farm) TG.M.farmEnsure(b);
+    if (b.farm && b.farm.areas.cows.herd > 0) {
+      const f = b.farm.areas.cows, e = TG.M.areaE(b, 'cows'); const y = f.young || [];
       const calves = U.sum(y.filter((x) => x.age < 6), (x) => x.n), grow = U.sum(y.filter((x) => x.age >= 6), (x) => x.n);
       const nearOld = f.cows * Math.min(1, 12 / Math.max(12, e.lifespan - 24));
       const rows = [['🍼', 'Calves (0-5 months)', calves, 'Drink milk, eat little. Most likely to get sick.'], ['🐮', 'Growing (6-14 months)', grow, `Eat more each month. Ready at ${e.matureAge} months.`], ['🐂', 'Ready to sell', f.ready, 'Sold at your price if buyers agree.']];
-      if (f.ent === 'dairy') { const milk = Math.min(f.cows * 0.85, TG.M.farmParlorCap(b)); rows.push(['🥛', 'Cows milking', milk, 'In milk and fit in a parlor.'], ['😴', 'Dry / can\'t be milked', f.cows - milk, 'Resting before calving (about 15%) or no parlor space.']); }
+      if (f.kind === 'dairy') { const milk = Math.min(f.cows * 0.85, TG.M.farmParlorCap(b)); rows.push(['🥛', 'Cows milking', milk, 'In milk and fit in a parlor.'], ['😴', 'Dry / can\'t be milked', f.cows - milk, 'Resting before calving (about 15%) or no parlor space.']); }
       else rows.push(['🐄', 'Mother cows', f.cows, 'Each may have a calf in spring.']);
       rows.push(['👵', 'Near retirement (estimate)', nearOld, `Cows retire at about ${Math.round(e.lifespan / 12)} years and are sold for meat.`]);
       o += `<div class="card"><h3>🐄 Herd by stage</h3>${rows.map((r, i) => UI.irow('cw' + i, r[0], r[1], N(r[2]), r[3])).join('')}<div class="mute">Total ${N(f.herd)} of ${N(TG.M.farmHeadCap(b))} space.</div></div>`;
       o += `<div class="card"><h3>📊 Young by age (months)</h3><table><tr>${y.map((x) => `<th class="n">${x.age}</th>`).join('')}</tr><tr>${y.map((x) => `<td class="n">${N(x.n)}</td>`).join('')}</tr></table></div>`;
-    } else if (b.farm) {
-      const f = b.farm; o += `<div class="card"><h3>🏚️ In storage</h3>${UI.irow('fs1', '🌾', 'Crop', N(f.stored) + ' t', 'Spoils a little each month.')}${UI.irow('fs2', '🌱', 'Seed', N(f.seeds) + ' acres', 'Needed before planting.')}${UI.irow('fs3', '📜', 'Sold ahead', N(U.sum(f.futures, (x) => x.qty - (x.done || 0))) + ' t', 'Must be delivered at harvest.')}</div>`;
+    }
+    if (b.farm) {
+      const f = b.farm; o += `<div class="card"><h3>🏚️ In storage</h3>${UI.irow('fs1', '🌾', 'Grain', N(f.stored.grain) + ' t', 'Spoils a little each month.')}${UI.irow('fs4', '🍎', 'Fruit', N(f.stored.fruit) + ' t', 'Spoils fast: sell soon.')}${UI.irow('fs2', '🌱', 'Seed', N(f.seeds) + ' acres', 'Needed before planting.')}${UI.irow('fs3', '📜', 'Sold ahead', N(U.sum(f.futures, (x) => x.qty - (x.done || 0))) + ' t', 'Must be delivered at harvest.')}</div>`;
     }
     if (b.stock) o += `<div class="card"><h3>${TG.ST.def(b).icon} ${esc(TG.ST.def(b).label)} by age</h3>${lotsTable(b)}</div>`;
     if (b.brand) { const s = b.brand; o += `<div class="card"><h3>👕 Clothes</h3>${UI.irow('bd1', '👕', 'In the warehouse', N(s.stock), 'Slowly going out of style each month.')}${s.incoming.map((x, i) => UI.irow('bdi' + i, '🚚', `Batch arriving in ${x.due - g.month} mo`, N(x.units), x.test ? 'Small test batch.' : 'From the factory.')).join('')}</div>`; }

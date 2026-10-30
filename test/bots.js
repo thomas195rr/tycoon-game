@@ -19,7 +19,7 @@ module.exports = function makeBots(TG) {
       for (const mode of modes) {
         const snap = TG.Game.serialize(g);
         const r = TG.P.acquire(g, p.id, mode); if (!r.ok) continue;
-        const s = TG.B.start(g, type, p.id, opts.concept ? { concept: opts.concept } : {});
+        const s = TG.B.start(g, type, p.id, opts.concept ? { concept: opts.concept } : opts.ent ? { ent: opts.ent } : {});
         if (!s.ok) { restore(g, snap); continue; }
         const plan = TG.B.quickSetup(g, s.biz, false);
         if (plan.cost > g.cash * 0.95) { restore(g, snap); continue; }
@@ -93,7 +93,14 @@ module.exports = function makeBots(TG) {
     if (b.proj) { const crew = TG.M.models.projects.crew(b, TG.B.ctx(g, b)); let need = U.sum(b.proj.active, (p) => p.crew); for (const o of b.proj.offers.slice()) { if (need + o.crew > crew * 1.3 || (o.bond && !b.fixes.bonds)) continue; const r = TG.M.bid(g, b, o.id, 'normal'); if (r.won) need += o.crew; } }
     if (b.fr) for (const a of b.fr.apps.slice()) { if (a.signal > 0.55 && g.cash > 50000) TG.M.franchiseApprove(g, b, a.id); else TG.M.franchiseReject(g, b, a.id); }
     if (b.farm && b.farm.sellPolicy !== 'auto') b.farm.sellPolicy = 'auto';
-    if (b.farm) { const p12f = U.sum(b.hist.slice(-12), (x) => x.profit); if (b.hist.length >= 12 && p12f > 0 && rnd() < 0.08) { const est = 80 * (TG.M.farmLandPrice(g, b) + (b.farm.ent === 'orchard' ? TG.CONFIG.businesses.farm.farm.enterprises.orchard.establishPerAcre * g.world.priceIdx : 0)); if (g.cash > est + 300000) TG.M.farmBuyLand(g, b, 80, false); } if (b.farm.ent === 'cattle') { const cap = TG.M.farmHerdCap({ acres: b.farm.acres, water: b.farm.water, soil: b.farm.soil }, TG.CONFIG.businesses.farm.farm.enterprises.cattle); if (b.farm.herd < cap * 0.7 && g.cash > 100000) TG.M.farmBuyCattle(g, b, Math.round(Math.min(cap * 0.8 - b.farm.herd, 50))); } }
+    if (b.farm) {
+      const f = TG.M.farmEnsure(b); const A = f.areas; const main = TG.M.farmAreas.slice().sort((x, y) => A[y].acres - A[x].acres)[0];
+      const p12f = U.sum(b.hist.slice(-12), (x) => x.profit);
+      if (b.hist.length >= 12 && p12f > 0 && rnd() < 0.08) { const n = Math.max(40, Math.round(f.acres * 0.25)); const land = n * TG.M.farmLandPrice(g, b), conv = TG.M.farmMoveCost(g, b, main, n).cost; if (g.cash > land + conv + 300000) TG.M.farmBuyLand(g, b, n, false); }
+      const fr = TG.M.farmFree(f); if (fr > 0 && g.cash > TG.M.farmMoveCost(g, b, main, fr).cost + 150000) TG.M.farmMove(g, b, 'free', main, fr);
+      if (A.cows.acres > 0) { const cap = TG.M.farmHeadCap(b); if (A.cows.herd < cap * 0.75 && g.cash > 60000) TG.M.farmBuyCattle(g, b, Math.round(Math.min(cap * 0.85 - A.cows.herd, 60, (g.cash - 50000) / TG.M.cowPrice(g, b)))); }
+      for (const k of TG.M.farmAreas) { if (A[k].acres < 20) continue; const t = TG.CONFIG.businesses.farm.farm.areas[k].spr; if (TG.M.areaWater(b, k) < 0.75 && b.hist.length >= 6 && g.cash > TG.E.price(g, b, t, 'standard') + 250000 && rnd() < 0.3) TG.E.buy(g, b, t, 'standard'); }
+    }
     if (b.factory) { const lines = TG.M.models.factory.lines(b).length; if (lc.util > 0.95 && p3 > 50000 && lines < TG.M.models.factory.maxLines(b) && g.cash > TG.E.price(g, b, 'line', 'standard') * 2.5) TG.E.buy(g, b, 'line', 'standard'); }
     if (b.tech && !b.tech.researched && g.cash > 80000) { const f = d.fixes.find((x) => x.id === 'research'); if (f) TG.B.buyFix(g, b, 'research'); }
     // keep a cash buffer: pay down the credit line
@@ -141,7 +148,7 @@ module.exports = function makeBots(TG) {
       () => { b.ads.budget = pick([0, 500, 3000, 20000]); b.ads.channel = pick(Object.keys(TG.CONFIG.reputation.adChannels)); },
       () => { if (TG.PR.hasPrice(b)) TG.PR.set(g, b, rnd() < 0.3 ? null : TG.PR.market(g, b) * pick([0.3, 0.8, 0.95, 1.1, 1.5, 4])); b.pace = pick(['careful', 'normal', 'rush']); },
       () => { if (b.stock) { if (rnd() < 0.5) TG.ST.buy(g, b, rnd() * 3000); else TG.ST.sell(g, b, rnd() * 500); b.stock.auto = rnd() < 0.8; } },
-      () => { if (b.farm) { if (rnd() < 0.5) TG.M.farmBuySeeds(g, b, rnd() * 300); else TG.M.farmSellCattle(g, b, rnd() * 30, pick(['ready', 'cows'])); b.farm.autoSeeds = rnd() < 0.8; } },
+      () => { if (b.farm) { if (rnd() < 0.5) TG.M.farmBuySeeds(g, b, rnd() * 300); else TG.M.farmSellCattle(g, b, rnd() * 30, pick(['ready', 'cows'])); b.farm.orders.seed = rnd() < 0.8; } },
       () => TG.F.takeLoan(g, pick(['business', 'emergency']), Math.round(rnd() * 200000)),
       () => { const l = pick(g.loans); if (l) TG.F.prepay(g, l.id, rnd() * 50000); },
       () => TG.F.locDraw(g, rnd() * 50000), () => TG.F.locRepay(g, rnd() * 50000),
@@ -164,7 +171,7 @@ module.exports = function makeBots(TG) {
       () => { if (b.proj) { const o = pick(b.proj.offers); if (o) TG.M.bid(g, b, o.id, pick(['low', 'normal', 'high'])); } },
       () => { if (b.tech) { if (rnd() < 0.5) TG.M.techResearch(g, b); else TG.M.techPivot(g, b); } },
       () => { if (b.fr) { const a = pick(b.fr.apps); if (a) (rnd() < 0.5 ? TG.M.franchiseApprove : TG.M.franchiseReject)(g, b, a.id); } },
-      () => { if (b.farm) { const a = Math.floor(rnd() * 6); if (a === 0) TG.M.farmBuyLand(g, b, 20, rnd() < 0.5); if (a === 1) TG.M.farmIrrigate(g, b, 20); if (a === 2) TG.M.farmStorage(g, b, 100); if (a === 3) TG.M.farmFutures(g, b, 50); if (a === 4) TG.M.farmBuyCattle(g, b, 10); if (a === 5) b.farm.sellPolicy = pick(['sell', 'store', 'auto']); } },
+      () => { if (b.farm) { const a = Math.floor(rnd() * 6); if (a === 0) TG.M.farmBuyLand(g, b, 20, rnd() < 0.5); if (a === 1) { const ks = ['free'].concat(TG.M.farmAreas); TG.M.farmMove(g, b, pick(ks), pick(ks), 1 + rnd() * 40); TG.M.farmTreat(g, b, pick(TG.M.farmAreas), 'You'); } if (a === 2) TG.M.farmStorage(g, b, 100); if (a === 3) TG.M.farmFutures(g, b, pick(['crops', 'orchard']), 50); if (a === 4) TG.M.farmBuyCattle(g, b, 10); if (a === 5) b.farm.sellPolicy = pick(['sell', 'store', 'auto']); } },
       () => { if (b.freight || b.type === 'freight') TG.M.freightHedge(g, b); },
       () => { const pr = pick(Object.keys(TG.CONFIG.reputation.pr)); TG.B.doPR(g, b, pr, null); },
       () => {},

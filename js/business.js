@@ -12,11 +12,7 @@
     if (d.license) c += d.license.fee;
     if (g.world.licenseFees[type]) c += g.world.licenseFees[type];
     if (type === 'franchise' && opts && opts.fromBiz) c *= 0.7;
-    if (type === 'farm' && opts) {
-      const ent = d.farm.enterprises[opts.ent || 'crops'];
-      if (opts.ent === 'orchard' && !prop.orchard) c += ent.establishPerAcre * prop.acres * g.world.priceIdx;
-      if (opts.ent === 'cattle' || opts.ent === 'dairy') c += Math.round(TG.M.farmHerdCap(prop, ent) * 0.5) * TG.W.price(g, 'beef', 0) * (opts.ent === 'dairy' ? 0.95 : 0.8);
-    }
+    if (type === 'farm' && opts) c += TG.M.farmSetupExtra(g, prop, opts.ent || TG.M.bestEnterprise(prop));
     return Math.round(c);
   };
 
@@ -37,7 +33,7 @@
       rep: d.startRep != null ? d.startRep : C.reputation.start, staff: [], spec: {}, equip: [], fixes: {}, ins: {},
       ads: { budget: 0, channel: 'social' }, pace: 'normal', ask: null, hits: [], boost: null, recv: [], hist: [],
       m: { rev: 0, cost: 0, lines: {} }, revAvg: 0, outside: 0, closed: 0, licensePending: d.license ? d.license.months : 0,
-      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost,
+      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost, orders: {}, backlog: 0,
     };
     prop.bizId = b.id;
     TG.M.init(g, b, prop, opts);
@@ -193,6 +189,7 @@
       }
     }
     for (const f of d.fixes) if (b.fixes[f.id] && f.reduces && f.reduces[r.id]) { p *= f.reduces[r.id]; parts.push('with ' + f.label.toLowerCase()); }
+    const bl = B.backlogMult(b); if (bl > 1.01) { p *= bl; parts.push(`unfinished work x${bl.toFixed(2)}`); }
     p *= (TG.CONFIG.difficulty.eventFreq[g.settings.eventFreq] || 1) * ctx.streakMult;
     return { p: U.clamp(p, 0, 0.95), parts };
   };
@@ -227,7 +224,7 @@
     if (s.quality && !(b.fixesOn && b.fixesOn.qualityShield)) { b.qHits.push({ amt: s.quality[0], months: s.quality[1] }); bits.push(`quality -${s.quality[0]} for ${s.quality[1]} mo`); }
     if (s.delayExtra) { const x = R.int(s.delayExtra[0], s.delayExtra[1]); for (const rv of b.recv) rv.due += x; bits.push(`payments delayed ${x} mo`); }
     if (s.churn && b.tech) { const x = R.range(s.churn[0], s.churn[1]); b.tech.users = Math.round(b.tech.users * (1 - x)); bits.push(`${U.pct(x)} of users left`); }
-    if (s.yield && b.farm) { const x = R.range(s.yield[0], s.yield[1]); b.farm.seasonYield *= x; bits.push(`harvest outlook x${x.toFixed(2)}`); }
+    if (s.yield && b.farm) { const x = R.range(s.yield[0], s.yield[1]); TG.M.farmEnsure(b); b.farm.areas.crops.seasonYield *= x; b.farm.areas.orchard.seasonYield *= x; bits.push(`harvest outlook x${x.toFixed(2)}`); }
     let sued = false;
     if (s.suit && (!s.suitChance || R.chance(s.suitChance))) {
       const amt = Math.max(C.lawsuits.suitMin, ctx.revAvg * R.range(s.suit[0], s.suit[1]));
@@ -460,9 +457,31 @@
     const profit = U.sum(Object.values(lines), (x) => x);
     return { m: g.month + 1, lines, why, profit, loans };
   };
+  // ---------- unfinished work: people call out or slack off; with no spare staff some work is left undone ----------
+  // Each worker has a chance each month to be out part of the month (more if unreliable or unhappy). Spare capacity covers it.
+  // Work left undone piles up as a backlog that raises the odds of every disaster (and breakdowns) until it is caught up.
+  B.calloutP = (e) => TG.CONFIG.staff.calloutBase * (1.6 - (e.reliability == null ? 75 : e.reliability) / 100) * (e.morale < 40 ? 1.5 : 1);
+  B.unfinished = (g, b, ctx) => {
+    let worst = 0;
+    for (const w of b.work || []) {
+      if (w.kind !== 'staff' || !(w.load > 0) || w.cap == null) continue;
+      const ppl = w.role ? b.staff.filter((e) => e.role === w.role) : ctx.key;
+      const per = w.cap / Math.max(1, ppl.length); let lost = 0, out = 0;
+      for (const e of ppl) if (R.chance(B.calloutP(e))) { lost += per * R.range(0.2, 0.5); out++; }
+      const capReal = w.cap * 1.04 - lost; // cap already allows for the average no-show (~4%)
+      const uf = U.clamp((w.load - capReal) / w.load, 0, 1);
+      w.out = out; w.lost = Math.round(lost); w.unf = Math.round(uf * 1000) / 1000; worst = Math.max(worst, uf);
+    }
+    b.unf = worst;
+    b.backlog = U.clamp((b.backlog || 0) * (worst > 0.001 ? 0.6 : 0.3) + worst, 0, 1);
+    if (b.backlog < 0.005) b.backlog = 0;
+    if (worst > 0.05) TG.rep.event(g, b, 'bad', `${U.pct(worst)} of the work was left undone`, `People called out or slacked and nobody was spare to cover. Disaster odds are x${B.backlogMult(b).toFixed(2)} until it is caught up. Spare staff (Staff tab) prevent this.`);
+  };
+  B.backlogMult = (b) => Math.min(TG.CONFIG.staff.backlogMax || 2.5, 1 + (TG.CONFIG.staff.backlogK || 3) * (b.backlog || 0));
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
     TG.FL.commit(g, b); TG.WK.commit(b, ctx);
+    B.unfinished(g, b, ctx);
     b.hits = b.hits.filter((h) => --h.months > 0);
     if (b.boost && --b.boost.months <= 0) b.boost = null;
     b.qHits = b.qHits.filter((h) => --h.months > 0);

@@ -7,7 +7,11 @@
   // the good a business sells (farm depends on enterprise)
   P.good = (b) => {
     const d = TG.CONFIG.businesses[b.type];
-    if (b.farm) return TG.CONFIG.farmGoods[b.farm.ent] || TG.CONFIG.farmGoods.crops;
+    if (b.farm) { // farm: the good of its biggest area (each area has its own price on the Land tab)
+      const A = b.farm.areas; if (!A) return TG.CONFIG.farmGoods[b.farm.ent] || TG.CONFIG.farmGoods.crops;
+      const k = ['cows', 'crops', 'orchard'].sort((x, y) => A[y].acres - A[x].acres)[0];
+      return TG.CONFIG.farmGoods[k === 'cows' ? (A.cows.kind === 'dairy' ? 'dairy' : 'cattle') : k] || TG.CONFIG.farmGoods.crops;
+    }
     return d.good || null;
   };
   // market price per unit right now (moves with economy, trends, competitors and everyone's supply incl. yours)
@@ -17,7 +21,7 @@
     if (gd.base) p = p / TG.CONFIG.markets[gd.market].base * gd.base; // e.g. tech ARPU vs software index
     return p;
   };
-  P.hasPrice = (b) => !!P.good(b) && !b.proj && !b.fr;
+  P.hasPrice = (b) => !!P.good(b) && !b.proj && !b.fr && !b.farm; // farms price each area on the Land tab
   // the player's price (null = follow market)
   P.ask = (g, b) => (b.ask != null && b.ask > 0 ? b.ask : P.market(g, b));
   P.ratio = (g, b) => {

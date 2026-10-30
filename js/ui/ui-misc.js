@@ -105,7 +105,7 @@
     lawn: ['Winter is slow: do not overhire in spring.', 'Mowers wear quickly when every crew is maxed.'],
     auto: ['Each tech needs a lift and the scanner keeps up with all of them.', 'Cutting corners raises lawsuit odds.'],
     gym: ['Members leave after the January rush.', 'Cardio and weights each cap how many members fit.'],
-    farm: ['Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
+    farm: ['Split your acres into 🐄 cow, 🌾 crop and 🍎 orchard areas (Land tab). Moving acres costs money and a month or two.', 'Each area has soil % (drops monthly; spray brings it back) and water % (sprinkler cover). Low water raises the odds of dry-outs; poor soil raises pest odds and lowers yield.', 'Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
     freight: ['Diesel is about a third of costs: fill the yard tank when fuel is cheap.', 'Trucks without drivers earn nothing.'],
     brand: ['Test with small batches before a big order.', 'Unsold stock costs storage and loses value.'],
     hotel: ['Housekeepers and laundry both cap rooms cleaned.', 'Reviews drive occupancy: worn rooms hurt.'],

@@ -280,3 +280,52 @@
 (function () { // v4: farms lost the free owner-farmer; farm goods pay a little more
   const MK = globalThis.TG.CONFIG.markets; for (const k of ['grain', 'fruit', 'beef', 'milk']) if (MK[k]) MK[k].base = Math.round(MK[k].base * 1.2 * 100) / 100;
 })();
+// v5: the farm is split into areas (cows / crops / orchard) with soil % and water %; manager orders; every upgrade says what it does
+(function () {
+  const C = globalThis.TG.CONFIG, BZ = C.businesses, FD = BZ.farm.farm;
+  FD.areas = {
+    cows:    { label: 'Cow area', icon: '🐄', decay: 0.03, treat: 12, convCost: 45, convMonths: 2, convWhy: 'fences, water troughs and grass seed', spr: 'sprCow', what: 'Grass for your cows. More acres = room for more cows.' },
+    crops:   { label: 'Crop area', icon: '🌾', decay: 0.06, treat: 25, convCost: 70, convMonths: 1, convWhy: 'plowing and clearing the ground', spr: 'sprCrop', what: 'Fields of grain: planted in spring (Mar-Apr), harvested in fall (Aug-Sep).' },
+    orchard: { label: 'Orchard area', icon: '🍎', decay: 0.045, treat: 35, convCost: null, convMonths: 1, convWhy: 'buying and planting young trees', spr: 'sprOrch', what: 'Fruit trees: picked in Jul-Aug. New trees take about 30 months to give full fruit.' },
+  };
+  // soil %: drops by decay x soil^2 each month (fast when high, slow when low); spraying adds add x (ceil - soil)
+  FD.soil = { add: 0.3, ceil: 1.05, floor: 0.15, yieldBase: 0.55, yieldK: 0.6, freeRegen: 0.01 };
+  // water %: share of an area's acres your sprinklers cover. Low water raises the odds of dry-outs (crops/trees) and sick cows
+  // v5 balance: cow areas were far behind crops (thin herds, labor-heavy dairy). More cows per acre, lighter dairy work and feed.
+  FD.enterprises.cattle.headPerAcre = 1.0; FD.enterprises.dairy.headPerAcre = 0.8;
+  FD.enterprises.dairy.headPerHand = 110; FD.enterprises.dairy.feed = 150;
+  FD.enterprises.crops.yield = 4.0; FD.enterprises.orchard.yield = 4.4; // v5: water and soil now cut yield more often, so base yield is a bit higher
+  FD.herdStart = 0.65; // a new cow area starts with a herd at 65% of its room (paid for in the setup cost)
+  // v5: auto shops had about 3x more customers than they could ever fix, so raising the price cost nothing; fewer walk-ins now
+  BZ.auto.svc.baseDemand = 130;
+  // v5: lawn add-ons were cheap enough to be an automatic buy; still worth it, no longer a +40% shortcut
+  { const E = (id) => BZ.lawn.equip.find((x) => x.id === id); const bl = E('blower'), ae = E('aerator');
+    if (bl) { bl.price = 5000; bl.staffBoost = 0.05; bl.desc = 'Crews +5% faster'; } if (ae) { ae.price = 12000; ae.ticketBoost = 0.03; ae.desc = '+3% per job (extra service)'; } }
+  FD.water = { lossBase: 0.04, lossRange: [0.1, 0.3], yieldK: 0.12, pestBase: 0.03, pestRange: [0.1, 0.3], rotationCut: 0.45, sickWater: 2,
+    dry: { drought: 4, heat: 2.5, rain: 0.4, storm: 0.6, flood: 0.3, frost: 1, snow: 0.3 } };
+  FD.enterprises.crops.inputPerAcre = 110; FD.enterprises.orchard.inputPerAcre = 280;
+  const dz = BZ.farm.risks.find((r) => r.id === 'disease'); if (dz) dz.base = 0; // replaced by per-area pest odds (soil) in farm.js
+  BZ.farm.equip.push(
+    { id: 'sprCrop', label: 'Crop sprinkler (center pivot)', cat: 'water', price: 30000, acres: 60, upkeep: 80, brk: 0.006, life: 180, cap: 0, desc: 'Waters 60 acres of the CROP area. Watered crops grow up to 12% more and dry out less often.' },
+    { id: 'sprOrch', label: 'Orchard drip line', cat: 'water', price: 22000, acres: 40, upkeep: 60, brk: 0.006, life: 180, cap: 0, desc: 'Waters 40 acres of the ORCHARD area. Watered trees give up to 12% more fruit and dry out less often.' },
+    { id: 'sprCow', label: 'Pasture sprinkler & water troughs', cat: 'water', price: 25000, acres: 150, upkeep: 60, brk: 0.005, life: 200, cap: 0, desc: 'Waters 150 acres of the COW area: more grass in dry months, lower drought feed bills and fewer sick cows.' },
+  );
+  C.equipCats.water = ['💦', 'Water (sprinklers)', 'Each sprinkler waters a set number of acres in ONE area. Water % = acres covered ÷ acres in that area.'];
+  const eqd = (t, id, v) => { const e = BZ[t].equip.find((x) => x.id === id); if (e) Object.assign(e, v); };
+  eqd('farm', 'robot', { desc: 'Drives itself: does the work of 4 tractors, and the farmhand work it covers drops by 85%. 2% chance a month of a software glitch (repairs cost double).' });
+  eqd('farm', 'planter', { desc: 'Pulled by a tractor: plants as much as 0.8 extra tractor in spring (Mar-Apr).' });
+  eqd('farm', 'combine', { desc: 'Pulled by a tractor: harvests as much as 1.2 extra tractors and cuts seasonal harvest wages by 25%.' });
+  eqd('farm', 'pen', { desc: '+25 cows of room beyond your grass. Cows in pens eat bought feed (60% more than on grass).' });
+  eqd('farm', 'barn', { desc: '+90 cows of room beyond your grass. Cows in barns eat bought feed (60% more than on grass).' });
+  eqd('farm', 'parlor', { desc: 'Milks up to 160 dairy cows. Cows that are not milked make no milk.' });
+  eqd('law', 'software', { cap: 0, staffBoost: 0.05, desc: 'Tracks cases and deadlines: attorneys handle 5% more cases.' });
+  eqd('brand', 'shelving', { desc: '+8,000 units of room, and packers work 15% faster while it is working.' });
+  const fx = (t, id, v) => { const f = BZ[t].fixes.find((x) => x.id === id); if (f) Object.assign(f, v); };
+  fx('farm', 'rotation', { label: 'Crop rotation plan' }); { const rf = BZ.farm.fixes.find((x) => x.id === 'rotation'); if (rf) { delete rf.yieldMult; rf.reduces = {}; } } // its effect is on the crop pest odds (FD.water.rotationCut)
+  fx('farm', 'plant', { label: 'Mega processing plant (flour, juice, cheese, packed meat)', minVolume: 12500 });
+  fx('farm', 'integrate', { label: 'Own seed & feed supply (buy your supplier)' });
+  C.staff.calloutBase = 0.1;  // chance a month each worker is out part of the month (more if unreliable or unhappy)
+  C.staff.backlogK = 3; C.staff.backlogMax = 2.5; // unfinished work raises disaster odds by up to x2.5
+  // what each business's unfinished work can turn into (shown on the Staff tab)
+  C.unfinishedRisk = { cafe: 'food going bad, health inspections failed', foodtruck: 'fires, failed permits', bakery: 'stale stock, allergy mistakes', salon: 'botched jobs, burns', carwash: 'machine breakdowns, car damage', lawn: 'no-show complaints, injuries', auto: 'repair mistakes, injuries', gym: 'equipment injuries, bad advice', farm: 'sick cows, crops rotting in the field, pests', freight: 'missed deliveries, crashes', brand: 'shipping delays and chargebacks', hotel: 'bed bugs, floods, bad reviews', law: 'missed deadlines, billing problems', clinic: 'failed audits, payment delays', construction: 'cost overruns, failed inspections', factory: 'recalls, accidents', tech: 'outages, security breaches', franchise: 'weak shops, scandals' };
+})();

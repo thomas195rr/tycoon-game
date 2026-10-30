@@ -74,8 +74,8 @@
     let extra = '';
     if (d.model === 'farm') {
       const best = TG.M.bestEnterprise(p);
-      extra = `<div class="kv"><span>What to farm</span><span><select id="stEnt">${Object.entries(d.farm.enterprises).map(([id, e]) => `<option value="${id}"${id === best ? ' selected' : ''}>${esc(e.label || id)} (+${m(TG.B.setupCost(g, type, p, { ent: id }) - TG.B.setupCost(g, type, p, null))})</option>`).join('')}</select></span></div>
-        <div class="mute">Suggested for this land: ${esc(best)}. Orchards take years to bear fruit unless one is already planted; cattle need grass and buying a herd.</div>`;
+      extra = `<div class="kv"><span>What to farm</span><span><select id="stEnt">${[['crops', '🌾 All crops'], ['cattle', '🥩 All beef cows'], ['dairy', '🥛 All dairy cows'], ['orchard', '🍎 All orchard'], ['mixed', '🐄🌾 Half cows, half crops']].map(([id, lb]) => `<option value="${id}"${id === best ? ' selected' : ''}>${lb} (+${m(TG.B.setupCost(g, type, p, { ent: id }) - TG.B.setupCost(g, type, p, null))})</option>`).join('')}</select></span></div>
+        <div class="mute">Suggested for this land: ${esc(best)}. This only sets how your acres start: later you can move acres between 🐄 cow, 🌾 crop and 🍎 orchard areas (costs money and a month or two). New orchards take ${d.farm.enterprises.orchard.rampMonths} months to bear fruit unless one is already planted; cows need a herd. Crop farms include the first season's seed.</div>`;
     }
     if (d.model === 'franchise') {
       const own = g.businesses.filter((b) => C.businesses[b.type].tier === 'small');

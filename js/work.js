@@ -8,10 +8,10 @@
   const WK = {};
   // add one group to this month's report
   // kind: 'staff' | 'eq' | 'space' | 'stock'; pools: equipment pools it covers; unit: what one unit of work is
-  WK.add = (ctx, kind, icon, label, n, cap, load, unit, pools, tip) => {
+  WK.add = (ctx, kind, icon, label, n, cap, load, unit, pools, tip, role) => {
     if (!ctx.wk) ctx.wk = [];
     cap = Number.isFinite(cap) ? Math.max(0, cap) : null; load = Math.max(0, load || 0);
-    ctx.wk.push({ kind, i: icon, t: label, n: Math.round((n || 0) * 10) / 10, cap: cap == null ? null : Math.round(cap), load: Math.round(load), u: unit || '', pools: pools || [], util: cap ? Math.round(load / cap * 100) / 100 : (load > 0 ? 9 : 0), tip: tip || '' });
+    ctx.wk.push({ kind, i: icon, t: label, n: Math.round((n || 0) * 10) / 10, cap: cap == null ? null : Math.round(cap), load: Math.round(load), u: unit || '', pools: pools || [], util: cap ? Math.round(load / cap * 100) / 100 : (load > 0 ? 9 : 0), tip: tip || '', role: role || null });
   };
   // equipment pools of a business -> group per pool (service-type)
   WK.poolGroups = (g, b, ctx, load, unit) => {
@@ -24,6 +24,7 @@
   // end of month: keep the report and per-pool utilization (drives next month's wear)
   WK.commit = (b, ctx) => {
     b.work = ctx.wk || []; const P = {};
+    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); for (const w of b.work) if (w.kind === 'staff' && !w.role) { w.role = kr; break; }
     for (const w of b.work) if (w.kind === 'eq') for (const p of w.pools) P[p] = Math.min(1.5, w.util);
     b.workPool = P;
   };

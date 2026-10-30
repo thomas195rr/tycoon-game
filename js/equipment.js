@@ -54,7 +54,8 @@
     let advF = 1;
     if (t.advanced && !E.hasMech(b) && TG.CONFIG.businesses[b.type].tier !== 'small') advF = 1;
     const lineF = (it.type === 'line' && b.fixesOn && b.fixesOn.lineFailMult) || 1;
-    const p = U.clamp(d.brk * t.brk * ageF * wearF * mechF * fixF * paceF * advF * lineF * (1 - TG.S.perk(b, 'breakCut')), 0, 0.9);
+    const blF = 1 + (TG.B.backlogMult(b) - 1) * 0.5; // skipped upkeep when work is left undone
+    const p = U.clamp(d.brk * t.brk * ageF * wearF * mechF * fixF * paceF * advF * lineF * blF * (1 - TG.S.perk(b, 'breakCut')), 0, 0.9);
     const factors = [];
     factors.push(`${(it.age / 12).toFixed(1)} yrs old`);
     factors.push(`${Math.round(E.effWear(it))}% wear`);
@@ -62,6 +63,7 @@
     factors.push(it.maint ? 'on maintenance plan' : 'no maintenance plan');
     if (cov > 0) factors.push('mechanic on staff'); else factors.push('no mechanic');
     if (b.pace === 'rush') factors.push('rushed pace');
+    if (blF > 1.01) factors.push(`unfinished work x${blF.toFixed(2)}`);
     return { p, factors };
   };
 
