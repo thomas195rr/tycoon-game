@@ -273,7 +273,7 @@
 // v4: owner labor was removed, so small shops must pay for every worker; prices are retuned so careful play still works
 (function () {
   const BZ = globalThis.TG.CONFIG.businesses;
-  const T = { cafe: 1.13, foodtruck: 1.1, bakery: 1.22, salon: 1.06, auto: 1.1, gym: 1.14 };
+  const T = { cafe: 1.2, foodtruck: 1.1, bakery: 1.22, salon: 1.06, auto: 1.18, gym: 1.14 };
   const MK = globalThis.TG.CONFIG.markets;
   for (const t in T) { BZ[t].svc.ticket = Math.round(BZ[t].svc.ticket * T[t] * 100) / 100; if (MK['svc_' + t]) MK['svc_' + t].base = BZ[t].svc.ticket; }
 })();

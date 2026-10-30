@@ -19,6 +19,14 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **This month / Next month:** every business shows a simple flow (in, made, sold, lost and why) with green/yellow/red dots, plus what to expect next month.
 - **Kid-friendly look:** light colours, big rounded buttons and cards, big icons, short words; tap any (i) or row label to show a short explanation, tap again to hide it. No animations.
 
+## Version 4 highlights
+- **🕶️ Crime side (optional, can be turned off in Settings):** a fictional street-goods empire (Sugar Rush, Glow, Haze, Void: made-up products, no real-world detail), suppliers with different reliability, a stash with limited storage, a crew (dealers, runners, enforcers, lookouts, cooks) on the same work-capacity model as legit staff, turf blocks, laundering through your legit businesses (limited and audited), plus bank jobs, sabotage of rival businesses, insider trading and petty theft.
+- **Crime is risky:** heat, raids, robberies, snitches, arrests, jail (months pass while your managers run things), seizure of the stash and even your legit companies. Lawyers and bribes lower the odds but never make you safe. Every risk shows its odds and why.
+- **Street pricing:** sell at the street price or set your own. Cheap grows clients fast but earns less each; dear earns more each but scares clients off and hurts street rep. Clients and street rep are visible.
+- **No free buttons:** PR, raises, bonuses, training, servicing and crew perks have a few useful uses per month; pressing past the limit backfires. The screens show uses left.
+- **Every business needs staff:** the "work it yourself" option and the Replace button are gone (sell, then buy).
+- **Skills in real numbers**, manager perks unlocked by level, a **next-month forecast** for each business and **forecast vs actual** after the month. Candidates show what they would add before you hire.
+
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.
 
@@ -100,9 +108,11 @@ Turn order (`TG.Game.nextMonth`):
   - every scenario
 
   It checks for crashes, NaN/Infinity, negative stock and save round-trips.
-- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet.
+- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet. It also presses every free/repeatable button 1000 times in one month (PR, raise, bonus, train, service, crew train/bonus, turf, theft, heists, sabotage, cash moves) and asserts no net gain, checks that laundering always loses money, that raid/conviction odds never reach zero, and that jail blocks crime actions.
+- `node test/crime.test.js [seeds]` runs `tools/crime-balance.js` and asserts that crime plans do not beat careful legit play and that reckless crime is ruined most of the time.
 - `node tools/balance.js 8 120 [--json]` compares ROI and risk of ruin per business at similar capital.
 - `node tools/econ.js` shows unit economics. `node tools/diag.js` shows a single-business diagnostic.
 - Browser tests (optional; need `puppeteer-core` and Chrome):
   - `NODE_PATH=... node test/ui.test.js --clicks 600 [--width 375] [--file dist/tycoon.html]` does random clicking and checks errors, overflow, bad text and save restore.
-  - `NODE_PATH=... node test/ui-cover.test.js [--width 375]` presses every button on every tab for all 18 businesses.
+  - `NODE_PATH=... node test/ui-cover.test.js [--width 375]` presses every button on every tab for all 18 businesses, and on every crime tab (free and in jail).
+  - `NODE_PATH=... node tools/shots.js` saves phone-size screenshots (crime, forecast, hiring) to `tools/`.

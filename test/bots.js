@@ -80,6 +80,8 @@ module.exports = function makeBots(TG) {
       const crit = d.equip.find((x) => x.id === lc.limitEquip) || d.equip.find((x) => x.critical);
       if (crit && g.cash > TG.E.price(g, b, crit.id, 'standard') * 3) TG.E.buy(g, b, crit.id, 'standard');
     }
+    // cheap upgrades that say what they add (+x% capacity / ticket): a careful owner buys one of each once the shop pays
+    if (p3 > 0 && age > 3) for (const ed of d.equip) if ((ed.ticketBoost || ed.staffBoost) && TG.E.count(b, ed.id) < 1 && g.cash > ed.price * 5) TG.E.buy(g, b, ed.id, 'standard');
     if (lc.limit === 'staff' && lc.demand > lc.cap * 1.15 && p3 > 0 && g.cash > 20000) { const kr = TG.M.keyRole(d); if (kr) hireBest(g, b, kr); }
     if (b.stock && g.cash > 15000 && TG.ST.cap(b) < Math.min(lc.demand || 0, lc.cap || 0) * 1.1) TG.ST.addStorage(g, b, Math.min(lc.demand, lc.cap) * 1.1);
     if (lc.limit === 'support' && lc.demand > lc.cap * 1.1 && g.cash > 20000) { const sr = Object.keys(d.roles).find((r) => d.roles[r].support); if (sr) hireBest(g, b, sr); }

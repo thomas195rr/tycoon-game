@@ -23,6 +23,7 @@ function check(g, label) {
     if (b.rep < 0 || b.rep > 100) bad.push(`${b.name} rep ${b.rep}`);
   }
   if (g.loc.balance < -1) bad.push('loc balance negative');
+  if (g.crime) { const c = g.crime; if (c.dirty < -1) bad.push('dirty cash negative'); for (const k in c.stock) if (c.stock[k] < 0) bad.push('negative street stock'); if (c.heat < 0 || c.heat > 100) bad.push('heat out of range'); if (c.clients < 0) bad.push('negative clients'); if (c.jail < 0) bad.push('negative jail'); }
   if (g.invest.marginDebt < -1) bad.push('margin debt negative');
   for (const l of g.loans) if (l.balance < -1) bad.push('loan balance negative');
   for (const s in g.invest.pos) if (g.invest.pos[s].qty < 0) bad.push('negative shares');
@@ -72,6 +73,7 @@ for (let s = 1; s <= SEEDS; s++) {
     }
   }
   // scenarios
+  { const CB = require('./crime-bots')(TG); for (const st of ['careful', 'reckless', 'heister']) { let biz = null; run(`crime:${st}#${s}`, 4000 + s * 13 + st.length, (g) => { g.cash = 400000; biz = bots.startBiz(g, 'cafe'); }, (g) => { if (biz && g.businesses.includes(biz)) bots.careful(g, biz); else bots.resolveSmart(g); CB[st](g); }, Math.min(MONTHS, 360)); } }
   for (const sc of Object.keys(TG.Game.scenarios)) run(`scenario:${sc}#${s}`, 50 + s, (g) => {}, (g) => bots.random(g), 300);
   // scenario field is set by newGame opts; run them properly too
   for (const sc of Object.keys(TG.Game.scenarios)) {

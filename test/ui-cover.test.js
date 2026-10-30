@@ -49,6 +49,13 @@ const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdi
   for (const s of [['money', ['fin', 're', 'inv', 'casino']], ['more', ['mgr', 'news', 'log', 'ach', 'set', 'help']], ['home', [null]], ['biz', [null]]]) {
     for (const tb of s[1]) { await page.evaluate((s, tb) => { if (tb) TG.UI.tab[s] = tb; TG.UI.go(s); }, s[0], tb); await check(s[0] + ' ' + tb); await pressAll(s[0] + ' ' + tb); }
   }
+  // crime screen: every tab, every button; then the same while in jail
+  await page.evaluate(() => { const g = TG.G, CR = TG.CR; g.settings.crime = true; g.cash = 2e8; CR.withdraw(g, 60000); CR.buy(g, 'plug', 'sugar', 400); for (let i = 0; i < 3; i++) TG.Game.nextMonth(g); TG.UI.closeModal(); });
+  for (const jail of [0, 4]) for (const tb of ['home', 'goods', 'crew', 'turf', 'clean', 'jobs', 'law']) {
+    await page.evaluate((tb, jail) => { TG.G.crime.jail = jail; TG.UI.tab.crime = tb; TG.UI.go('crime'); }, tb, jail);
+    await check(`crime ${tb} jail${jail}`); await shot(page, `crime ${tb} jail${jail}`); await pressAll(`crime ${tb} jail${jail}`);
+  }
+  await page.evaluate(() => { TG.G.crime.jail = 0; });
   // decisions & reports
   await page.evaluate(() => { for (let i = 0; i < 6; i++) TG.Game.nextMonth(TG.G); TG.UI.render(); });
   await page.evaluate(() => TG.UI.A.decisions()); await check('decisions');

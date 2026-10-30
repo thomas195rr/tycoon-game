@@ -13,9 +13,9 @@
     priceVol: 0.07, priceShock: 0.04, // monthly price wander and odds of a shortage/glut
     // ---- suppliers: price multiplier on wholesale, odds the order arrives in full / short / not at all, sting = undercover police
     suppliers: {
-      plug:   { icon: '🧔', label: 'Corner plug', mult: 1.15, ok: 0.9, short: 0.06, sting: 0, goods: ['sugar', 'glow'], maxOrder: 3000, unlock: { turf: 0, rep: 0 }, desc: 'Small and fairly reliable. Costs more.' },
-      harbor: { icon: '🚤', label: 'Harbor crew', mult: 1.0, ok: 0.8, short: 0.1, sting: 0.01, goods: ['sugar', 'glow', 'haze'], maxOrder: 8000, unlock: { turf: 2, rep: 30 }, desc: 'Normal prices, sometimes late or short.' },
-      connect:{ icon: '🌎', label: 'Big connect', mult: 0.8, ok: 0.86, short: 0.08, sting: 0.01, goods: ['sugar', 'glow', 'haze', 'void'], maxOrder: 40000, minOrder: 50000, orderHeat: 3, unlock: { turf: 6, rep: 60 }, desc: 'Cheapest real supply, big minimum order, adds heat.' },
+      plug:   { icon: '🧔', label: 'Corner plug', mult: 1.22, ok: 0.9, short: 0.06, sting: 0, goods: ['sugar', 'glow'], maxOrder: 3000, unlock: { turf: 0, rep: 0 }, desc: 'Small and fairly reliable. Costs more.' },
+      harbor: { icon: '🚤', label: 'Harbor crew', mult: 1.06, ok: 0.8, short: 0.1, sting: 0.01, goods: ['sugar', 'glow', 'haze'], maxOrder: 8000, unlock: { turf: 2, rep: 30 }, desc: 'Normal prices, sometimes late or short.' },
+      connect:{ icon: '🌎', label: 'Big connect', mult: 0.86, ok: 0.86, short: 0.08, sting: 0.01, goods: ['sugar', 'glow', 'haze', 'void'], maxOrder: 40000, minOrder: 50000, orderHeat: 3, unlock: { turf: 6, rep: 60 }, desc: 'Cheapest real supply, big minimum order, adds heat.' },
       newguy: { icon: '🕶️', label: 'New guy', mult: 0.62, ok: 0.55, short: 0.15, sting: 0.1, goods: ['sugar', 'glow', 'haze', 'void'], maxOrder: 5000, unlock: { turf: 0, rep: 0 }, desc: 'Too cheap to be true. Often flakes; sometimes it is a police sting.' },
     },
     noShowLoss: 0.6, // share of the money lost when an order does not show up
