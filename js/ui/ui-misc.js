@@ -63,6 +63,7 @@
       ${tg('stopOnMajor', 'Stop a skip early on major events', 'Off by default. Choose the event types below.')}
       ${tg('confirmPending', 'Warn before Next Month if decisions are waiting')}
       ${tg('gambling', 'Gambling & high-risk investing', 'Casino, betting, penny stocks, coins, margin, angel deals')}
+      ${tg('crime', '🕶️ Crime side', 'Street deals, bank jobs, sabotage. Off hides it and freezes everything there.')}
       ${tg('habit', 'Gambling habit can build up', 'Big bets can lead to chasing losses on their own')}
       ${tg('autoCredit', 'Auto-draw credit line when cash runs short')}
       ${tg('ceoBigMoves', 'CEO may make big moves for me')}

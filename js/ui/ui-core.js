@@ -58,6 +58,7 @@
 
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
+  const JAIL_OK = ['next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
   UI.go = (screen, extra) => { UI.screen = screen; if (extra) Object.assign(UI, extra); UI.render(); window.scrollTo(0, 0); };
   UI.A.go = (arg) => { const [s, id] = String(arg).split(':'); if (s === 'bizd') UI.bizId = id; UI.go(s); };
   UI.A.tab = (arg) => { const i = arg.indexOf(':'); UI.tab[arg.slice(0, i)] = arg.slice(i + 1); UI.render(); };
@@ -88,7 +89,8 @@
       <span class="yrs" id="skipYrs">${v ? U.yrsMo(Number(v)) : 'type months'}</span>
       <button class="btn" data-act="skip">Skip ⏩</button></div></footer>`;
   };
-  UI.nav = () => `<nav class="bottom"><div class="in">${NAV.map(([id, ic, lbl]) => `<button class="${UI.screen === id || (id === 'biz' && UI.screen === 'bizd') ? 'on' : ''}" data-act="go" data-arg="${id}"><span class="ic">${ic}</span>${lbl}</button>`).join('')}</div></nav>`;
+  const navList = () => (TG.G && TG.CR && TG.CR.on(TG.G) ? NAV.slice(0, 4).concat([['crime', '🕶️', 'Crime']], NAV.slice(4)) : NAV);
+  UI.nav = () => `<nav class="bottom"><div class="in">${navList().map(([id, ic, lbl]) => `<button class="${UI.screen === id || (id === 'biz' && UI.screen === 'bizd') ? 'on' : ''}" data-act="go" data-arg="${id}"><span class="ic">${ic}</span>${lbl}</button>`).join('')}</div></nav>`;
 
   UI.render = () => {
     const g = TG.G; if (!g) return;
@@ -135,6 +137,8 @@
     const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
     const fn = UI.A[el.dataset.act]; if (!fn) return;
     e.preventDefault();
+    // in jail you can look around and pass time, nothing else
+    if (TG.G && TG.CR && TG.CR.jailed(TG.G) && !JAIL_OK.includes(el.dataset.act)) { UI.toast(`⛓️ You are in jail for ${TG.G.crime.jail} more months. Skip time; managers run things.`, true); return; }
     try { fn(el.dataset.arg, el); } catch (err) { console.error(err); UI.toast('Error: ' + err.message, true); }
     if (TG.G && !el.dataset.nosave) UI.save();
   });

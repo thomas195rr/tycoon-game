@@ -288,7 +288,7 @@
     }
     if (c.jail > 0) { c.jail--; if (c.jail === 0) CR.log(g, 'good', 'You are out of jail', 'Your sentence is over'); }
     for (const e of c.crew) if (e.inj) e.inj--;
-    if (!c.started) { c.heat = Math.max(0, c.heat * (1 - k.heatDecay) - k.heatFlat); return; }
+    if (!c.started || !CR.on(g)) { c.heat = Math.max(0, c.heat * (1 - k.heatDecay) - k.heatFlat); return; } // off = frozen: nothing sells, nothing is paid
     const active = CR.on(g);
     const cap = CR.capacity(g); const J = CR.jailed(g);
     // cooks make product (needs workshops and money)
@@ -316,7 +316,7 @@
       heatS += s * k.products[p].heat * Math.pow(CR.ratio(g, p), 2); if (s > 0) { wsum += s * pr; rsum += s * pr * CR.ratio(g, p); }
     }
     c.dirty += rev; c.stats.earned += rev; c.last.rev = rev; c.last.wanted = wanted; c.last.sold_ = sold;
-    c.last.workNeed = workNeed; c.last.cap = cap; c.last.limit = sold >= wanted - 0.5 ? 'demand' : out > 0.5 ? 'stock' : cap.deal <= cap.run ? 'dealers' : 'runners';
+    c.last.workNeed = workNeed; c.last.cap = cap; c.last.limit = sold >= wanted * 0.97 - 0.5 ? 'demand' : out > 0.5 ? 'stock' : cap.deal <= cap.run ? 'dealers' : 'runners';
     const r = wsum > 0 ? rsum / wsum : U.avg(Object.keys(k.products).filter((p) => CR.unlocked(g, k.products[p].unlock)), (p) => CR.ratio(g, p)) || 1;
     // clients and street rep
     // rivals poach clients when you charge over the street price: fewer clients fit on your blocks
@@ -383,7 +383,7 @@
     if (up) row(c, '🏚️', 'Gear upkeep', -up, '$', 'y', '');
     if (bb) row(c, '💸', 'Bribes', -bb, '$', 'y', '');
     if (cleaned) row(c, '🧼', 'Laundered to clean cash', cleaned, '$', 'g', `Fee ${U.pct(k.launderFee)}; counts as business income and is taxed`);
-    row(c, '🚨', 'Heat', c.heat - h0, '', c.heat > h0 ? 'r' : 'g', `+${gain.toFixed(1)} from sales, crew, turf; -${cool.toFixed(1)} cooling`);
+    row(c, '🚨', 'Heat change', Math.round(c.heat - h0) || 0, '', c.heat > h0 ? 'r' : 'g', `+${gain.toFixed(1)} from sales, crew, turf; -${cool.toFixed(1)} cooling`);
     const nf = Math.min(1, Math.min(cap.deal, cap.run) / Math.max(1, workNeed));
     nrow(c, '🧲', 'Clients', c.clients, '/' + N(room), c.clients > room * 0.9 ? 'y' : 'g', 'More blocks hold more clients');
     nrow(c, '🛒', 'Expected sales', U.sum(Object.keys(k.products), (p) => Math.min(c.stock[p], dem[p] * nf) * CR.price(g, p)), '$', 'g', 'If your stock lasts');
