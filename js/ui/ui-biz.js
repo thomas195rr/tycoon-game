@@ -39,7 +39,8 @@
     o += UI.flowCard(g, b);
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
-    o += UI.linksCard(g, b);
+    o += UI.salesCard(g, b);
+    o += UI.workCard(g, b);
     // how it runs
     const owner = TG.B.owner(g, b);
     o += `<div class="card"><h3>⚙️ How it runs</h3>

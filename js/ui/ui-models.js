@@ -19,7 +19,7 @@
     else if (b.proj) rows = projRows(g, b);
     else if (b.fr) rows = frRows(g, b);
     else if (d.model === 'freight') rows = freightRows(g, b);
-    return rows ? `<div class="card"><h3>${title}</h3>${rows}</div>` : '';
+    return rows ? `<div class="card"><h3>${title}</h3>${rows}<div class="btns">${UI.btn(b.farm && TG.M.isLivestock(b.farm) ? '🐄 See all cows' : '🔍 See all', 'detail', 'stock', 'sm')}</div></div>` : '';
   };
 
   // ---- services: supplies + what you sell + who you serve ----
