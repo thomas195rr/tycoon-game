@@ -430,6 +430,36 @@
     B.endMonth(g, b, ctx);
     return ctx;
   };
+  // ---------- next-month forecast: known costs exactly, the rest from recent months and the season ----------
+  B.forecast = (g, b) => {
+    const C = TG.CONFIG, d = B.def(b); const H = b.hist; if (!H.length) return null;
+    const nm = U.moy(g.month + 1); const last3 = H.slice(-3);
+    const seasNow = U.avg(last3, (h) => d.season[U.moy(h.m)] || 1) || 1; const seasF = (d.season[nm] || 1) / seasNow;
+    const yr = H.length >= 13 ? H[H.length - 12] : null; // same month last year (for harvests and seasonal swings)
+    const trend = yr ? U.clamp(b.revAvg / Math.max(1, U.avg(H.slice(-15, -12), (h) => h.rev) || b.revAvg), 0.5, 2) : 1;
+    const lines = {}; const why = {};
+    const keys = new Set(); for (const h of last3.concat(yr ? [yr] : [])) for (const k in h.lines) keys.add(k);
+    for (const k of keys) {
+      const avg = U.avg(last3, (h) => h.lines[k] || 0);
+      if (avg > 0 || (yr && (yr.lines[k] || 0) > 0)) { // money in: sales follow the season
+        if (yr && (b.farm || Math.abs(seasF - 1) > 0.15)) { lines[k] = (yr.lines[k] || 0) * trend; why[k] = 'Same month last year, adjusted for how you are doing now'; }
+        else { lines[k] = avg * seasF; why[k] = `Average of the last ${last3.length} months x season (${seasF.toFixed(2)})`; }
+      } else { lines[k] = avg; why[k] = `Average of the last ${last3.length} months`; }
+    }
+    const rr = (lines.Revenue || 0) && U.avg(last3, (h) => h.lines.Revenue || 0) ? lines.Revenue / U.avg(last3, (h) => h.lines.Revenue || 0) : 1;
+    for (const k of Object.keys(lines)) if (/Supplies|cost of sales|Cost of goods|Fuel|Feed/.test(k)) { lines[k] *= rr; why[k] = 'Moves with expected sales'; }
+    // known amounts
+    const pay = TG.S.payroll(b) * (1 + ((b.fixesOn && b.fixesOn.payrollAdd) || 0)); lines.Wages = -pay; why.Wages = 'Everyone on staff now';
+    lines['Payroll tax'] = -pay * C.staff.payrollTax; why['Payroll tax'] = `${U.pct(C.staff.payrollTax)} of wages`;
+    const prop = g.properties.find((p) => p.id === b.propId);
+    if (prop) { if (prop.leased) { lines.Rent = -prop.rent; why.Rent = 'Your lease'; } else { lines['Property tax'] = -TG.P.monthlyTax(g, prop); why['Property tax'] = 'Set by the property value'; } }
+    if (b.ads && b.ads.budget) { lines.Advertising = -b.ads.budget; why.Advertising = 'Your ad budget'; }
+    const lease = U.sum(b.equip.filter((x) => x.leased), (x) => x.leasePay || 0); if (lease) { lines['Equipment lease'] = -lease; why['Equipment lease'] = 'Lease payments'; }
+    for (const k in lines) if (Math.abs(lines[k]) < 1) delete lines[k];
+    const loans = U.sum(g.loans.filter((l) => l.bizId === b.id || (prop && l.id === prop.mortgageId)), (l) => l.payment || 0);
+    const profit = U.sum(Object.values(lines), (x) => x);
+    return { m: g.month + 1, lines, why, profit, loans };
+  };
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
     TG.FL.commit(g, b); TG.WK.commit(b, ctx);
@@ -445,6 +475,7 @@
     if (b.hist.length > TG.CONFIG.maxHistory) b.hist.shift();
     const last3 = b.hist.slice(-3);
     b.revAvg = U.avg(last3, (x) => x.rev);
+    b.fcPrev = b.fc || null; b.fc = B.forecast(g, b); // forecast for next month; last month's kept to compare with what happened
     b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
     for (const w of ctx.warnings) TG.rep.warn(g, b, w.text, w.why, w.p);
     // takeover by investors

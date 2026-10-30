@@ -37,6 +37,7 @@
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
     if (lc.note) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
     o += UI.flowCard(g, b);
+    o += UI.forecastCard(g, b);
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
     o += UI.salesCard(g, b);

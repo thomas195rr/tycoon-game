@@ -118,7 +118,8 @@
   };
   function help(g) {
     const C = TG.CONFIG; const t0 = UI.tab.helpb || 'how';
-    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}</div>`;
+    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
+    if (t0 === 'crime') return `<div class="card">${pick}</div>${crimeHelp(g, C)}`;
     if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
     const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
     o += UI.irow('hm' + k, '💰', 'Makes money', null, MONEY[k] || '');
@@ -131,6 +132,20 @@
     o += `<h4>⚠️ Main risks</h4>` + risks.map((r) => UI.irow('hk' + k + r.id, '⚠️', r.label, `~${(r.base * 100).toFixed(1)}%/mo`, `Usual odds before your choices change them. Caused by: ${r.why || 'bad luck'}.`)).join('');
     o += `<h4>💡 Tips</h4><ul class="plain small">${(TIPS[k] || []).map((x) => `<li>${esc(x)}</li>`).join('')}<li>Nothing is guaranteed: every month is rolled from odds.</li></ul></div>`;
     return o;
+  }
+  function crimeHelp(g, C) {
+    const K = C.crime; const r = (k, i, l, t) => UI.irow('hc' + k, i, l, null, t);
+    return `<div class="card"><h3 style="margin-top:0">🕶️ Crime side</h3><div class="mute">Optional and risky. Turn it off in Settings. All goods are made up.</div>
+      ${r(1, '💵', 'Street cash', 'Crime money is dirty. It pays crew and goods. Clean it through your businesses (🧼) to use it normally: you lose a fee and pay tax on it.')}
+      ${r(2, '📦', 'Goods', `Buy a product from a supplier first (each can be short, not show up, or be a police sting). Storage is limited. ${Object.values(K.products).map((p) => p.icon + ' ' + p.label).join(', ')}.`)}
+      ${r(3, '🏷️', 'Price', 'Cheap: clients grow faster, street rep rises, less heat per sale, thin margin. Dear: bigger margin, but clients leave for rivals and rep falls.')}
+      ${r(4, '👥', 'Crew', 'Dealers sell, runners move goods, lookouts lower raid odds, enforcers protect turf, cooks make goods in a workshop. Each handles a set amount; skill raises it. Unhappy crew snitch.')}
+      ${r(5, '🗺️', 'Turf', `Each block holds about ${K.perBlock} clients. Taking one can fail.`)}
+      ${r(6, '🚨', 'Heat', 'Rises with sales, crew, turf and jobs, cools slowly. High heat = raids. Raids take goods and cash and can put you in jail.')}
+      ${r(7, '⛓️', 'Jail', 'Months pass while managers run your businesses. You can only skip time. On conviction the street business is taken, and businesses used for laundering can be seized.')}
+      ${r(8, '⚖️', 'Lawyers & bribes', 'Lower the odds at a real monthly cost. Never to zero. Bribes can blow up in a scandal.')}
+      ${r(9, '🎯', 'Jobs', 'Bank jobs (plan, gear, pros raise odds), hitting a rival business, insider trades, car theft. Each shows its odds before you go.')}
+      <ul class="plain small"><li>Crime can pay big, and it ruins people often. Careful play earns about as much as a good legit business, with far bigger swings.</li><li>Nothing is guaranteed.</li></ul></div>`;
   }
   function howTo(C) {
     const rows = [['🏪', 'Start', 'Pick a business and a place in Market. The place decides how many customers come.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],

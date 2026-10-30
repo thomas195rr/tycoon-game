@@ -99,3 +99,28 @@
     return o || '<div class="card mute">Nothing stored here.</div>';
   }
 })();
+// ---------- 🔮 next-month forecast and last month's forecast vs actual ----------
+(function () {
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const ICON = (k) => (/Revenue|sales|Sales|income/.test(k) ? '💰' : /Wage|Payroll/.test(k) ? '👥' : /Rent|Property|Building/.test(k) ? '🏠' : /Supplies|cost|Cost|Feed|Fuel|Seed/.test(k) ? '📦' : /Advert|PR/.test(k) ? '📣' : /Repair|Mainten|lease|Equipment/.test(k) ? '🛠️' : /Insurance/.test(k) ? '🛡️' : /Utilit/.test(k) ? '💡' : '•');
+  UI.forecastCard = (g, b) => {
+    const f = b.fc; if (!f) return `<div class="card"><h3>🔮 Next month forecast</h3><div class="mute">Play a month first.</div></div>`;
+    const L = Object.entries(f.lines).sort((a, c) => c[1] - a[1]);
+    const k0 = 'fc' + b.id;
+    let o = `<div class="card"><h3>🔮 Next month forecast ${UI.tipBtn(k0)}</h3>${UI.tipLine(k0, 'Wages, rent, taxes, ads and leases are known. Sales and other costs are estimated from recent months and the season (or the same month last year). Luck and events can change it.')}`;
+    o += L.map(([k, v], i) => UI.irow(k0 + i, ICON(k), k, UI.signed(Math.round(v)), f.why[k] || '')).join('');
+    o += `<div class="irow"><span class="ic">${f.profit >= 0 ? '📈' : '📉'}</span><span class="lb">Expected profit</span><span class="vl">${UI.signed(Math.round(f.profit))}</span></div>`;
+    if (f.loans) o += UI.irow(k0 + 'ln', '🏦', 'Loan payments (from your cash)', m(f.loans), 'Loans tied to this business or its building are paid from your cash, outside its profit.');
+    o += '</div>';
+    const p = b.fcPrev, h = b.hist[b.hist.length - 1];
+    if (p && h && p.m === h.m) {
+      const keys = [...new Set(Object.keys(p.lines).concat(Object.keys(h.lines || {})))].filter((k) => Math.abs(p.lines[k] || 0) > 1 || Math.abs((h.lines || {})[k] || 0) > 1)
+        .sort((a, c) => Math.abs((h.lines[c] || 0) - (p.lines[c] || 0)) - Math.abs((h.lines[a] || 0) - (p.lines[a] || 0)));
+      const kc = 'fa' + b.id;
+      o += `<div class="card"><h3>📊 Last month: forecast vs actual ${UI.tipBtn(kc)}</h3>${UI.tipLine(kc, 'What we expected before the month, and what really happened. Biggest differences first.')}
+        <table><tr><th></th><th class="n">Forecast</th><th class="n">Actual</th><th class="n">Diff</th></tr>${keys.map((k) => { const a = (h.lines || {})[k] || 0, fv = p.lines[k] || 0; return `<tr><td>${ICON(k)} ${esc(k)}</td><td class="n">${m(fv)}</td><td class="n">${m(a)}</td><td class="n">${UI.signed(Math.round(a - fv))}</td></tr>`; }).join('')}
+        <tr><td><b>Profit</b></td><td class="n"><b>${m(p.profit)}</b></td><td class="n"><b>${m(h.profit)}</b></td><td class="n">${UI.signed(Math.round(h.profit - p.profit))}</td></tr></table></div>`;
+    }
+    return o;
+  };
+})();
