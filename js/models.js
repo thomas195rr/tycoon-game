@@ -102,6 +102,13 @@
       const spoiled = sd ? ST.spoil(b) : 0;
       ctx.cap = Math.round(cap); ctx.demand = Math.round(demand); ctx.served = Math.round(served);
       ctx.limitEquip = k.limEq; ctx.links = k.links;
+      { // work-capacity report
+        const WK = TG.WK, kr = M.keyRole(d), unit = (P.good(b) || {}).unit || 'customer', nk = ctx.key.length + (ctx.own ? 1 : 0);
+        WK.add(ctx, 'staff', '👥', (d.roles[kr].label || kr) + 's', nk, k.keyCap * pace, served, unit + 's', [], `Each handles about ${Math.round(d.roles[kr].cap).toLocaleString()} ${unit}s a month at normal skill. Training and skill raise it; over 100% they get tired and grumpy.`);
+        for (const r in d.roles) if (d.roles[r].support) WK.add(ctx, 'staff', '🧹', (d.roles[r].label || r) + 's', b.staff.filter((e) => e.role === r).length, k.supCap, served, unit + 's', [], `Each supports about ${Math.round(d.roles[r].per).toLocaleString()} ${unit}s.`);
+        WK.poolGroups(g, b, ctx, served, unit + 's');
+        if (Number.isFinite(k.spaceCap)) WK.add(ctx, 'space', '📐', 'Space', 1, k.spaceCap * pace, served, unit + 's', [], 'How many your building fits. Needs a bigger place.');
+      }
       const mn = Math.min(k.keyCap, k.eqCap, k.spaceCap, k.supCap);
       ctx.limit = stockLimited ? 'stock' : k.keyCap <= mn ? 'staff' : k.eqCap <= mn ? 'equipment' : k.spaceCap <= mn ? 'space' : 'support';
       if (demand < cap * 0.98 && !stockLimited) ctx.limitNow = 'demand';
@@ -176,7 +183,8 @@
       if (M.isLivestock(b.farm)) M.herdInit(b.farm, Math.round(M.farmHerdCap(prop, fd.enterprises[ent]) * 0.5));
     },
     e(b) { return TG.CONFIG.businesses.farm.farm.enterprises[b.farm.ent]; },
-    tractorNeed(b) { const e = this.e(b); return Math.max(1, b.farm.acres / e.acresPerTractor); },
+    // crops: tractors pull planters, sprayers and trailers (acres each); livestock: tractors move hay and feed (head each)
+    tractorNeed(b) { const e = this.e(b); return M.isLivestock(b.farm) ? Math.max(1, (b.farm.herd || 0) / (e.headPerTractor || 600)) : Math.max(1, b.farm.acres / e.acresPerTractor); },
     handNeed(b) { const e = this.e(b); return Math.max(0.3, M.isLivestock(b.farm) ? b.farm.herd / e.headPerHand : b.farm.acres / e.acresPerHand); },
     needs(g, b) {
       const own = B().owner(g, b);
@@ -204,7 +212,7 @@
       let heff = U.sum(ctx.key, M.staffEff) + (ctx.own ? 0.7 : 0);
       const hneed = this.handNeed(b) * (1 - robotShare * 0.85 * Math.min(1, tcap / tneed));
       const gear = tcap > 0 ? 1 : 0; // planters and combines need a tractor on the farm
-      return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed };
+      return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed, heff, hneed, plantX: plantX * gear, harvX: harvX * gear };
     },
     weather(g, b, ctx, growing) {
       const f = b.farm, e = this.e(b), C = TG.CONFIG, w = ctx.weather, lt = C.landTypes[f.landType] || C.landTypes.flat;
@@ -287,6 +295,20 @@
       const inputCut = b.fixes.integrate ? 0.2 : 0;
       const qMult = 0.9 + 0.2 * ctx.quality / 100;
       ctx.cap = Math.round(f.acres); ctx.util = Math.min(cov.tcov, cov.hcov); ctx.busy = 1 / Math.max(0.3, ctx.util);
+      { // work-capacity report: load in acres (crops/orchard) or head (livestock)
+        const WK = TG.WK, live = M.isLivestock(f), load = live ? f.herd : f.acres, unit = live ? 'head' : 'acres', per = load / Math.max(0.01, cov.tneed);
+        const nT = b.equip.filter((x) => (x.type === 'tractor' || x.type === 'robot') && !x.broken).length;
+        WK.add(ctx, 'eq', '🚜', 'Tractors', nT, cov.tcap * per, load, unit, ['tractor', 'robot'], live ? `Haul hay and feed and fix fences: about ${e.headPerTractor || 600} head per tractor. A robot tractor counts as 4.` : `Pull the planter, sprayer and trailer: about ${e.acresPerTractor} acres per tractor. A robot tractor counts as 4.`);
+        WK.add(ctx, 'staff', '👩‍🌾', 'Farmhands', ctx.key.length + (ctx.own ? 1 : 0), cov.heff / Math.max(0.01, cov.hneed) * load, load, unit, [], live ? `Feed, check and move animals: about ${e.headPerHand} head each. Skill and training raise it.` : `Plant, spray, irrigate and harvest: about ${e.acresPerHand} acres each. Robots cut the work.`);
+        if (f.ent === 'crops') {
+          WK.add(ctx, 'eq', '🌱', 'Planters', b.equip.filter((x) => x.type === 'planter' && !x.broken).length, (cov.tcap + cov.plantX) * per, load, unit, ['planter'], 'Plant faster in spring (needs a tractor to pull it).');
+          WK.add(ctx, 'eq', '🌾', 'Combines', b.equip.filter((x) => x.type === 'combine' && !x.broken).length, (cov.tcap + cov.harvX) * per, load, unit, ['combine'], 'Harvest faster in fall so less rots in the field.');
+        }
+        if (live) {
+          WK.add(ctx, 'space', '🌿', 'Pasture + barns', 1, M.farmHeadCap(b), f.herd, 'head', ['pen', 'barn'], 'Grass on your land plus pens and barns. Full = no room for calves.');
+          if (f.ent === 'dairy') WK.add(ctx, 'eq', '🥛', 'Milking parlors', b.equip.filter((x) => x.type === 'parlor' && !x.broken).length, M.farmParlorCap(b), f.cows, 'cows', ['parlor'], 'Each parlor milks about 160 cows. Cows not milked make nothing.');
+        }
+      }
       ctx.priceR = this.ratio(g, b);
       if (f.stored > 0) {
         TG.F.spend(g, Math.round(f.stored * e.storageCost * g.world.priceIdx), 'Storage', b.id);
@@ -592,6 +614,8 @@
           b.rep = U.clamp(b.rep - R.range(2, 6), 0, 100);
         }
       }
+      TG.WK.add(ctx, 'eq', '🚛', 'Trucks', trucks.filter((x) => !x.broken).length, truckCap, loads, 'loads', ['truck'], `About ${d.equip[0].cap} loads a month per truck. Good roads add a little. Busy trucks wear faster.`);
+      TG.WK.add(ctx, 'staff', '🧑‍✈️', 'Drivers', ctx.key.length + (ctx.own ? 1 : 0), driverCap, loads, 'loads', [], `About ${d.roles.driver.cap} loads a month per driver (legal driving hours). Skill and reliability raise it.`);
       ctx.cap = Math.round(cap); ctx.served = Math.round(loads); ctx.demand = Math.round(cap * avail);
       ctx.util = cap > 0 ? avail : 1; ctx.busy = U.clamp(avail, 0, 1.2);
       if (truckCap > driverCap * 1.2) ctx.note = 'Trucks sitting idle: not enough drivers';

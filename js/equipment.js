@@ -141,7 +141,8 @@
       if (it.broken === 'destroyed') continue;
       it.age++; if (it.warranty > 0) it.warranty--;
       const d = E.def(b, it.type);
-      const use = it.broken ? 0.2 : (ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
+      const pu = b.workPool ? b.workPool[E.poolOf(d)] : undefined;
+      const use = it.broken ? 0.2 : (pu != null ? TG.WK.wearMult(pu) : ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
       let wg = eq.wearPerMonth * use * (it.maint ? eq.maintPlanWearMult : 1) * (1 - (1 - eq.mechanicWearMult) * cov) * wearFix * (120 / d.life);
       it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4), 0, 100);
       if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);

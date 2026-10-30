@@ -429,7 +429,7 @@
   };
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
-    TG.FL.commit(g, b);
+    TG.FL.commit(g, b); TG.WK.commit(b, ctx);
     b.hits = b.hits.filter((h) => --h.months > 0);
     if (b.boost && --b.boost.months <= 0) b.boost = null;
     b.qHits = b.qHits.filter((h) => --h.months > 0);

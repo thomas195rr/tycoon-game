@@ -63,6 +63,8 @@
       TG.F.spend(g, Math.round(storage), 'Storage', b.id);
       s.followers = Math.max(0, s.followers + sold * br.followerRate - s.followers * br.followerChurn);
       s.lastOrders = orders; s.lostSales = lost; s.avgOrders = s.avgOrders == null ? orders : s.avgOrders * 0.7 + orders * 0.3;
+      TG.WK.add(ctx, 'staff', '📦', 'Packers', ctx.key.length + (ctx.own ? 1 : 0), packCap, sold, 'orders', [], `Each packs and ships about ${d.roles.packer.cap.toLocaleString()} orders a month. Packing stations and shelving speed them up.`);
+      TG.WK.add(ctx, 'space', '🏬', 'Warehouse room', 1, M.brandRoom(b), s.stock, 'units', ['shelving', 'racking'], 'How many clothes fit. Racking adds room.');
       ctx.cap = Math.round(packCap); ctx.demand = Math.round(orders); ctx.served = sold;
       ctx.util = packCap > 0 ? orders / packCap : 1.5; ctx.busy = U.clamp(sold / Math.max(1, packCap), 0, 1.3);
       if (s.stock === 0 && !s.incoming.length) ctx.note = 'No stock and nothing on order: order a batch';
@@ -140,6 +142,9 @@
       FL.row(b, '🪨', 'Raw left', b.stock.qty, '/' + TG.ST.cap(b), 'g');
       FL.next(b, '🏭', 'Can make', Math.min(lineCap, workerUnits), 'units', 'g');
       FL.next(b, '🏷️', 'Market price', pNow, '$', pNow < floor ? 'r' : 'g', pNow < floor ? 'Below cost-plus: oversupply' : '');
+      TG.WK.add(ctx, 'eq', '🏭', 'Production lines', this.lines(b).filter((x) => !x.broken).length, lineCap, prod, 'units', ['line'], 'Each line makes about 12,000 units a month. Busy lines wear faster.');
+      TG.WK.add(ctx, 'staff', '👷', 'Line workers', ctx.key.length + (ctx.own ? 1 : 0), workerUnits, prod, 'units', [], `Each runs about ${d.roles.worker.cap} units a month. A robot arm makes them faster.`);
+      TG.WK.add(ctx, 'eq', '🚜', 'Forklifts', b.equip.filter((x) => x.type === 'forklift' && !x.broken).length, b.equip.filter((x) => x.type === 'forklift' && !x.broken).length * 30000, prod, 'units', ['forklift'], 'Move pallets in and out: about 30,000 units each.');
       ctx.cap = Math.round(lineCap); ctx.served = Math.round(prod); ctx.demand = Math.round(lineCap);
       ctx.util = lineCap > 0 ? prod / lineCap : 0; ctx.busy = U.clamp(workerUnits > 0 ? lineCap / workerUnits : 1.3, 0, 1.3);
       if (lineCap === 0) ctx.note = 'All production lines are down';
@@ -218,6 +223,9 @@
         FL.row(b, '📨', 'New offers', pr.offers.length, '', '');
         FL.next(b, '✅', 'Jobs finishing', pr.active.filter((p) => p.progress > 1 - 1.2 / p.months).length, '', 'g'); }
       const avail = this.crew(b, ctx);
+      TG.WK.add(ctx, 'staff', '🦺', 'Crew', ctx.key.length + (ctx.own ? 1 : 0), this.crew(b, ctx) + (ctx.own ? 1 : 0), totalCrewNeed, 'workers', [], 'Each job needs a set crew. Short crew = jobs run late.');
+      TG.WK.add(ctx, 'eq', '🧰', 'Tool sets & vans', b.equip.filter((x) => (x.type === 'tools' || x.type === 'skid') && !x.broken).length, toolsCap, totalCrewNeed, 'workers', ['tools'], 'Each tool set equips about 12 workers; a crew van 4 more.');
+      for (const hv of ['excavator', 'crane']) { const n = b.equip.filter((x) => x.type === hv && !x.broken).length; const need = pr.active.filter((p) => (hv === 'crane' ? p.crane : p.heavy)).length; if (n || need) TG.WK.add(ctx, 'eq', hv === 'crane' ? '🏗️' : '🚧', hv === 'crane' ? 'Cranes' : 'Excavators', n, n, need, 'jobs', [hv], 'One machine per job that needs it. Jobs without one wait.'); }
       ctx.cap = Math.round(avail); ctx.demand = Math.round(totalCrewNeed); ctx.served = Math.round(used);
       ctx.util = avail > 0 ? totalCrewNeed / avail : (totalCrewNeed ? 1.5 : 0); ctx.busy = U.clamp(ctx.util, 0, 1.3);
       if (!pr.active.length) ctx.note = 'No active projects: crews are idle (bid on contracts)';
@@ -270,6 +278,8 @@
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
       const serverCap = TG.E.capacity(b, 'server');
+      TG.WK.add(ctx, 'eq', '🖥️', 'Servers', b.equip.filter((x) => (x.type === 'server' || x.type === 'cdn') && !x.broken).length, serverCap, t.users, 'users', ['server'], 'Each server handles about 60,000 users. Over 100% = outages and users leave.');
+      TG.WK.add(ctx, 'staff', '🧑‍💻', 'Engineers', ctx.key.length + (ctx.own ? 1 : 0), engEff, engNeed, 'eng. needed', [], 'Fix bugs and keep users happy: about 2 + 1 per 150,000 users needed.');
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
@@ -363,6 +373,8 @@
       if (open.length && R.chance(pDrift)) { const x = R.range(3, 8); b.rep = U.clamp(b.rep - x, 0, 100); for (const l of s.locations) l.q = Math.max(0.1, l.q - 0.03); TG.rep.event(g, b, 'bad', `Quality drifting across stores (reputation -${Math.round(x)})`, `Regional manager coverage ${U.pct(cov)} (${s.locations.length} locations)`); }
       const pSuit = fr.suitPerLoc * open.length * (b.spec.lawyer ? 0.6 : 1.1) * (b.fixes.standards ? 0.7 : 1);
       if (R.chance(pSuit)) B().lawsuit(g, b, 'Franchisee lawsuit', Math.max(C.lawsuits.suitMin, R.range(1, 3) * Math.max(royalty, 20000)), 'liability', `${open.length} franchisees; ${U.pct(pSuit, 1)} monthly chance`);
+      TG.WK.add(ctx, 'staff', '🧭', 'Area managers', ctx.key.length + (ctx.own ? 1 : 0), regCap, open.length, 'shops', [], `Each checks on about ${C.businesses.franchise.roles.regional.cap} shops. Unchecked shops slip.`);
+      TG.WK.add(ctx, 'eq', '💻', 'Franchise systems', b.equip.filter((x) => x.type === 'systems' && !x.broken).length, TG.E.capacity(b, 'systems'), open.length, 'shops', ['systems'], 'Ordering and reporting software: about 60 shops per system.');
       ctx.cap = Math.round(regCap); ctx.demand = open.length; ctx.served = open.length; ctx.util = open.length / Math.max(1, regCap); ctx.busy = U.clamp(ctx.util, 0, 1.3);
       ctx.note = `${open.length} open locations, ${s.locations.length - open.length} being built, ${s.apps.length} applications waiting; regional coverage ${U.pct(cov)}`;
       if (cannibal < 0.85) ctx.note += `; locations cannibalizing each other (sales x${cannibal.toFixed(2)})`;
