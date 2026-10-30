@@ -38,7 +38,7 @@
       cash: 0, player: { name: opts.name || 'You', credit: 700, bankruptcies: 0, noLoanUntil: 0, ownerBiz: null, exp: {} },
       properties: [], listings: [], businesses: [], loans: [], loc: { balance: 0, rate: 0 }, lawsuits: [], decisions: [], log: [], history: [],
       acc: TG.F.newAcc(), taxLoss: 0, taxPaid: [], negMonths: 0, ceo: null, scenario: opts.scenario || 'classic', reports: [], newsFeed: [],
-      settings: Object.assign({ gambling: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', autoCredit: true, ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
+      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', autoCredit: true, ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
       achievements: {}, stats: { peakNW: 0, reached: {}, recessionProfitYears: 0 }, started: Date.now(),
     };
     TG.G = g;
@@ -86,6 +86,7 @@
       if (g.businesses.includes(b)) TG.D.manage(g, b);
       bizRows.push(E.bizWhy(g, b, ctx, before));
     }
+    TG.CR.month(g);
     TG.B.monthSuits(g); TG.F.monthLoans(g);
     const opPre = sumObj(g.acc.inc) - sumObj(g.acc.exp);
     TG.D.ceoMonth(g, opPre);

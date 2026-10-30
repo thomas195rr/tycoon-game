@@ -225,6 +225,7 @@
     for (const b of g.businesses) assets += F.bizAssets(g, b) * (1 - (b.outside || 0));
     assets += TG.RE.totalValue(g);
     assets += TG.I.value(g);
+    if (TG.CR) assets += TG.CR.value(g);
     const liab = F.debt(g) + Math.max(0, -g.cash);
     const nw = assets - liab;
     return detail ? { assets, liab, nw } : nw;
