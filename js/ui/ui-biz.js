@@ -126,7 +126,7 @@
     const hr = UI.S.hireRole && (d.roles[UI.S.hireRole] || C.specialists[UI.S.hireRole]) ? UI.S.hireRole : roles[0];
     const pool = TG.S.poolFor(g, b, hr);
     o += `<div class="card"><h3 style="margin-top:0">Hire</h3><div class="row"><select data-change="hireRole">${roles.map((r) => `<option value="${r}"${r === hr ? ' selected' : ''}>${esc(d.roles[r].label)}</option>`).join('')}<optgroup label="Managers & specialists">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}"${k === hr ? ' selected' : ''}>${esc(s.label)}${b.spec[k] ? ' (filled)' : ''}</option>`).join('')}</optgroup></select></div>
-      ${C.specialists[hr] ? `<div class="mute">${esc(C.specialists[hr].desc || '')}</div>` : ''}
+      <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
     for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;

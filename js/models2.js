@@ -144,7 +144,6 @@
       FL.next(b, '🏷️', 'Market price', pNow, '$', pNow < floor ? 'r' : 'g', pNow < floor ? 'Below cost-plus: oversupply' : '');
       TG.WK.add(ctx, 'eq', '🏭', 'Production lines', this.lines(b).filter((x) => !x.broken).length, lineCap, prod, 'units', ['line'], 'Each line makes about 12,000 units a month. Busy lines wear faster.');
       TG.WK.add(ctx, 'staff', '👷', 'Line workers', ctx.key.length + (ctx.own ? 1 : 0), workerUnits, prod, 'units', [], `Each runs about ${d.roles.worker.cap} units a month. A robot arm makes them faster.`);
-      TG.WK.add(ctx, 'eq', '🚜', 'Forklifts', b.equip.filter((x) => x.type === 'forklift' && !x.broken).length, b.equip.filter((x) => x.type === 'forklift' && !x.broken).length * 30000, prod, 'units', ['forklift'], 'Move pallets in and out: about 30,000 units each.');
       ctx.cap = Math.round(lineCap); ctx.served = Math.round(prod); ctx.demand = Math.round(lineCap);
       ctx.util = lineCap > 0 ? prod / lineCap : 0; ctx.busy = U.clamp(workerUnits > 0 ? lineCap / workerUnits : 1.3, 0, 1.3);
       if (lineCap === 0) ctx.note = 'All production lines are down';

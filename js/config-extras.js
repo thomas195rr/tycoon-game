@@ -183,7 +183,7 @@
 
   // ---------------- PLAIN-WORDS JOB OF EVERY CORE ITEM ----------------
   const JOB = {
-    cafe: { espresso: 'Makes the coffee: about 4,200 drinks a month.', fridge: 'Keeps milk and food cold (+2,500 stock). If it fails, food goes bad.' },
+    cafe: { espresso: 'Makes the coffee: about 4,200 drinks a month.', fridge: 'Keeps milk and food cold (+2,500 stock). Worn or broken = higher food-safety risk.' },
     foodtruck: { truck: 'The kitchen on wheels: about 2,700 meals a month. Breaks = no sales that day.', generator: 'Powers the truck kitchen. If it dies, you close.' },
     bakery: { oven: 'Bakes everything: about 3,200 orders a month.', mixer: 'Mixes dough: about 5,000 orders a month.' },
     salon: { chair: 'One stylist works at each: about 190 visits a month.', dryer: 'Dryers, clippers and irons every stylist needs.' },
@@ -198,10 +198,31 @@
     law: { software: 'Keeps track of cases and deadlines so fewer slip.' },
     clinic: { exam: 'Each exam room sees about 460 visits a month.', imaging: 'X-ray and ultrasound in-house: more patients come (+12%).' },
     construction: { excavator: 'Digs foundations. Jobs that need one wait without it.', crane: 'Lifts steel on tall jobs. Jobs that need one wait without it.', tools: 'Tools and trucks for about 12 workers.' },
-    factory: { line: 'Makes about 12,000 products a month when fully staffed.', forklift: 'Moves pallets of materials and products. Needed to run safely.' },
+    factory: { line: 'Makes about 12,000 products a month when fully staffed.', forklift: 'Moves pallets. No forklift, or a worn one, makes accidents much more likely (up to 3x).' },
     tech: { server: 'Runs the app for about 60,000 users.' },
     franchise: { systems: 'Ordering, reporting and training for about 60 shops.' },
   };
+  const ROLEJOB = {
+    cafe: { barista: 'Makes and serves drinks: about 1,350 a month.' },
+    foodtruck: { cook: 'Cooks and serves: about 1,250 meals a month.' },
+    bakery: { baker: 'Bakes and sells: about 1,500 orders a month.' },
+    salon: { stylist: 'Cuts and styles: about 235 visits a month. Uses one chair.' },
+    carwash: { attendant: 'Guides cars, preps and dries: about 2,000 washes a month.' },
+    lawn: { crew: 'Mows and trims: about 200 jobs a month.' },
+    auto: { tech: 'Fixes cars: about 62 jobs a month. Needs a lift.' },
+    gym: { coach: 'Runs the front desk and classes: about 260 members each.' },
+    farm: { hand: 'Feeds animals, fixes fences, drives tractors. Needed per acre and per herd size.' },
+    freight: { driver: 'Drives one truck: about 13 loads a month.' },
+    brand: { packer: 'Packs and ships orders: about 2,600 a month.' },
+    hotel: { housekeeper: 'Cleans rooms: about 420 room-nights a month.', desk: 'Checks guests in and out: about 1,800 room-nights a month.' },
+    law: { attorney: 'Works cases (licensed): about 140 hours of cases a month.', paralegal: 'Research and paperwork that frees up attorneys: covers about 260 hours.' },
+    clinic: { doctor: 'Sees patients (licensed): about 360 visits a month.', nurse: 'Preps patients and helps doctors: covers about 330 visits.' },
+    construction: { laborer: 'Builds. Each job needs a crew of a set size.' },
+    factory: { worker: 'Runs a production line: about 850 products a month.' },
+    tech: { engineer: 'Builds features and keeps servers up. More users need more engineers.' },
+    franchise: { regional: 'Visits and supports about 10 shops each.' },
+  };
+  for (const t in ROLEJOB) for (const r in ROLEJOB[t]) if (BZ[t].roles[r] && !BZ[t].roles[r].desc) BZ[t].roles[r].desc = ROLEJOB[t][r];
   for (const t in JOB) for (const it of BZ[t].equip) if (JOB[t][it.id] && !it.desc) it.desc = JOB[t][it.id];
 
   // ---------------- SUPPLIES / STOCK ----------------
