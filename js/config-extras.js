@@ -181,6 +181,29 @@
   // anything still without a category
   for (const t in BZ) for (const it of BZ[t].equip) if (!it.cat) it.cat = it.critical ? 'machines' : it.support ? 'power' : 'tools';
 
+  // ---------------- PLAIN-WORDS JOB OF EVERY CORE ITEM ----------------
+  const JOB = {
+    cafe: { espresso: 'Makes the coffee: about 4,200 drinks a month.', fridge: 'Keeps milk and food cold (+2,500 stock). If it fails, food goes bad.' },
+    foodtruck: { truck: 'The kitchen on wheels: about 2,700 meals a month. Breaks = no sales that day.', generator: 'Powers the truck kitchen. If it dies, you close.' },
+    bakery: { oven: 'Bakes everything: about 3,200 orders a month.', mixer: 'Mixes dough: about 5,000 orders a month.' },
+    salon: { chair: 'One stylist works at each: about 190 visits a month.', dryer: 'Dryers, clippers and irons every stylist needs.' },
+    carwash: { tunnel: 'Washes cars: about 6,000 a month.', vacuum: 'Free vacuums bring a few more customers (+5%).' },
+    lawn: { mower: 'Cuts grass: about 230 jobs a month.', trailer: 'Carries crews and mowers to jobs: about 700 jobs a month.' },
+    auto: { lift: 'Raises cars so techs can work: about 95 jobs a month.', scanner: 'Finds what is wrong: about 260 cars a month.' },
+    gym: { cardio: 'Treadmills and bikes: room for about 65 members each.', weights: 'Dumbbells and benches: about 90 members each.' },
+    farm: { tractor: 'Pulls planters and trailers on crop land (about 160 acres each); on a ranch it hauls hay and feed (about 600 head).', robot: 'Drives itself: does the work of 4 tractors and needs far fewer farmhands. Can glitch.' },
+    freight: { truck: 'Hauls about 14 loads a month with a driver.' },
+    brand: { shelving: 'Shelves and scanners: +8,000 units of room and packers 15% faster.' },
+    hotel: { laundry: 'Washes sheets and towels: about 3,200 room-nights a month.', hvac: 'Heat, cooling and hot water. If it fails, guests leave and water damage can happen.' },
+    law: { software: 'Keeps track of cases and deadlines so fewer slip.' },
+    clinic: { exam: 'Each exam room sees about 460 visits a month.', imaging: 'X-ray and ultrasound in-house: more patients come (+12%).' },
+    construction: { excavator: 'Digs foundations. Jobs that need one wait without it.', crane: 'Lifts steel on tall jobs. Jobs that need one wait without it.', tools: 'Tools and trucks for about 12 workers.' },
+    factory: { line: 'Makes about 12,000 products a month when fully staffed.', forklift: 'Moves pallets of materials and products. Needed to run safely.' },
+    tech: { server: 'Runs the app for about 60,000 users.' },
+    franchise: { systems: 'Ordering, reporting and training for about 60 shops.' },
+  };
+  for (const t in JOB) for (const it of BZ[t].equip) if (JOB[t][it.id] && !it.desc) it.desc = JOB[t][it.id];
+
   // ---------------- SUPPLIES / STOCK ----------------
   // per unit of output; unitCost = svc.cogs * ticket (so margins are unchanged at market price); spoil = share of leftover lost per month
   const SUP = {
@@ -197,6 +220,9 @@
     gym: 'Clean towels and cleaning products for each member visit.', law: 'Legal-database credits and court filing fees used per billable hour.' };
   for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1, shelf: SHELF[t], desc: SUPD[t] };
   BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost', shelf: 120, desc: 'Steel, plastic and parts. One per product made.' };
+  // freight: diesel is bought ahead into truck tanks and the yard tank (1 unit = fuel for one load at normal roads)
+  BZ.freight.supply = { icon: '⛽', label: 'Diesel', spoil: 0, baseStore: 0, perTruck: 16, unitCostFrom: 'fuel', shelf: 999, costLabel: 'Fuel', desc: 'Each load burns about one tank. Bought at the fuel price that day (or your locked price).' };
+  BZ.freight.equip.push({ id: 'tank', label: 'Yard fuel tank', cat: 'storage', price: 22000, store: 120, upkeep: 60, brk: 0.004, life: 240, cap: 0, desc: 'Holds fuel for 120 more loads: buy when diesel is cheap.' });
   C.supply = { staffReorderPremium: 0.06, staffReorderCover: [0.9, 1.08], sellBack: 0.5 };
   // make-ahead: bakeries and food trucks prepare before customers arrive; unsold goods are waste
   BZ.bakery.svc.makeAhead = 1.1; BZ.foodtruck.svc.makeAhead = 1.06;

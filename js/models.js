@@ -582,7 +582,12 @@
       const st = g.markets.freight;
       const r = TG.PR.ratio(g, b);
       const avail = U.clamp(0.78 + 0.22 * (b.rep / 50) - 0.35 * (st.comp - 1), 0.35, 1.05) * B().demandMult(g, b, ctx, { noPrice: true }) * TG.PR.demandF(r);
-      const loads = Math.max(0, Math.min(cap, cap * avail));
+      let loads = Math.max(0, Math.min(cap, cap * avail));
+      // diesel comes out of the tanks; bad roads and emission rules burn more, fuel-saving upgrades less
+      const road = (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
+      const burn = Math.pow(2 - road, 0.3) * (1 - (fo.fuelCut || 0)) * (w.emissions > 0 ? 1.05 : 1);
+      TG.ST.ensure(b); TG.ST.restock(g, b, loads * burn);
+      const usedF = TG.ST.use(b, loads * burn); const noFuel = Math.max(0, loads - usedF / burn); loads -= noFuel;
       const nTr = trucks.filter((x) => !x.broken).length;
       const reef = b.equip.filter((x) => x.type === 'reefer' && !x.broken).length;
       const reefB = nTr ? Math.min(1, reef / nTr) * TG.E.def(b, 'reefer').ticketBoost : 0;
@@ -592,13 +597,13 @@
       { const FL = TG.FL; FL.start(b);
         FL.row(b, '🚛', 'Trucks working', nTr, '/' + trucks.length, nTr < trucks.length ? 'y' : 'g', nTr < trucks.length ? 'Some trucks broken' : '');
         FL.row(b, '📦', 'Loads hauled', loads, '', 'g', `at ${U.money(price)} each`);
+        FL.row(b, '⛽', 'Diesel used', usedF, 'tanks', 'g', `${U.money(TG.ST.unitCost(g, b))} a tank now${b.hedge && b.hedge.until > g.month ? ' (locked price)' : ''}`);
+        if (noFuel > 0.5) FL.row(b, '🚫', 'Loads lost: no diesel', noFuel, '', 'r', b.stock.short === 'cash' ? 'Not enough cash for fuel' : 'Tanks empty: buy diesel or turn on auto');
+        FL.next(b, '⛽', 'Diesel in tanks', b.stock.qty, '/' + TG.ST.cap(b), b.stock.qty < loads ? 'y' : 'g', 'Enough for about this many loads');
         if (cap * (1 - avail) > 0.5 && avail < 1) FL.row(b, '🅿️', 'Empty truck days', cap - loads, 'loads', avail < 0.75 ? 'r' : 'y', r > 1.05 ? 'Your rate is over market' : 'Not enough freight around');
         if (truckCap > driverCap * 1.2) FL.row(b, '🧑‍✈️', 'Trucks without drivers', (truckCap - driverCap) / 14, '', 'r', 'Hire drivers');
         FL.next(b, '📦', 'Loads expected', loads, '', 'g'); }
-      const road = (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
-      const fuelIdx = b.hedge && b.hedge.until > g.month ? b.hedge.idx : w.fuel;
-      TG.F.spend(g, Math.round(loads * fr.fuelPerLoad * fuelIdx * Math.pow(2 - road, 0.3) * (1 - (fo.fuelCut || 0)) * (w.emissions > 0 ? 1.05 : 1) * w.priceIdx), 'Fuel', b.id);
-      TG.F.spend(g, Math.round(loads * fr.tollsPerLoad * w.priceIdx), 'Tolls & fees', b.id);
+      TG.F.spend(g, Math.round(loads * fr.tollsPerLoad * w.priceIdx), 'Tolls & fees', b.id); TG.ST.spoil(b);
       // crashes per active truck
       const active = Math.min(trucks.filter((x) => !x.broken).length, Math.ceil(loads / 12));
       for (let i = 0; i < active; i++) {

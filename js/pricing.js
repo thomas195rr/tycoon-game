@@ -60,6 +60,7 @@
     const d = TG.CONFIG.businesses[b.type], s = ST.def(b); if (!s) return 0;
     let c;
     if (s.unitCostFrom === 'materialCost') c = d.factory.materialCost;
+    else if (s.unitCostFrom === 'fuel') return d.freight.fuelPerLoad * (b.hedge && b.hedge.until > g.month ? b.hedge.idx : g.world.fuel) * g.world.priceIdx;
     else c = d.svc.cogs * d.svc.ticket;
     if (g.world.shortage[d.cat]) c *= 1.15;
     if (d.svc && TG.B.owner(g, b)) c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
@@ -71,6 +72,7 @@
     const d = TG.CONFIG.businesses[b.type];
     let base = s.baseStore || 0;
     if (s.perSqft) base += b.sqft * s.perSqft;
+    else if (s.perTruck) base += s.perTruck * b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed').length;
     else if (d.svc) {
       // built-in storage (shelves, the truck's own fridge...) holds about 3/4 of what your machines can serve in a month
       const pools = TG.E.pools(b); let eq = Infinity; for (const p of pools) eq = Math.min(eq, TG.E.capacity(b, p.pool));
@@ -94,7 +96,7 @@
     const unit = ST.unitCost(g, b) * (1 + (premium || 0));
     if (qty * unit > Math.max(0, g.cash)) qty = Math.max(0, Math.floor(Math.max(0, g.cash) / unit));
     if (qty <= 0) return 0;
-    TG.F.spend(g, Math.round(qty * unit), label || 'Supplies & cost of sales', b.id);
+    TG.F.spend(g, Math.round(qty * unit), label || ST.def(b).costLabel || 'Supplies & cost of sales', b.id);
     st.qty += qty; st.inM = (st.inM || 0) + qty; const l0 = st.lots.find((l) => l.a === 0); if (l0) l0.q += qty; else st.lots.push({ a: 0, q: qty });
     return qty;
   };

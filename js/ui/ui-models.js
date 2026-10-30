@@ -152,6 +152,10 @@
   function freightRows(g, b) {
     const tr = b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed'); const dr = b.staff.filter((e) => e.role === 'driver').length; const lc = b.lastCtx || {};
     let o = UI.irow('ftr' + b.id, '🚛', 'Trucks working', `${tr.filter((x) => !x.broken).length}/${tr.length}`, 'Each truck can do a set number of loads a month if it has a driver.', UI.btn('+ Truck', 'tab', 'biz:equip', 'xs'), `average wear ${Math.round(TG.E.avgWear(b, (x) => x.type === 'truck'))}%`);
+    { const st = TG.ST.ensure(b); const cap = TG.ST.cap(b);
+      o += UI.irow('fdz' + b.id, '⛽', 'Diesel', `${N(st.qty)}/${N(cap)}`, `${TG.ST.def(b).desc} ${m(TG.ST.unitCost(g, b))} a tank now. Room grows with trucks and yard tanks.`,
+        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')), 'tanks (1 tank ≈ 1 load)');
+      o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`; }
     o += UI.irow('fdr' + b.id, '🧑‍✈️', 'Drivers', `${dr}/${tr.length}`, 'About one driver per truck.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
     o += UI.irow('fld' + b.id, '📦', 'Loads', `${N(lc.served)}/${N(lc.cap)}`, 'Loads hauled / loads you could haul last month.');
     o += UI.irow('ffu' + b.id, '⛽', 'Fuel price', `x${g.world.fuel.toFixed(2)}`, 'Locking (hedging) fuel for 12 months wins if fuel spikes, loses if it falls.', UI.btn(b.hedge && b.hedge.until > g.month ? '🔒 Locked' : '🔒 Lock 12 mo', 'frHedge', null, 'xs'));

@@ -46,7 +46,7 @@
       locPref: { city: 0.35, suburb: 0.75, town: 0.9, rural: 0.85, remote: 0.3 },
       site: { road: 0.45, labor: 0.2, space: 0.15, loc: 0.2 },
       econSens: 0.8, weatherSens: 0.2, season: [0.9, 0.9, 1, 1, 1, 1, 1, 1, 1.05, 1.1, 1.1, 1.0],
-      freight: { market: 'freight', fuelPerLoad: 620, tollsPerLoad: 90, roadBonus: 0.35, crashBase: 0.0035, crashSuit: [60000, 700000] },
+      freight: { market: 'freight', fuelPerLoad: 540, tollsPerLoad: 70, roadBonus: 0.35, crashBase: 0.0035, crashSuit: [60000, 700000] },
       roles: { driver: { label: 'Driver', wage: [4600, 7000], cap: 13, key: true, min: 1 } },
       equip: [{ id: 'truck', label: 'Semi truck', price: 165000, cap: 14, critical: true, brk: 0.012, life: 120 }],
       insurance: ['liability', 'equipment', 'cargo'],
