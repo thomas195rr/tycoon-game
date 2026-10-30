@@ -125,7 +125,7 @@
     o += `<div class="card"><h3 style="margin-top:0">Hire</h3><div class="row"><select data-change="hireRole">${roles.map((r) => `<option value="${r}"${r === hr ? ' selected' : ''}>${esc(d.roles[r].label)}</option>`).join('')}<optgroup label="Managers & specialists">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}"${k === hr ? ' selected' : ''}>${esc(s.label)}${b.spec[k] ? ' (filled)' : ''}</option>`).join('')}</optgroup></select></div>
       <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
-    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>
+    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;
     if (!pool.length) o += `<div class="ev warn">Nobody applied this month. Small labor pools make hiring slow; try next month or move to a bigger town.</div>`;
     o += `</div>`;
@@ -134,6 +134,21 @@
     if (specs.length) o += `<div class="card"><h3 style="margin-top:0">Managers & specialists</h3>${specs.map(([r, e]) => empRow(b, e, TG.S.roleDef(b, r).label)).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length})</h3>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`;
     return o;
+  }
+  // what a candidate would add, in numbers, before you hire
+  function candInfo(g, b, c) {
+    const C = TG.CONFIG, M = TG.M; const sk = c.revealed.honesty ? c.skill : c.skillSeen; const est = Object.assign({}, c, { skill: sk, reliability: c.revealed.reliability ? c.reliability : 75 });
+    const rel = c.revealed.reliability ? U.pct(1 - C.staff.noShowBase * (1.6 - c.reliability / 100)) : '?';
+    if (C.specialists[c.role]) {
+      const P = (C.perks[c.role] || []).filter(([lvl]) => sk >= lvl).map((x) => x[3]);
+      return `<div class="small">🎯 Good calls ~${U.pct(TG.D.pGood(g, est))} · 🕒 shows up ${rel}${P.length ? ' · 🏅 ' + esc(P.join(', ')) : ' · 🏅 no perks yet (skill 40+)'}</div>`;
+    }
+    const rd = TG.S.roleDef(b, c.role) || {}; const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
+    let each, team = '';
+    if (b.farm) { const fe = M.models.farm.e(b); const live = M.isLivestock(b.farm); each = `${Math.round((live ? fe.headPerHand : fe.acresPerHand) * M.staffEff(est))} ${live ? 'animals' : 'acres'}`; }
+    else if (rd.cap > 1) { each = `${Math.round(rd.cap * M.staffEff(est)).toLocaleString()} ${rd.support ? 'covered' : unit}/mo`; const now = U.sum(b.staff.filter((e) => e.role === c.role), (e) => rd.cap * M.staffEff(e)); team = ` · team ${Math.round(now).toLocaleString()} → ${Math.round(now + rd.cap * M.staffEff(est)).toLocaleString()}`; }
+    else each = `${U.pct(M.staffEff(est) / M.staffEff({ skill: 50, reliability: 75 }))} of a normal worker`;
+    return `<div class="small">📦 Does ~${each}${team} · 🕒 shows up ${rel}${c.revealed.reliability ? '' : ' (check to see)'}</div>`;
   }
   function empRow(b, e, label) {
     const mt = e.morale < 35 ? 'bad' : e.morale < 55 ? 'warn' : 'good';
@@ -152,10 +167,31 @@
     const g = TG.G, b = biz(), C = TG.CONFIG; const e = TG.S.allStaff(b).find((x) => x.id === id); if (!e) return UI.closeModal();
     const isSpec = !!C.specialists[e.role];
     UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${e.skillSeen != null ? e.skillSeen : e.skill}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
-      ${isSpec ? `<div class="mute">Good-call chance on decisions: ${U.pct(TG.D.pGood(g, e))} (skill + happiness).</div>` : ''}
+      ${UI.skillInfo(g, b, e)}
       <div class="btns">${UI.btn(`Train basic ${m(C.staff.trainBasic.cost)}`, 'empDo', `${id}|train`, 'sm')}${UI.btn(`Train advanced ${m(C.staff.trainAdvanced.cost)}`, 'empDo', `${id}|trainA`, 'sm')}${UI.btn(`Raise +${U.pct(C.staff.raisePct)}`, 'empDo', `${id}|raise`, 'sm')}${UI.btn(`Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div><div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
       ${UI.btn(`Fire (severance ${m(e.wage * C.staff.severanceMonths)})`, 'empDo', `${id}|fire`, 'sm badb')}</div>
       ${!isSpec ? `<div class="row" style="margin-top:8px"><span class="small">Promote to</span><select id="promRole">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}">${esc(s.label)}${b.spec[k] ? ' (replaces current)' : ''}</option>`).join('')}</select>${UI.btn('Promote', 'empDo', `${id}|promote`, 'sm')}</div><div class="mute">A promoted worker's management skill can surprise you either way.</div>` : ''}</div>`);
+  };
+  // what this person's skill does, in real numbers, now and at +10 skill
+  UI.skillInfo = (g, b, e) => {
+    const C = TG.CONFIG, M = TG.M; const sk = e.skillSeen != null ? e.skillSeen : e.skill; const up = Math.min(99, sk + 10);
+    const at = (s) => Object.assign({}, e, { skill: s });
+    const rows = [];
+    if (C.specialists[e.role]) {
+      rows.push(['🎯', 'Good calls on decisions', U.pct(TG.D.pGood(g, at(sk))), U.pct(TG.D.pGood(g, at(up)))]);
+      const P = C.perks[e.role] || [];
+      let o = `<div class="card"><h3 style="margin-top:0">🧠 What skill ${Math.round(sk)} does</h3>` + rows.map(([i, t, a, z]) => UI.irow('sk' + e.id + t, i, t, `${a} → ${z}`, `Now ${a}. At skill ${up}: ${z}.`)).join('');
+      if (P.length) o += '<h4>🏅 Perks</h4>' + P.map(([lvl, , , txt]) => `<div class="irow"><span class="ic">${sk >= lvl ? '✅' : '🔒'}</span><span class="lb">${esc(txt)}<small>skill ${lvl}+</small></span></div>`).join('');
+      if (e.role === 'mechanic') o += `<div class="small">Covers about 12 machines. Breakdowns fall more the higher the skill.</div>`;
+      return o + '</div>';
+    }
+    const rd = TG.S.roleDef(b, e.role) || {}; const eff = (s) => M.staffEff(at(s));
+    const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
+    if (b.farm) { const fe = M.models.farm.e(b); const live = M.isLivestock(b.farm); const per = live ? fe.headPerHand : fe.acresPerHand; rows.push(['👩‍🌾', live ? 'Animals cared for' : 'Acres worked', Math.round(per * eff(sk)), Math.round(per * eff(up))]); }
+    else if (rd.cap > 1) rows.push(['📦', 'Work done a month', Math.round(rd.cap * eff(sk)), Math.round(rd.cap * eff(up)), unit]);
+    else rows.push(['💪', 'Output vs a normal worker', U.pct(eff(sk) / eff(50)), U.pct(eff(up) / eff(50))]);
+    rows.push(['⭐', 'Team quality (avg skill)', Math.round(sk), Math.round(up)]);
+    return `<div class="card"><h3 style="margin-top:0">🧠 What skill ${Math.round(sk)} does</h3>${rows.map(([i, t, a, z, u]) => UI.irow('sk' + e.id + t, i, t, `${typeof a === 'number' ? a.toLocaleString() : a} → ${typeof z === 'number' ? z.toLocaleString() : z}`, `Now ${a}${u ? ' ' + u : ''}. At skill ${up}: ${z}. Training raises skill; reliability (${e.reliability}) sets how often they show up.`)).join('')}</div>`;
   };
   UI.A.empDo = (arg) => {
     const g = TG.G, b = biz(); const [id, act] = arg.split('|');

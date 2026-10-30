@@ -54,7 +54,7 @@
     let advF = 1;
     if (t.advanced && !E.hasMech(b) && TG.CONFIG.businesses[b.type].tier !== 'small') advF = 1;
     const lineF = (it.type === 'line' && b.fixesOn && b.fixesOn.lineFailMult) || 1;
-    const p = U.clamp(d.brk * t.brk * ageF * wearF * mechF * fixF * paceF * advF * lineF, 0, 0.9);
+    const p = U.clamp(d.brk * t.brk * ageF * wearF * mechF * fixF * paceF * advF * lineF * (1 - TG.S.perk(b, 'breakCut')), 0, 0.9);
     const factors = [];
     factors.push(`${(it.age / 12).toFixed(1)} yrs old`);
     factors.push(`${Math.round(E.effWear(it))}% wear`);
@@ -145,7 +145,7 @@
       const pu = b.workPool ? b.workPool[E.poolOf(d)] : undefined;
       const use = it.broken ? 0.2 : (pu != null ? TG.WK.wearMult(pu) : ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
       let wg = eq.wearPerMonth * use * (it.maint ? eq.maintPlanWearMult : 1) * (1 - (1 - eq.mechanicWearMult) * cov) * wearFix * (120 / d.life);
-      it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4), 0, 100);
+      it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4) * (1 - TG.S.perk(b, 'wearCut')), 0, 100);
       if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);
       if (it.leased) TG.F.spend(g, it.leasePay, 'Equipment lease', b.id);
       if (it.broken) continue;

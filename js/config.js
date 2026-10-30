@@ -18,6 +18,14 @@
   C.maxLog = 600;
   C.maxHistory = 240;
 
+  // manager perks: unlocked by the manager's skill. [skill needed, effect key, amount, plain words]
+  C.perks = {
+    gm: [[40, 'demand', 0.02, '+2% customers (better service)'], [60, 'supplyCut', 0.03, '-3% supply costs (better deals)'], [80, 'demand', 0.03, '+3% more customers']],
+    ops: [[40, 'breakCut', 0.1, '-10% breakdown odds'], [60, 'wearCut', 0.1, '-10% machine wear'], [80, 'breakCut', 0.1, 'another -10% breakdowns']],
+    hr: [[40, 'quitCut', 0.15, '-15% odds staff quit'], [60, 'morale', 3, '+3 morale for everyone'], [80, 'quitCut', 0.15, 'another -15% quits']],
+    accountant: [[40, 'supplyCut', 0.02, '-2% supply costs (catches overbilling)'], [70, 'supplyCut', 0.02, 'another -2% supply costs']],
+    mechanic: [[40, 'wearCut', 0.1, '-10% machine wear'], [60, 'breakCut', 0.1, '-10% breakdown odds'], [80, 'wearCut', 0.1, 'another -10% wear']],
+  };
   C.owner = {
     operatedQuality: 0, operatedCogsCut: 0, absentQuality: 0, // owner labor removed in v4
     expQualityPerYear: 1.2, expQualityCap: 10,

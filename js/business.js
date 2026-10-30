@@ -398,6 +398,7 @@
     for (const h of b.hits) m *= h.mult;
     if (b.boost) m *= b.boost.mult;
     if (b.sab && b.sab.until > g.month) m *= b.sab.mult;
+    m *= 1 + TG.S.perk(b, 'demand');
     const ad = opts.noAds ? { boost: 0 } : B.adBoost(g, b); if (!opts.noAds) { ctx.adFlop = ad.flop; ctx.adBoost = ad.boost; }
     m *= 1 + ad.boost + (fo.demand || 0);
     m *= 1 - (d.weatherSens || 0) * ctx.weather.sev * 0.35;

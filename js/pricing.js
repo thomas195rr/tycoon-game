@@ -65,6 +65,7 @@
     if (g.world.shortage[d.cat]) c *= 1.15;
     if (d.svc && TG.B.owner(g, b)) c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
     if (d.factory && b.fixes && b.fixes.bulk && b.fixes.bulk.until > g.month) c *= 0.85;
+    c *= 1 - TG.S.perk(b, 'supplyCut');
     return c * g.world.priceIdx;
   };
   ST.cap = (b) => {

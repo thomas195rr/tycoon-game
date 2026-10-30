@@ -122,6 +122,12 @@
     e.morale = U.clamp(e.morale - C.spamMorale, 0, 100); return true;
   };
   S.usesLeft = (g, e, kind) => TG.USES.left(e, kind, g.month, TG.CONFIG.staff.perMonth[kind]);
+  // total effect of unlocked manager perks at this business, e.g. S.perk(b, 'demand') = 0.05
+  S.perk = (b, key) => {
+    const P = TG.CONFIG.perks; let t = 0; if (!b || !b.spec) return 0;
+    for (const r in P) { const e = b.spec[r]; if (!e) continue; for (const [lvl, k, v] of P[r]) if (k === key && e.skill >= lvl) t += v; }
+    return t;
+  };
   S.raise = (g, b, empId) => {
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
     if (S.spam(g, e, 'raise')) return { spam: true };
@@ -173,13 +179,13 @@
       if (ctx.missedPayroll) target -= 30;
       if (b.ownerOp) target += 3;
       target = U.clamp(target, 0, 100);
-      e.morale = U.clamp(e.morale + (target - e.morale) * cs.moraleDrift + R.normal(0, 2), 0, 100);
+      e.morale = U.clamp(e.morale + (target + S.perk(b, 'morale') - e.morale) * cs.moraleDrift + R.normal(0, 2), 0, 100);
       if (ctx.missedPayroll) e.morale = U.clamp(e.morale + cs.missedPayrollMorale * 0.5, 0, 100);
     }
     // quitting
     for (const e of all.slice()) {
       const low = e.morale < 35 ? cs.quitLowMorale * (35 - e.morale) / 35 : 0;
-      let p = (cs.quitBase + low) * (0.6 + e.ambition / 100) * (1.2 - e.loyalty / 125) * (hasHR ? 0.75 : 1);
+      let p = (cs.quitBase + low) * (0.6 + e.ambition / 100) * (1.2 - e.loyalty / 125) * (hasHR ? 0.75 : 1) * (1 - S.perk(b, 'quitCut'));
       if (ctx.missedPayroll) p += 0.1;
       if (R.chance(p)) {
         S.leave(g, b, e, e.morale < 35 ? `low morale (${Math.round(e.morale)}/100)` : 'personal reasons / better offer', true);
