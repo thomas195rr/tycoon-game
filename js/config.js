@@ -141,6 +141,8 @@
     backgroundCheck: 250, severanceMonths: 0.5, wrongfulFireChance: 0.05,
     specWageByTier: { small: 0.62, between: 0.85, corp: 1.0 }, // smaller businesses pay managers less
     payrollTax: 0.08, missedPayrollMorale: -25, raisePct: 0.08, raiseMorale: 12, bonusMorale: 8,
+    // per person per month: 1 raise, 1 bonus, 2 trainings. Past that it backfires (morale drops) and gives nothing
+    perMonth: { raise: 1, bonus: 1, train: 2 }, spamMorale: 3,
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
   };
   C.specialists = {
@@ -174,6 +176,8 @@
       charity: { label: 'Charity event', cost: 6000, rep: [3, 9], fail: 0.1 },
     },
     viralBad: 0.002, chainSpill: 0.35,
+    // PR is limited: 2 actions a business per month; the 2nd does half; every one past the limit looks desperate and LOSES reputation
+    prPerMonth: 2, prSecond: 0.5, prSpamLoss: [1, 3],
   };
 
   C.finance = {

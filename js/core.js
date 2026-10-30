@@ -35,6 +35,14 @@
   };
   TG.R = R;
 
+  // ---------- per-month use limits (anti-spam): holder.uses = {key: {m, n}} ----------
+  const useBox = (h, k, m) => { h.uses = h.uses || {}; const u = h.uses[k]; if (!u || u.m !== m) h.uses[k] = { m, n: 0 }; return h.uses[k]; };
+  const USES = {
+    used: (h, k, m) => useBox(h, k, m).n,
+    left: (h, k, m, lim) => Math.max(0, lim - useBox(h, k, m).n),
+    take: (h, k, m) => ++useBox(h, k, m).n, // returns which use this is (1 = first this month)
+  };
+  TG.USES = USES;
   const U = {
     clamp: (x, a, b) => Math.max(a, Math.min(b, x)),
     lerp: (a, b, t) => a + (b - a) * t,

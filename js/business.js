@@ -250,8 +250,10 @@
     const P = TG.CONFIG.reputation.pr[kind]; if (!P) return;
     const cost = Math.round(P.cost != null ? P.cost * g.world.priceIdx : b.revAvg * P.costRev);
     TG.F.spend(g, cost, 'PR & marketing', b.id);
+    const RC = TG.CONFIG.reputation; const nth = TG.USES.take(b, 'pr', g.month);
+    if (nth > RC.prPerMonth) { const y = R.range(RC.prSpamLoss[0], RC.prSpamLoss[1]); b.rep = U.clamp(b.rep - y, 0, 100); TG.rep.decision(g, b, by, `${P.label} again? It looks desperate: reputation -${Math.round(y)}`, 'bad'); return; }
     if (R.chance(P.fail)) { TG.rep.decision(g, b, by, `${P.label} flopped (${U.money(cost)})`, 'bad'); return; }
-    const x = R.range(P.rep[0], P.rep[1]); b.rep = U.clamp(b.rep + x, 0, 100);
+    const x = R.range(P.rep[0], P.rep[1]) * (nth === 1 ? 1 : RC.prSecond); b.rep = U.clamp(b.rep + x, 0, 100);
     TG.rep.decision(g, b, by, `${P.label}: reputation +${Math.round(x)} (${U.money(cost)})`, 'good');
   };
 

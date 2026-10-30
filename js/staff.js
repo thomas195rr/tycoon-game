@@ -106,6 +106,7 @@
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return null;
     if (g.cash < t.cost) return null;
     TG.F.spend(g, t.cost, 'Training', b.id, true);
+    if (S.spam(g, e, 'train')) return { gain: 0, att: 0, spam: true };
     const growth = (b.fixesOn && b.fixesOn.skillGrowth) || 1;
     const gain = Math.round(R.range(t.skill[0], t.skill[1]) * e.learning * growth);
     const att = Math.round(R.range(t.attitude[0], t.attitude[1]) * e.learning);
@@ -114,13 +115,21 @@
     return { gain, att };
   };
 
+  // true when this click is past the monthly limit: it backfires (morale down) and gives nothing
+  S.spam = (g, e, kind) => {
+    const C = TG.CONFIG.staff; const n = TG.USES.take(e, kind, g.month);
+    if (n <= C.perMonth[kind]) return false;
+    e.morale = U.clamp(e.morale - C.spamMorale, 0, 100); return true;
+  };
+  S.usesLeft = (g, e, kind) => TG.USES.left(e, kind, g.month, TG.CONFIG.staff.perMonth[kind]);
   S.raise = (g, b, empId) => {
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
+    if (S.spam(g, e, 'raise')) return { spam: true };
     e.wage = Math.round(e.wage * (1 + TG.CONFIG.staff.raisePct)); e.morale = U.clamp(e.morale + TG.CONFIG.staff.raiseMorale, 0, 100); e.loyalty = U.clamp(e.loyalty + 5, 0, 100);
   };
   S.bonus = (g, b, empId) => {
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
-    TG.F.spend(g, Math.round(e.wage * 0.5), 'Bonuses', b.id); e.morale = U.clamp(e.morale + TG.CONFIG.staff.bonusMorale, 0, 100);
+    TG.F.spend(g, Math.round(e.wage * 0.5), 'Bonuses', b.id); if (S.spam(g, e, 'bonus')) return { spam: true }; e.morale = U.clamp(e.morale + TG.CONFIG.staff.bonusMorale, 0, 100);
   };
   S.backgroundCheck = (g, b, cand) => {
     TG.F.spend(g, TG.CONFIG.staff.backgroundCheck, 'Background checks', b.id);
