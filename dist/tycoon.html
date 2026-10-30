@@ -804,7 +804,7 @@ select { max-width: 100%; }
       locPref: { city: 0.35, suburb: 0.75, town: 0.9, rural: 0.85, remote: 0.3 },
       site: { road: 0.45, labor: 0.2, space: 0.15, loc: 0.2 },
       econSens: 0.8, weatherSens: 0.2, season: [0.9, 0.9, 1, 1, 1, 1, 1, 1, 1.05, 1.1, 1.1, 1.0],
-      freight: { market: 'freight', fuelPerLoad: 620, tollsPerLoad: 90, roadBonus: 0.35, crashBase: 0.0035, crashSuit: [60000, 700000] },
+      freight: { market: 'freight', fuelPerLoad: 540, tollsPerLoad: 70, roadBonus: 0.35, crashBase: 0.0035, crashSuit: [60000, 700000] },
       roles: { driver: { label: 'Driver', wage: [4600, 7000], cap: 13, key: true, min: 1 } },
       equip: [{ id: 'truck', label: 'Semi truck', price: 165000, cap: 14, critical: true, brk: 0.012, life: 120 }],
       insurance: ['liability', 'equipment', 'cargo'],
@@ -910,7 +910,7 @@ select { max-width: 100%; }
       locPref: { city: 1, suburb: 0.9, town: 0.65, rural: 0.3, remote: 0.15 },
       site: { traffic: 0.3, labor: 0.4, space: 0.15, loc: 0.15 },
       econSens: 0.1, weatherSens: 0, season: [1.15, 1.1, 1.05, 1, 0.95, 0.9, 0.9, 0.9, 1, 1.05, 1.05, 1.1],
-      svc: { ticket: 235, baseDemand: 2300, perSpace: 0.28, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },
+      svc: { ticket: 235, baseDemand: 2300, perSpace: 0.38, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },
       receivable: { delay: 3, badDebt: 0.05 },
       license: { months: 6, fee: 40000 },
       roles: {
@@ -1238,15 +1238,69 @@ select { max-width: 100%; }
   // anything still without a category
   for (const t in BZ) for (const it of BZ[t].equip) if (!it.cat) it.cat = it.critical ? 'machines' : it.support ? 'power' : 'tools';
 
+  // ---------------- PLAIN-WORDS JOB OF EVERY CORE ITEM ----------------
+  const JOB = {
+    cafe: { espresso: 'Makes the coffee: about 4,200 drinks a month.', fridge: 'Keeps milk and food cold (+2,500 stock). Worn or broken = higher food-safety risk.' },
+    foodtruck: { truck: 'The kitchen on wheels: about 2,700 meals a month. Breaks = no sales that day.', generator: 'Powers the truck kitchen. If it dies, you close.' },
+    bakery: { oven: 'Bakes everything: about 3,200 orders a month.', mixer: 'Mixes dough: about 5,000 orders a month.' },
+    salon: { chair: 'One stylist works at each: about 190 visits a month.', dryer: 'Dryers, clippers and irons every stylist needs.' },
+    carwash: { tunnel: 'Washes cars: about 6,000 a month.', vacuum: 'Free vacuums bring a few more customers (+5%).' },
+    lawn: { mower: 'Cuts grass: about 230 jobs a month.', trailer: 'Carries crews and mowers to jobs: about 700 jobs a month.' },
+    auto: { lift: 'Raises cars so techs can work: about 95 jobs a month.', scanner: 'Finds what is wrong: about 260 cars a month.' },
+    gym: { cardio: 'Treadmills and bikes: room for about 65 members each.', weights: 'Dumbbells and benches: about 90 members each.' },
+    farm: { tractor: 'Pulls planters and trailers on crop land (about 160 acres each); on a ranch it hauls hay and feed (about 600 head).', robot: 'Drives itself: does the work of 4 tractors and needs far fewer farmhands. Can glitch.' },
+    freight: { truck: 'Hauls about 14 loads a month with a driver.' },
+    brand: { shelving: 'Shelves and scanners: +8,000 units of room and packers 15% faster.' },
+    hotel: { laundry: 'Washes sheets and towels: about 3,200 room-nights a month.', hvac: 'Heat, cooling and hot water. If it fails, guests leave and water damage can happen.' },
+    law: { software: 'Keeps track of cases and deadlines so fewer slip.' },
+    clinic: { exam: 'Each exam room sees about 460 visits a month.', imaging: 'X-ray and ultrasound in-house: more patients come (+12%).' },
+    construction: { excavator: 'Digs foundations. Jobs that need one wait without it.', crane: 'Lifts steel on tall jobs. Jobs that need one wait without it.', tools: 'Tools and trucks for about 12 workers.' },
+    factory: { line: 'Makes about 12,000 products a month when fully staffed.', forklift: 'Moves pallets. No forklift, or a worn one, makes accidents much more likely (up to 3x).' },
+    tech: { server: 'Runs the app for about 60,000 users.' },
+    franchise: { systems: 'Ordering, reporting and training for about 60 shops.' },
+  };
+  const ROLEJOB = {
+    cafe: { barista: 'Makes and serves drinks: about 1,350 a month.' },
+    foodtruck: { cook: 'Cooks and serves: about 1,250 meals a month.' },
+    bakery: { baker: 'Bakes and sells: about 1,500 orders a month.' },
+    salon: { stylist: 'Cuts and styles: about 235 visits a month. Uses one chair.' },
+    carwash: { attendant: 'Guides cars, preps and dries: about 2,000 washes a month.' },
+    lawn: { crew: 'Mows and trims: about 200 jobs a month.' },
+    auto: { tech: 'Fixes cars: about 62 jobs a month. Needs a lift.' },
+    gym: { coach: 'Runs the front desk and classes: about 260 members each.' },
+    farm: { hand: 'Feeds animals, fixes fences, drives tractors. Needed per acre and per herd size.' },
+    freight: { driver: 'Drives one truck: about 13 loads a month.' },
+    brand: { packer: 'Packs and ships orders: about 2,600 a month.' },
+    hotel: { housekeeper: 'Cleans rooms: about 420 room-nights a month.', desk: 'Checks guests in and out: about 1,800 room-nights a month.' },
+    law: { attorney: 'Works cases (licensed): about 140 hours of cases a month.', paralegal: 'Research and paperwork that frees up attorneys: covers about 260 hours.' },
+    clinic: { doctor: 'Sees patients (licensed): about 360 visits a month.', nurse: 'Preps patients and helps doctors: covers about 330 visits.' },
+    construction: { laborer: 'Builds. Each job needs a crew of a set size.' },
+    factory: { worker: 'Runs a production line: about 850 products a month.' },
+    tech: { engineer: 'Builds features and keeps servers up. More users need more engineers.' },
+    franchise: { regional: 'Visits and supports about 10 shops each.' },
+  };
+  for (const t in ROLEJOB) for (const r in ROLEJOB[t]) if (BZ[t].roles[r] && !BZ[t].roles[r].desc) BZ[t].roles[r].desc = ROLEJOB[t][r];
+  for (const t in JOB) for (const it of BZ[t].equip) if (JOB[t][it.id] && !it.desc) it.desc = JOB[t][it.id];
+
   // ---------------- SUPPLIES / STOCK ----------------
   // per unit of output; unitCost = svc.cogs * ticket (so margins are unchanged at market price); spoil = share of leftover lost per month
   const SUP = {
     cafe: ['🫘', 'Beans, milk & food', 0.18, 1200], foodtruck: ['🥩', 'Food supplies', 0.22, 500], bakery: ['🌾', 'Flour, butter & fillings', 0.15, 1000],
     salon: ['🧴', 'Hair products', 0.02, 150], carwash: ['🧼', 'Soap & wax', 0.01, 1500], lawn: ['⛽', 'Fuel & parts', 0.01, 250],
     auto: ['🔩', 'Parts', 0.005, 40], hotel: ['🧺', 'Linens & amenities', 0.02, 1200], clinic: ['💊', 'Medical supplies', 0.03, 900],
+    gym: ['🧽', 'Towels & cleaning', 0.01, 2000], law: ['📚', 'Research credits & filings', 0, 4000],
   };
-  for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1 };
-  BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost' };
+  // shelf life in months: older lots are thrown out (milk goes off, linens wear out, medicine expires)
+  const SHELF = { cafe: 2, foodtruck: 1, bakery: 1, salon: 24, carwash: 36, lawn: 24, auto: 60, hotel: 18, clinic: 18, gym: 12, law: 12 };
+  const SUPD = { cafe: 'Used for every order. Milk and food go off in about 2 months.', foodtruck: 'Meat, buns and veg. Goes off within a month.', bakery: 'Flour, butter, fillings. Fresh stuff lasts about a month.',
+    salon: 'Shampoo, colour and styling products used on each visit.', carwash: 'Soap and wax used for every wash.', lawn: 'Fuel, blades and string for every job.',
+    auto: 'Parts fitted on each repair. Lasts years on the shelf.', hotel: 'Sheets, towels and soaps for each room-night. Linens wear out.', clinic: 'Gloves, syringes and medicines for each visit. Medicine expires.',
+    gym: 'Clean towels and cleaning products for each member visit.', law: 'Legal-database credits and court filing fees used per billable hour.' };
+  for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1, shelf: SHELF[t], desc: SUPD[t] };
+  BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost', shelf: 120, desc: 'Steel, plastic and parts. One per product made.' };
+  // freight: diesel is bought ahead into truck tanks and the yard tank (1 unit = fuel for one load at normal roads)
+  BZ.freight.supply = { icon: '⛽', label: 'Diesel', spoil: 0, baseStore: 0, perTruck: 16, unitCostFrom: 'fuel', shelf: 999, costLabel: 'Fuel', desc: 'Each load burns about one tank. Bought at the fuel price that day (or your locked price).' };
+  BZ.freight.equip.push({ id: 'tank', label: 'Yard fuel tank', cat: 'storage', price: 22000, store: 120, upkeep: 60, brk: 0.004, life: 240, cap: 0, desc: 'Holds fuel for 120 more loads: buy when diesel is cheap.' });
   C.supply = { staffReorderPremium: 0.06, staffReorderCover: [0.9, 1.08], sellBack: 0.5 };
   // make-ahead: bakeries and food trucks prepare before customers arrive; unsold goods are waste
   BZ.bakery.svc.makeAhead = 1.1; BZ.foodtruck.svc.makeAhead = 1.06;
@@ -1258,8 +1312,9 @@ select { max-width: 100%; }
   Object.assign(FD.enterprises.crops, { seedPerAcre: 110, inputPerAcre: 150, seedTonsPerAcre: 0.08 });
   Object.assign(FD.enterprises.cattle, {
     matureAge: 15, lifespan: 120, calfDeath: 0.006, adultDeath: 0.002, youngFeed: 0.6, cullValue: 0.6, replaceShare: 0.18, barnFeed: 1.6,
+    headPerTractor: 600, // on a ranch the tractor hauls hay bales and feed and fixes fences: ~1 per 600 head
   });
-  FD.enterprises.dairy = Object.assign({}, FD.enterprises.cattle, { label: 'Dairy cows', market: 'milk', milkPerCow: 0.75, feed: 190, headPerHand: 60, lifespan: 72, stockCost: 1800, saleRate: 0, best: 'grassland', parlorNeeded: true });
+  FD.enterprises.dairy = Object.assign({}, FD.enterprises.cattle, { label: 'Dairy cows', market: 'milk', milkPerCow: 0.75, feed: 190, headPerHand: 60, headPerTractor: 300, lifespan: 72, stockCost: 1800, saleRate: 0, best: 'grassland', parlorNeeded: true });
   FD.baseStoreTons = 60; FD.storePerAcre = 0.12;
   BZ.farm.equipCatsLabel = {};
   C.markets.beef.base = 2700;
@@ -1476,6 +1531,7 @@ select { max-width: 100%; }
     const d = TG.CONFIG.businesses[b.type], s = ST.def(b); if (!s) return 0;
     let c;
     if (s.unitCostFrom === 'materialCost') c = d.factory.materialCost;
+    else if (s.unitCostFrom === 'fuel') return d.freight.fuelPerLoad * (b.hedge && b.hedge.until > g.month ? b.hedge.idx : g.world.fuel) * g.world.priceIdx;
     else c = d.svc.cogs * d.svc.ticket;
     if (g.world.shortage[d.cat]) c *= 1.15;
     if (d.svc && TG.B.owner(g, b)) c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
@@ -1487,6 +1543,7 @@ select { max-width: 100%; }
     const d = TG.CONFIG.businesses[b.type];
     let base = s.baseStore || 0;
     if (s.perSqft) base += b.sqft * s.perSqft;
+    else if (s.perTruck) base += s.perTruck * b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed').length;
     else if (d.svc) {
       // built-in storage (shelves, the truck's own fridge...) holds about 3/4 of what your machines can serve in a month
       const pools = TG.E.pools(b); let eq = Infinity; for (const p of pools) eq = Math.min(eq, TG.E.capacity(b, p.pool));
@@ -1497,7 +1554,11 @@ select { max-width: 100%; }
     for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.store && !it.broken) add += ed.store; }
     return Math.round(base + add);
   };
-  ST.ensure = (b) => { if (ST.def(b) && !b.stock) b.stock = { qty: 0, auto: true, inM: 0, usedM: 0, spoilM: 0, wasteM: 0 }; return b.stock; };
+  ST.ensure = (b) => { if (ST.def(b) && !b.stock) b.stock = { qty: 0, auto: true, inM: 0, usedM: 0, spoilM: 0, wasteM: 0, lots: [] }; const st = b.stock; if (st && !st.lots) st.lots = st.qty > 0 ? [{ a: 0, q: st.qty }] : []; return st; };
+  // stock is kept in lots by age (months) so you can see fresh vs old; oldest are used / sold / spoil first
+  const takeOld = (st, n) => { let left = n; st.lots.sort((x, y) => y.a - x.a); for (const l of st.lots) { const t = Math.min(l.q, left); l.q -= t; left -= t; if (left <= 0) break; } st.lots = st.lots.filter((l) => l.q > 0.01); };
+  ST.shelf = (b) => { const s = ST.def(b); return (s && s.shelf) || 999; };
+  ST.ages = (b) => { const st = ST.ensure(b); if (!st) return []; const sh = ST.shelf(b); const out = { fresh: 0, aging: 0, old: 0 }; for (const l of st.lots) { if (l.a >= sh * 0.75 && sh < 999) out.old += l.q; else if (l.a >= 1) out.aging += l.q; else out.fresh += l.q; } return out; };
   // buy supplies; premium = extra % paid (staff ordering without a manager); returns qty bought
   ST.buy = (g, b, qty, premium, label) => {
     const st = ST.ensure(b); if (!st) return 0;
@@ -1506,8 +1567,8 @@ select { max-width: 100%; }
     const unit = ST.unitCost(g, b) * (1 + (premium || 0));
     if (qty * unit > Math.max(0, g.cash)) qty = Math.max(0, Math.floor(Math.max(0, g.cash) / unit));
     if (qty <= 0) return 0;
-    TG.F.spend(g, Math.round(qty * unit), label || 'Supplies & cost of sales', b.id);
-    st.qty += qty; st.inM = (st.inM || 0) + qty;
+    TG.F.spend(g, Math.round(qty * unit), label || ST.def(b).costLabel || 'Supplies & cost of sales', b.id);
+    st.qty += qty; st.inM = (st.inM || 0) + qty; const l0 = st.lots.find((l) => l.a === 0); if (l0) l0.q += qty; else st.lots.push({ a: 0, q: qty });
     return qty;
   };
   // sell leftover supplies back (half price)
@@ -1515,7 +1576,7 @@ select { max-width: 100%; }
     const st = ST.ensure(b); if (!st) return 0; qty = Math.max(0, Math.min(Math.round(qty), Math.floor(st.qty)));
     if (!qty) return 0;
     const v = Math.round(qty * ST.unitCost(g, b) * TG.CONFIG.supply.sellBack);
-    st.qty -= qty; TG.F.earn(g, v, 'Asset sales', b.id, true); return v;
+    st.qty -= qty; takeOld(st, qty); TG.F.earn(g, v, 'Asset sales', b.id, true); return v;
   };
   // monthly restock before serving. need = units expected to be used this month.
   ST.restock = (g, b, need) => {
@@ -1536,8 +1597,16 @@ select { max-width: 100%; }
     return { by: who, got, prem };
   };
   // use stock; returns units actually used
-  ST.use = (b, n) => { const st = b.stock; if (!st) return n; const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; return u; };
-  ST.spoil = (b) => { const st = b.stock, s = ST.def(b); if (!st || !s) return 0; const x = st.qty * s.spoil; st.qty -= x; st.spoilM = x; return x; };
+  ST.use = (b, n) => { const st = b.stock; if (!st) return n; ST.ensure(b); const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; takeOld(st, u); return u; };
+  // end of month: a share of leftovers spoils (oldest first), everything ages a month, anything past shelf life is thrown out
+  ST.spoil = (b) => {
+    const st = b.stock, s = ST.def(b); if (!st || !s) return 0; ST.ensure(b);
+    let x = st.qty * s.spoil; takeOld(st, x);
+    for (const l of st.lots) l.a++;
+    const sh = ST.shelf(b); let exp = 0; for (const l of st.lots) if (l.a > sh) { exp += l.q; l.q = 0; }
+    st.lots = st.lots.filter((l) => l.q > 0.01); x += exp; st.expM = exp;
+    st.qty = Math.max(0, st.qty - x); st.spoilM = x; return x;
+  };
   ST.value = (g, b) => (b.stock ? b.stock.qty * ST.unitCost(g, b) * 0.8 : 0);
   // cheapest storage item per unit of space
   ST.bestStore = (b) => TG.CONFIG.businesses[b.type].equip.filter((x) => x.store).sort((x, y) => x.price / x.store - y.price / y.store)[0] || null;
@@ -1557,6 +1626,43 @@ select { max-width: 100%; }
   FL.next = (b, i, t, v, u, c, why) => { if (!b.flowNew) FL.start(b); b.flowNew.next.push({ i, t, v: Math.round(v), u: u || '', c: c || '', why: why || '' }); };
   FL.commit = (g, b) => { if (b.flowNew) { b.flow = Object.assign({ m: g.month }, b.flowNew); b.flowNew = null; } };
   TG.FL = FL;
+})();
+
+</script>
+<script>/* js/work.js */
+/* work.js - the work-capacity model shown to the player.
+   Every business reports "work groups": a team of staff or a group of machines, each with
+   how much work it CAN do this month (capacity), how much it DID (load) and the utilization %.
+   Machines in a group split the work evenly, so utilization is per group; busy groups wear faster
+   (equipment.js reads b.workPool) and busy staff lose morale (staff.js reads ctx.busy). */
+(function () {
+  const TG = globalThis.TG; const U = TG.U;
+  const WK = {};
+  // add one group to this month's report
+  // kind: 'staff' | 'eq' | 'space' | 'stock'; pools: equipment pools it covers; unit: what one unit of work is
+  WK.add = (ctx, kind, icon, label, n, cap, load, unit, pools, tip) => {
+    if (!ctx.wk) ctx.wk = [];
+    cap = Number.isFinite(cap) ? Math.max(0, cap) : null; load = Math.max(0, load || 0);
+    ctx.wk.push({ kind, i: icon, t: label, n: Math.round((n || 0) * 10) / 10, cap: cap == null ? null : Math.round(cap), load: Math.round(load), u: unit || '', pools: pools || [], util: cap ? Math.round(load / cap * 100) / 100 : (load > 0 ? 9 : 0), tip: tip || '' });
+  };
+  // equipment pools of a business -> group per pool (service-type)
+  WK.poolGroups = (g, b, ctx, load, unit) => {
+    const C = TG.CONFIG; for (const pl of TG.E.pools(b)) {
+      const ed = pl.primary; const items = b.equip.filter((x) => { const d = TG.E.def(b, x.type); return d && TG.E.poolOf(d) === pl.pool && !x.broken; });
+      const cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      WK.add(ctx, 'eq', cat[0], cat[1], items.length, TG.E.capacity(b, pl.pool), load, unit, [pl.pool], `${items.length} working, about ${Math.round(TG.E.capacity(b, pl.pool) / Math.max(1, items.length)).toLocaleString()} ${unit} each. Work is shared evenly.`);
+    }
+  };
+  // end of month: keep the report and per-pool utilization (drives next month's wear)
+  WK.commit = (b, ctx) => {
+    b.work = ctx.wk || []; const P = {};
+    for (const w of b.work) if (w.kind === 'eq') for (const p of w.pools) P[p] = Math.min(1.5, w.util);
+    b.workPool = P;
+  };
+  // wear speed from utilization: idle 0.4x, full 1.2x, overloaded up to 1.6x
+  WK.wearMult = (u) => 0.4 + 0.8 * U.clamp(u, 0, 1.5);
+  WK.tone = (u) => (u > 1.02 ? 'r' : u > 0.9 ? 'y' : u < 0.35 ? 'y' : 'g');
+  TG.WK = WK;
 })();
 
 </script>
@@ -2154,7 +2260,8 @@ select { max-width: 100%; }
       if (it.broken === 'destroyed') continue;
       it.age++; if (it.warranty > 0) it.warranty--;
       const d = E.def(b, it.type);
-      const use = it.broken ? 0.2 : (ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
+      const pu = b.workPool ? b.workPool[E.poolOf(d)] : undefined;
+      const use = it.broken ? 0.2 : (pu != null ? TG.WK.wearMult(pu) : ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
       let wg = eq.wearPerMonth * use * (it.maint ? eq.maintPlanWearMult : 1) * (1 - (1 - eq.mechanicWearMult) * cov) * wearFix * (120 / d.life);
       it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4), 0, 100);
       if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);
@@ -3009,7 +3116,7 @@ select { max-width: 100%; }
   };
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
-    TG.FL.commit(g, b);
+    TG.FL.commit(g, b); TG.WK.commit(b, ctx);
     b.hits = b.hits.filter((h) => --h.months > 0);
     if (b.boost && --b.boost.months <= 0) b.boost = null;
     b.qHits = b.qHits.filter((h) => --h.months > 0);
@@ -3183,6 +3290,13 @@ select { max-width: 100%; }
       const spoiled = sd ? ST.spoil(b) : 0;
       ctx.cap = Math.round(cap); ctx.demand = Math.round(demand); ctx.served = Math.round(served);
       ctx.limitEquip = k.limEq; ctx.links = k.links;
+      { // work-capacity report
+        const WK = TG.WK, kr = M.keyRole(d), unit = (P.good(b) || {}).unit || 'customer', nk = ctx.key.length + (ctx.own ? 1 : 0);
+        WK.add(ctx, 'staff', '👥', (d.roles[kr].label || kr) + 's', nk, k.keyCap * pace, served, unit + 's', [], `Each handles about ${Math.round(d.roles[kr].cap).toLocaleString()} ${unit}s a month at normal skill. Training and skill raise it; over 100% they get tired and grumpy.`);
+        for (const r in d.roles) if (d.roles[r].support) WK.add(ctx, 'staff', '🧹', (d.roles[r].label || r) + 's', b.staff.filter((e) => e.role === r).length, k.supCap, served, unit + 's', [], `Each supports about ${Math.round(d.roles[r].per).toLocaleString()} ${unit}s.`);
+        WK.poolGroups(g, b, ctx, served, unit + 's');
+        if (Number.isFinite(k.spaceCap)) WK.add(ctx, 'space', '📐', 'Space', 1, k.spaceCap * pace, served, unit + 's', [], 'How many your building fits. Needs a bigger place.');
+      }
       const mn = Math.min(k.keyCap, k.eqCap, k.spaceCap, k.supCap);
       ctx.limit = stockLimited ? 'stock' : k.keyCap <= mn ? 'staff' : k.eqCap <= mn ? 'equipment' : k.spaceCap <= mn ? 'space' : 'support';
       if (demand < cap * 0.98 && !stockLimited) ctx.limitNow = 'demand';
@@ -3257,7 +3371,8 @@ select { max-width: 100%; }
       if (M.isLivestock(b.farm)) M.herdInit(b.farm, Math.round(M.farmHerdCap(prop, fd.enterprises[ent]) * 0.5));
     },
     e(b) { return TG.CONFIG.businesses.farm.farm.enterprises[b.farm.ent]; },
-    tractorNeed(b) { const e = this.e(b); return Math.max(1, b.farm.acres / e.acresPerTractor); },
+    // crops: tractors pull planters, sprayers and trailers (acres each); livestock: tractors move hay and feed (head each)
+    tractorNeed(b) { const e = this.e(b); return M.isLivestock(b.farm) ? Math.max(1, (b.farm.herd || 0) / (e.headPerTractor || 600)) : Math.max(1, b.farm.acres / e.acresPerTractor); },
     handNeed(b) { const e = this.e(b); return Math.max(0.3, M.isLivestock(b.farm) ? b.farm.herd / e.headPerHand : b.farm.acres / e.acresPerHand); },
     needs(g, b) {
       const own = B().owner(g, b);
@@ -3285,7 +3400,7 @@ select { max-width: 100%; }
       let heff = U.sum(ctx.key, M.staffEff) + (ctx.own ? 0.7 : 0);
       const hneed = this.handNeed(b) * (1 - robotShare * 0.85 * Math.min(1, tcap / tneed));
       const gear = tcap > 0 ? 1 : 0; // planters and combines need a tractor on the farm
-      return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed };
+      return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed, heff, hneed, plantX: plantX * gear, harvX: harvX * gear };
     },
     weather(g, b, ctx, growing) {
       const f = b.farm, e = this.e(b), C = TG.CONFIG, w = ctx.weather, lt = C.landTypes[f.landType] || C.landTypes.flat;
@@ -3368,6 +3483,20 @@ select { max-width: 100%; }
       const inputCut = b.fixes.integrate ? 0.2 : 0;
       const qMult = 0.9 + 0.2 * ctx.quality / 100;
       ctx.cap = Math.round(f.acres); ctx.util = Math.min(cov.tcov, cov.hcov); ctx.busy = 1 / Math.max(0.3, ctx.util);
+      { // work-capacity report: load in acres (crops/orchard) or head (livestock)
+        const WK = TG.WK, live = M.isLivestock(f), load = live ? f.herd : f.acres, unit = live ? 'head' : 'acres', per = load / Math.max(0.01, cov.tneed);
+        const nT = b.equip.filter((x) => (x.type === 'tractor' || x.type === 'robot') && !x.broken).length;
+        WK.add(ctx, 'eq', '🚜', 'Tractors', nT, cov.tcap * per, load, unit, ['tractor', 'robot'], live ? `Haul hay and feed and fix fences: about ${e.headPerTractor || 600} head per tractor. A robot tractor counts as 4.` : `Pull the planter, sprayer and trailer: about ${e.acresPerTractor} acres per tractor. A robot tractor counts as 4.`);
+        WK.add(ctx, 'staff', '👩‍🌾', 'Farmhands', ctx.key.length + (ctx.own ? 1 : 0), cov.heff / Math.max(0.01, cov.hneed) * load, load, unit, [], live ? `Feed, check and move animals: about ${e.headPerHand} head each. Skill and training raise it.` : `Plant, spray, irrigate and harvest: about ${e.acresPerHand} acres each. Robots cut the work.`);
+        if (f.ent === 'crops') {
+          WK.add(ctx, 'eq', '🌱', 'Planters', b.equip.filter((x) => x.type === 'planter' && !x.broken).length, (cov.tcap + cov.plantX) * per, load, unit, ['planter'], 'Plant faster in spring (needs a tractor to pull it).');
+          WK.add(ctx, 'eq', '🌾', 'Combines', b.equip.filter((x) => x.type === 'combine' && !x.broken).length, (cov.tcap + cov.harvX) * per, load, unit, ['combine'], 'Harvest faster in fall so less rots in the field.');
+        }
+        if (live) {
+          WK.add(ctx, 'space', '🌿', 'Pasture + barns', 1, M.farmHeadCap(b), f.herd, 'head', ['pen', 'barn'], 'Grass on your land plus pens and barns. Full = no room for calves.');
+          if (f.ent === 'dairy') WK.add(ctx, 'eq', '🥛', 'Milking parlors', b.equip.filter((x) => x.type === 'parlor' && !x.broken).length, M.farmParlorCap(b), f.cows, 'cows', ['parlor'], 'Each parlor milks about 160 cows. Cows not milked make nothing.');
+        }
+      }
       ctx.priceR = this.ratio(g, b);
       if (f.stored > 0) {
         TG.F.spend(g, Math.round(f.stored * e.storageCost * g.world.priceIdx), 'Storage', b.id);
@@ -3641,7 +3770,12 @@ select { max-width: 100%; }
       const st = g.markets.freight;
       const r = TG.PR.ratio(g, b);
       const avail = U.clamp(0.78 + 0.22 * (b.rep / 50) - 0.35 * (st.comp - 1), 0.35, 1.05) * B().demandMult(g, b, ctx, { noPrice: true }) * TG.PR.demandF(r);
-      const loads = Math.max(0, Math.min(cap, cap * avail));
+      let loads = Math.max(0, Math.min(cap, cap * avail));
+      // diesel comes out of the tanks; bad roads and emission rules burn more, fuel-saving upgrades less
+      const road = (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
+      const burn = Math.pow(2 - road, 0.3) * (1 - (fo.fuelCut || 0)) * (w.emissions > 0 ? 1.05 : 1);
+      TG.ST.ensure(b); TG.ST.restock(g, b, loads * burn);
+      const usedF = TG.ST.use(b, loads * burn); const noFuel = Math.max(0, loads - usedF / burn); loads -= noFuel;
       const nTr = trucks.filter((x) => !x.broken).length;
       const reef = b.equip.filter((x) => x.type === 'reefer' && !x.broken).length;
       const reefB = nTr ? Math.min(1, reef / nTr) * TG.E.def(b, 'reefer').ticketBoost : 0;
@@ -3651,13 +3785,13 @@ select { max-width: 100%; }
       { const FL = TG.FL; FL.start(b);
         FL.row(b, '🚛', 'Trucks working', nTr, '/' + trucks.length, nTr < trucks.length ? 'y' : 'g', nTr < trucks.length ? 'Some trucks broken' : '');
         FL.row(b, '📦', 'Loads hauled', loads, '', 'g', `at ${U.money(price)} each`);
+        FL.row(b, '⛽', 'Diesel used', usedF, 'tanks', 'g', `${U.money(TG.ST.unitCost(g, b))} a tank now${b.hedge && b.hedge.until > g.month ? ' (locked price)' : ''}`);
+        if (noFuel > 0.5) FL.row(b, '🚫', 'Loads lost: no diesel', noFuel, '', 'r', b.stock.short === 'cash' ? 'Not enough cash for fuel' : 'Tanks empty: buy diesel or turn on auto');
+        FL.next(b, '⛽', 'Diesel in tanks', b.stock.qty, '/' + TG.ST.cap(b), b.stock.qty < loads ? 'y' : 'g', 'Enough for about this many loads');
         if (cap * (1 - avail) > 0.5 && avail < 1) FL.row(b, '🅿️', 'Empty truck days', cap - loads, 'loads', avail < 0.75 ? 'r' : 'y', r > 1.05 ? 'Your rate is over market' : 'Not enough freight around');
         if (truckCap > driverCap * 1.2) FL.row(b, '🧑‍✈️', 'Trucks without drivers', (truckCap - driverCap) / 14, '', 'r', 'Hire drivers');
         FL.next(b, '📦', 'Loads expected', loads, '', 'g'); }
-      const road = (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
-      const fuelIdx = b.hedge && b.hedge.until > g.month ? b.hedge.idx : w.fuel;
-      TG.F.spend(g, Math.round(loads * fr.fuelPerLoad * fuelIdx * Math.pow(2 - road, 0.3) * (1 - (fo.fuelCut || 0)) * (w.emissions > 0 ? 1.05 : 1) * w.priceIdx), 'Fuel', b.id);
-      TG.F.spend(g, Math.round(loads * fr.tollsPerLoad * w.priceIdx), 'Tolls & fees', b.id);
+      TG.F.spend(g, Math.round(loads * fr.tollsPerLoad * w.priceIdx), 'Tolls & fees', b.id); TG.ST.spoil(b);
       // crashes per active truck
       const active = Math.min(trucks.filter((x) => !x.broken).length, Math.ceil(loads / 12));
       for (let i = 0; i < active; i++) {
@@ -3673,6 +3807,8 @@ select { max-width: 100%; }
           b.rep = U.clamp(b.rep - R.range(2, 6), 0, 100);
         }
       }
+      TG.WK.add(ctx, 'eq', '🚛', 'Trucks', trucks.filter((x) => !x.broken).length, truckCap, loads, 'loads', ['truck'], `About ${d.equip[0].cap} loads a month per truck. Good roads add a little. Busy trucks wear faster.`);
+      TG.WK.add(ctx, 'staff', '🧑‍✈️', 'Drivers', ctx.key.length + (ctx.own ? 1 : 0), driverCap, loads, 'loads', [], `About ${d.roles.driver.cap} loads a month per driver (legal driving hours). Skill and reliability raise it.`);
       ctx.cap = Math.round(cap); ctx.served = Math.round(loads); ctx.demand = Math.round(cap * avail);
       ctx.util = cap > 0 ? avail : 1; ctx.busy = U.clamp(avail, 0, 1.2);
       if (truckCap > driverCap * 1.2) ctx.note = 'Trucks sitting idle: not enough drivers';
@@ -3763,6 +3899,8 @@ select { max-width: 100%; }
       TG.F.spend(g, Math.round(storage), 'Storage', b.id);
       s.followers = Math.max(0, s.followers + sold * br.followerRate - s.followers * br.followerChurn);
       s.lastOrders = orders; s.lostSales = lost; s.avgOrders = s.avgOrders == null ? orders : s.avgOrders * 0.7 + orders * 0.3;
+      TG.WK.add(ctx, 'staff', '📦', 'Packers', ctx.key.length + (ctx.own ? 1 : 0), packCap, sold, 'orders', [], `Each packs and ships about ${d.roles.packer.cap.toLocaleString()} orders a month. Packing stations and shelving speed them up.`);
+      TG.WK.add(ctx, 'space', '🏬', 'Warehouse room', 1, M.brandRoom(b), s.stock, 'units', ['shelving', 'racking'], 'How many clothes fit. Racking adds room.');
       ctx.cap = Math.round(packCap); ctx.demand = Math.round(orders); ctx.served = sold;
       ctx.util = packCap > 0 ? orders / packCap : 1.5; ctx.busy = U.clamp(sold / Math.max(1, packCap), 0, 1.3);
       if (s.stock === 0 && !s.incoming.length) ctx.note = 'No stock and nothing on order: order a batch';
@@ -3840,6 +3978,8 @@ select { max-width: 100%; }
       FL.row(b, '🪨', 'Raw left', b.stock.qty, '/' + TG.ST.cap(b), 'g');
       FL.next(b, '🏭', 'Can make', Math.min(lineCap, workerUnits), 'units', 'g');
       FL.next(b, '🏷️', 'Market price', pNow, '$', pNow < floor ? 'r' : 'g', pNow < floor ? 'Below cost-plus: oversupply' : '');
+      TG.WK.add(ctx, 'eq', '🏭', 'Production lines', this.lines(b).filter((x) => !x.broken).length, lineCap, prod, 'units', ['line'], 'Each line makes about 12,000 units a month. Busy lines wear faster.');
+      TG.WK.add(ctx, 'staff', '👷', 'Line workers', ctx.key.length + (ctx.own ? 1 : 0), workerUnits, prod, 'units', [], `Each runs about ${d.roles.worker.cap} units a month. A robot arm makes them faster.`);
       ctx.cap = Math.round(lineCap); ctx.served = Math.round(prod); ctx.demand = Math.round(lineCap);
       ctx.util = lineCap > 0 ? prod / lineCap : 0; ctx.busy = U.clamp(workerUnits > 0 ? lineCap / workerUnits : 1.3, 0, 1.3);
       if (lineCap === 0) ctx.note = 'All production lines are down';
@@ -3918,6 +4058,9 @@ select { max-width: 100%; }
         FL.row(b, '📨', 'New offers', pr.offers.length, '', '');
         FL.next(b, '✅', 'Jobs finishing', pr.active.filter((p) => p.progress > 1 - 1.2 / p.months).length, '', 'g'); }
       const avail = this.crew(b, ctx);
+      TG.WK.add(ctx, 'staff', '🦺', 'Crew', ctx.key.length + (ctx.own ? 1 : 0), this.crew(b, ctx) + (ctx.own ? 1 : 0), totalCrewNeed, 'workers', [], 'Each job needs a set crew. Short crew = jobs run late.');
+      TG.WK.add(ctx, 'eq', '🧰', 'Tool sets & vans', b.equip.filter((x) => (x.type === 'tools' || x.type === 'skid') && !x.broken).length, toolsCap, totalCrewNeed, 'workers', ['tools'], 'Each tool set equips about 12 workers; a crew van 4 more.');
+      for (const hv of ['excavator', 'crane']) { const n = b.equip.filter((x) => x.type === hv && !x.broken).length; const need = pr.active.filter((p) => (hv === 'crane' ? p.crane : p.heavy)).length; if (n || need) TG.WK.add(ctx, 'eq', hv === 'crane' ? '🏗️' : '🚧', hv === 'crane' ? 'Cranes' : 'Excavators', n, n, need, 'jobs', [hv], 'One machine per job that needs it. Jobs without one wait.'); }
       ctx.cap = Math.round(avail); ctx.demand = Math.round(totalCrewNeed); ctx.served = Math.round(used);
       ctx.util = avail > 0 ? totalCrewNeed / avail : (totalCrewNeed ? 1.5 : 0); ctx.busy = U.clamp(ctx.util, 0, 1.3);
       if (!pr.active.length) ctx.note = 'No active projects: crews are idle (bid on contracts)';
@@ -3970,6 +4113,8 @@ select { max-width: 100%; }
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
       const serverCap = TG.E.capacity(b, 'server');
+      TG.WK.add(ctx, 'eq', '🖥️', 'Servers', b.equip.filter((x) => (x.type === 'server' || x.type === 'cdn') && !x.broken).length, serverCap, t.users, 'users', ['server'], 'Each server handles about 60,000 users. Over 100% = outages and users leave.');
+      TG.WK.add(ctx, 'staff', '🧑‍💻', 'Engineers', ctx.key.length + (ctx.own ? 1 : 0), engEff, engNeed, 'eng. needed', [], 'Fix bugs and keep users happy: about 2 + 1 per 150,000 users needed.');
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
@@ -4063,6 +4208,8 @@ select { max-width: 100%; }
       if (open.length && R.chance(pDrift)) { const x = R.range(3, 8); b.rep = U.clamp(b.rep - x, 0, 100); for (const l of s.locations) l.q = Math.max(0.1, l.q - 0.03); TG.rep.event(g, b, 'bad', `Quality drifting across stores (reputation -${Math.round(x)})`, `Regional manager coverage ${U.pct(cov)} (${s.locations.length} locations)`); }
       const pSuit = fr.suitPerLoc * open.length * (b.spec.lawyer ? 0.6 : 1.1) * (b.fixes.standards ? 0.7 : 1);
       if (R.chance(pSuit)) B().lawsuit(g, b, 'Franchisee lawsuit', Math.max(C.lawsuits.suitMin, R.range(1, 3) * Math.max(royalty, 20000)), 'liability', `${open.length} franchisees; ${U.pct(pSuit, 1)} monthly chance`);
+      TG.WK.add(ctx, 'staff', '🧭', 'Area managers', ctx.key.length + (ctx.own ? 1 : 0), regCap, open.length, 'shops', [], `Each checks on about ${C.businesses.franchise.roles.regional.cap} shops. Unchecked shops slip.`);
+      TG.WK.add(ctx, 'eq', '💻', 'Franchise systems', b.equip.filter((x) => x.type === 'systems' && !x.broken).length, TG.E.capacity(b, 'systems'), open.length, 'shops', ['systems'], 'Ordering and reporting software: about 60 shops per system.');
       ctx.cap = Math.round(regCap); ctx.demand = open.length; ctx.served = open.length; ctx.util = open.length / Math.max(1, regCap); ctx.busy = U.clamp(ctx.util, 0, 1.3);
       ctx.note = `${open.length} open locations, ${s.locations.length - open.length} being built, ${s.apps.length} applications waiting; regional coverage ${U.pct(cov)}`;
       if (cannibal < 0.85) ctx.note += `; locations cannibalizing each other (sales x${cannibal.toFixed(2)})`;
@@ -5594,7 +5741,8 @@ select { max-width: 100%; }
     o += UI.flowCard(g, b);
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
-    o += UI.linksCard(g, b);
+    o += UI.salesCard(g, b);
+    o += UI.workCard(g, b);
     // how it runs
     const owner = TG.B.owner(g, b);
     o += `<div class="card"><h3>⚙️ How it runs</h3>
@@ -5680,7 +5828,7 @@ select { max-width: 100%; }
     const hr = UI.S.hireRole && (d.roles[UI.S.hireRole] || C.specialists[UI.S.hireRole]) ? UI.S.hireRole : roles[0];
     const pool = TG.S.poolFor(g, b, hr);
     o += `<div class="card"><h3 style="margin-top:0">Hire</h3><div class="row"><select data-change="hireRole">${roles.map((r) => `<option value="${r}"${r === hr ? ' selected' : ''}>${esc(d.roles[r].label)}</option>`).join('')}<optgroup label="Managers & specialists">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}"${k === hr ? ' selected' : ''}>${esc(s.label)}${b.spec[k] ? ' (filled)' : ''}</option>`).join('')}</optgroup></select></div>
-      ${C.specialists[hr] ? `<div class="mute">${esc(C.specialists[hr].desc || '')}</div>` : ''}
+      <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
     for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;
@@ -5874,7 +6022,7 @@ select { max-width: 100%; }
     else if (b.proj) rows = projRows(g, b);
     else if (b.fr) rows = frRows(g, b);
     else if (d.model === 'freight') rows = freightRows(g, b);
-    return rows ? `<div class="card"><h3>${title}</h3>${rows}</div>` : '';
+    return rows ? `<div class="card"><h3>${title}</h3>${rows}<div class="btns">${UI.btn(b.farm && TG.M.isLivestock(b.farm) ? '🐄 See all cows' : '🔍 See all', 'detail', 'stock', 'sm')}</div></div>` : '';
   };
 
   // ---- services: supplies + what you sell + who you serve ----
@@ -6007,6 +6155,10 @@ select { max-width: 100%; }
   function freightRows(g, b) {
     const tr = b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed'); const dr = b.staff.filter((e) => e.role === 'driver').length; const lc = b.lastCtx || {};
     let o = UI.irow('ftr' + b.id, '🚛', 'Trucks working', `${tr.filter((x) => !x.broken).length}/${tr.length}`, 'Each truck can do a set number of loads a month if it has a driver.', UI.btn('+ Truck', 'tab', 'biz:equip', 'xs'), `average wear ${Math.round(TG.E.avgWear(b, (x) => x.type === 'truck'))}%`);
+    { const st = TG.ST.ensure(b); const cap = TG.ST.cap(b);
+      o += UI.irow('fdz' + b.id, '⛽', 'Diesel', `${N(st.qty)}/${N(cap)}`, `${TG.ST.def(b).desc} ${m(TG.ST.unitCost(g, b))} a tank now. Room grows with trucks and yard tanks.`,
+        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')), 'tanks (1 tank ≈ 1 load)');
+      o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`; }
     o += UI.irow('fdr' + b.id, '🧑‍✈️', 'Drivers', `${dr}/${tr.length}`, 'About one driver per truck.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
     o += UI.irow('fld' + b.id, '📦', 'Loads', `${N(lc.served)}/${N(lc.cap)}`, 'Loads hauled / loads you could haul last month.');
     o += UI.irow('ffu' + b.id, '⛽', 'Fuel price', `x${g.world.fuel.toFixed(2)}`, 'Locking (hedging) fuel for 12 months wins if fuel spikes, loses if it falls.', UI.btn(b.hedge && b.hedge.until > g.month ? '🔒 Locked' : '🔒 Lock 12 mo', 'frHedge', null, 'xs'));
@@ -6051,6 +6203,110 @@ select { max-width: 100%; }
   } };
   UI.A.frApp = (id) => after(TG.M.franchiseApprove(TG.G, biz(), id, 'You'), 'Approved: opening in ~3 months.');
   UI.A.frRej = (id) => after(TG.M.franchiseReject(TG.G, biz(), id), 'Rejected.');
+})();
+
+</script>
+<script>/* js/ui/ui-detail.js */
+/* ui-detail.js - work-capacity card, sales card and the "See all" detail screens for stock, staff and equipment. */
+(function () {
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const biz = () => TG.B.get(TG.G, UI.bizId);
+  const N = (x) => Math.round(x || 0).toLocaleString();
+  const tone = { g: 'good', y: 'warn', r: 'bad' };
+
+  // ---------- 💪 work: each team / machine group, load vs capacity ----------
+  UI.workCard = (g, b) => {
+    const W = b.work || [];
+    if (!W.length) return `<div class="card"><h3>💪 Work</h3><div class="mute">Press ▶ Next Month to see how busy everyone is.</div></div>`;
+    let worst = -1, wu = -1; W.forEach((w, i) => { if (w.cap != null && w.util > wu) { wu = w.util; worst = i; } });
+    const rows = W.map((w, i) => {
+      const t = TG.WK.tone(w.util); const k = 'wk' + b.id + i; const pct = w.cap ? Math.round(w.util * 100) : null;
+      const each = w.n > 0 && w.cap ? ` About ${N(w.cap / w.n)} ${w.u} each.` : '';
+      const eff = w.kind === 'eq' ? ` Wear speed x${TG.WK.wearMult(w.util).toFixed(1)} (busier = wears faster).` : w.kind === 'staff' ? (w.util > 1 ? ' Over 100%: they get tired, morale drops, mistakes rise.' : w.util < 0.4 ? ' Lots of idle time: you pay wages for little work.' : ' A healthy workload.') : '';
+      return `<div class="link ${i === worst && w.util > 0.9 ? 'weak' : ''}" data-act="tip" data-arg="${k}" data-nosave="1"><span class="ico">${w.i}</span><span class="grow">${esc(w.t)}${w.kind !== 'space' ? ` <span class="mute">x${w.n}</span>` : ''}${w.cap ? `<div class="bar ${t === 'r' ? 'bad' : t === 'y' ? 'warn' : ''}"><i style="width:${Math.round(Math.min(1, w.util) * 100)}%"></i></div>` : ''}</span><span style="text-align:right"><b>${N(w.load)}/${w.cap == null ? '–' : N(w.cap)}</b><br>${pct != null ? UI.pill(pct + '%', tone[t]) : UI.pill('none!', 'bad')}</span></div>${UI.tipLine(k, `${w.tip}${each}${eff} (${w.u})`)}`;
+    }).join('');
+    return `<div class="card"><h3>💪 Work this month ${UI.tipBtn('wk' + b.id)}</h3>${UI.tipLine('wk' + b.id, 'Each team and machine group can do a set amount of work. Busy = number on the left, most they can do = right. The red one is what holds you back.')}${rows}
+      <div class="btns">${UI.btn('👥 See staff', 'detail', 'staff', 'sm')}${UI.btn('🛠️ See machines', 'detail', 'equip', 'sm')}</div></div>`;
+  };
+
+  // ---------- 🛒 sales vs sales capacity ----------
+  UI.salesCard = (g, b) => {
+    const lc = b.lastCtx || {}; if (lc.cap == null || b.proj || b.fr) return '';
+    const d = TG.B.def(b); const gd = TG.PR.good(b) || {}; const unit = gd.unit || 'sale';
+    if (b.farm || b.tech || b.factory) return ''; // these show their own sales rows (harvest, users, production)
+    const r = lc.priceR || 1; const pf = TG.PR.demandF(r);
+    const sold = lc.served || 0, cap = lc.cap || 0, dem = lc.demand || 0;
+    const lim = sold >= dem - 0.5 ? 'demand' : (lc.limit || 'staff');
+    const L = { demand: ['🧲', 'Not enough customers', 'You could have served more than wanted to buy. Better reputation, ads, a busier location or a lower price bring more customers.'],
+      staff: ['👥', 'Not enough staff', 'Your workers were full. Hire or train more.'], equipment: ['🛠️', 'Not enough equipment', 'A machine group was full. Buy more of the red one in Gear.'],
+      space: ['📐', 'Not enough space', 'Your building is full. A bigger place is needed.'], support: ['🧹', 'Not enough helpers', 'Support staff were full.'], stock: ['📦', 'Ran out of stock', 'Supplies ran out. Order more, add storage or turn on auto-order.'] }[lim] || ['❓', lim, ''];
+    const k = 'sl' + b.id;
+    return `<div class="card"><h3>🛒 Sales ${UI.tipBtn(k)}</h3>${UI.tipLine(k, 'Sales = the smallest of: customers who want to buy, and how much you can serve (staff, machines, space, stock).')}
+      <div class="tiles">${UI.tile(k + 's', '🛒', N(sold), 'Sold', sold >= cap * 0.95 ? 'y' : 'g', `You sold ${N(sold)} ${unit}s last month.`)}${UI.tile(k + 'c', '🧱', N(cap), 'Could sell', '', 'The most your staff, machines and space could handle.')}${UI.tile(k + 'd', '🧲', N(dem), 'Wanted', dem > cap ? 'y' : 'g', 'Customers who wanted to buy at your price. Reputation, ads, the economy and price change it.')}${UI.tile(k + 'p', '🏷️', Math.round(pf * 100) + '%', 'Price effect', r > 1.05 ? 'r' : r < 0.95 ? 'y' : 'g', `Your price is ${Math.round(r * 100)}% of market, so you get about ${Math.round(pf * 100)}% of the normal number of customers.`)}</div>
+      ${UI.irow(k + 'l', L[0], 'Held back by: ' + L[1], null, L[2])}</div>`;
+  };
+
+  // ---------- detail screens ----------
+  UI.A.detail = (what) => {
+    const g = TG.G, b = biz(); if (!b) return;
+    const f = { stock: stockDetail, staff: staffDetail, equip: equipDetail }[what];
+    UI.modal({ stock: '📦 Everything in stock', staff: '👥 Your team', equip: '🛠️ Your machines' }[what], f(g, b) + `<div class="btns">${UI.btn('Close', 'closeModal', null, 'pri')}</div>`);
+  };
+  const grp = (b, kind, test) => (b.work || []).find((w) => w.kind === kind && test(w));
+  function staffDetail(g, b) {
+    const d = TG.B.def(b); const all = TG.S.allStaff(b);
+    if (!all.length) return '<div class="card mute">No staff yet.</div>';
+    const byRole = {}; for (const e of all) (byRole[e.role] = byRole[e.role] || []).push(e);
+    let o = '';
+    for (const [r, list] of Object.entries(byRole)) {
+      const rd = d.roles[r] || TG.CONFIG.specialists[r] || {}; const w = grp(b, 'staff', (x) => x.t.toLowerCase().startsWith(String(rd.label || r).toLowerCase().slice(0, 5)));
+      o += `<div class="card"><h3>${esc(rd.label || r)} x${list.length}</h3>${w ? `<div class="mute">Team load ${N(w.load)} / ${N(w.cap)} ${w.u} (${Math.round(w.util * 100)}%) · about ${N(w.load / Math.max(1, w.n))} each</div>` : ''}
+        <table><tr><th>Name</th><th class="n">🎓 Skill</th><th class="n">😊 Mood</th><th class="n">⏰ Shows up</th>${rd.cap ? '<th class="n">💪 Can do</th>' : ''}</tr>${list.map((e) => `<tr><td>${esc(e.name)}</td><td class="n">${Math.round(e.skill)}</td><td class="n ${e.morale < 40 ? 'bad' : e.morale > 70 ? 'good' : ''}">${Math.round(e.morale)}</td><td class="n">${Math.round(e.reliability)}%</td>${rd.cap ? `<td class="n">${N(rd.cap * TG.M.staffEff(e))}</td>` : ''}</tr>`).join('')}</table></div>`;
+    }
+    return o + '<div class="mute">Training (Staff tab) raises skill, and skill raises how much each person can do.</div>';
+  }
+  function equipDetail(g, b) {
+    if (!b.equip.length) return '<div class="card mute">No machines yet.</div>';
+    const C = TG.CONFIG; const by = {};
+    for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (!ed) continue; const p = TG.E.poolOf(ed); (by[p] = by[p] || []).push(it); }
+    let o = '';
+    for (const [p, list] of Object.entries(by)) {
+      const w = (b.work || []).find((x) => x.kind !== 'staff' && x.pools.indexOf(p) >= 0); const work = list.filter((x) => !x.broken).length;
+      const ed = TG.E.def(b, list[0].type); const cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      o += `<div class="card"><h3>${cat[0]} ${esc(cat[1])} · ${esc(ed.label)}${list.length > 1 ? 's' : ''}</h3>${w ? `<div class="mute">Group load ${N(w.load)} / ${N(w.cap)} ${w.u} (${Math.round(w.util * 100)}%) · each working one does about ${N(w.load / Math.max(1, work))} · wear speed x${TG.WK.wearMult(w.util).toFixed(1)}</div>` : `<div class="mute">${esc(ed.desc || 'Helps the business; not a capacity group.')}</div>`}
+        <table><tr><th>#</th><th>Kind</th><th class="n">⏳ Age</th><th class="n">🔩 Wear</th><th class="n">🎲 Break</th></tr>${list.map((it) => `<tr><td>${TG.E.num(b, it)}</td><td>${esc(C.equipTiers[it.tier].label)}${it.leased ? ' 📄' : ''}</td><td class="n">${(it.age / 12).toFixed(1)}y</td><td class="n ${TG.E.effWear(it) > 70 ? 'bad' : ''}">${it.hidden > 0 && !it.inspected ? Math.round(it.wear) + '%+?' : Math.round(TG.E.effWear(it)) + '%'}</td><td class="n">${it.broken ? '<span class="bad">broken</span>' : U.pct(it.lastP || 0, 1)}</td></tr>`).join('')}</table></div>`;
+    }
+    return o;
+  }
+  function lotsTable(b) {
+    const st = TG.ST.ensure(b); const sh = TG.ST.shelf(b); if (!st) return '';
+    const lots = st.lots.slice().sort((x, y) => x.a - y.a);
+    return `<table><tr><th>Age</th><th class="n">How many</th><th>State</th></tr>${lots.map((l) => `<tr><td>${l.a === 0 ? 'new this month' : l.a + ' mo'}</td><td class="n">${N(l.q)}</td><td>${sh < 999 && l.a >= sh ? '<span class="bad">throw out soon</span>' : sh < 999 && l.a >= sh * 0.75 ? '<span class="warn">old</span>' : '<span class="good">fresh</span>'}</td></tr>`).join('') || '<tr><td colspan="3" class="mute">Empty.</td></tr>'}</table>${sh < 999 ? `<div class="mute">Keeps about ${sh} month${sh > 1 ? 's' : ''}; older is thrown out. Oldest is used first.</div>` : ''}`;
+  }
+  function stockDetail(g, b) {
+    let o = '';
+    if (b.farm && TG.M.isLivestock(b.farm)) {
+      const f = b.farm, e = TG.M.models.farm.e(b); const y = f.young || [];
+      const calves = U.sum(y.filter((x) => x.age < 6), (x) => x.n), grow = U.sum(y.filter((x) => x.age >= 6), (x) => x.n);
+      const nearOld = f.cows * Math.min(1, 12 / Math.max(12, e.lifespan - 24));
+      const rows = [['🍼', 'Calves (0-5 months)', calves, 'Drink milk, eat little. Most likely to get sick.'], ['🐮', 'Growing (6-14 months)', grow, `Eat more each month. Ready at ${e.matureAge} months.`], ['🐂', 'Ready to sell', f.ready, 'Sold at your price if buyers agree.']];
+      if (f.ent === 'dairy') { const milk = Math.min(f.cows * 0.85, TG.M.farmParlorCap(b)); rows.push(['🥛', 'Cows milking', milk, 'In milk and fit in a parlor.'], ['😴', 'Dry / can\'t be milked', f.cows - milk, 'Resting before calving (about 15%) or no parlor space.']); }
+      else rows.push(['🐄', 'Mother cows', f.cows, 'Each may have a calf in spring.']);
+      rows.push(['👵', 'Near retirement (estimate)', nearOld, `Cows retire at about ${Math.round(e.lifespan / 12)} years and are sold for meat.`]);
+      o += `<div class="card"><h3>🐄 Herd by stage</h3>${rows.map((r, i) => UI.irow('cw' + i, r[0], r[1], N(r[2]), r[3])).join('')}<div class="mute">Total ${N(f.herd)} of ${N(TG.M.farmHeadCap(b))} space.</div></div>`;
+      o += `<div class="card"><h3>📊 Young by age (months)</h3><table><tr>${y.map((x) => `<th class="n">${x.age}</th>`).join('')}</tr><tr>${y.map((x) => `<td class="n">${N(x.n)}</td>`).join('')}</tr></table></div>`;
+    } else if (b.farm) {
+      const f = b.farm; o += `<div class="card"><h3>🏚️ In storage</h3>${UI.irow('fs1', '🌾', 'Crop', N(f.stored) + ' t', 'Spoils a little each month.')}${UI.irow('fs2', '🌱', 'Seed', N(f.seeds) + ' acres', 'Needed before planting.')}${UI.irow('fs3', '📜', 'Sold ahead', N(U.sum(f.futures, (x) => x.qty - (x.done || 0))) + ' t', 'Must be delivered at harvest.')}</div>`;
+    }
+    if (b.stock) o += `<div class="card"><h3>${TG.ST.def(b).icon} ${esc(TG.ST.def(b).label)} by age</h3>${lotsTable(b)}</div>`;
+    if (b.brand) { const s = b.brand; o += `<div class="card"><h3>👕 Clothes</h3>${UI.irow('bd1', '👕', 'In the warehouse', N(s.stock), 'Slowly going out of style each month.')}${s.incoming.map((x, i) => UI.irow('bdi' + i, '🚚', `Batch arriving in ${x.due - g.month} mo`, N(x.units), x.test ? 'Small test batch.' : 'From the factory.')).join('')}</div>`; }
+    if (b.factory) o += `<div class="card"><h3>📦 Finished goods</h3>${UI.irow('fd1', '📦', 'Waiting to be sold', N(b.factory.stock), 'Storage costs money each month.')}</div>`;
+    if (b.tech) { const t = b.tech; const fl = (b.flow && b.flow.rows) || []; o += `<div class="card"><h3>📱 Users</h3>${UI.irow('td1', '📱', 'Users now', N(t.users), 'Paying each month.')}${fl.filter((x) => /user|left|join/i.test(x.t)).map((x, i) => UI.irow('tdf' + i, x.i, x.t, UI.fmtN(x.v, x.u), x.why)).join('')}${UI.irow('td2', '🏆', 'Best ever', N(t.peak), '')}</div>`; }
+    if (b.fr) o += `<div class="card"><h3>🏪 Shops</h3><table><tr><th>Shop</th><th>Status</th><th class="n">Age</th></tr>${b.fr.locations.map((l, i) => `<tr><td>#${i + 1}</td><td>${{ open: '🟢 open', building: '🟡 opening', closed: '🔴 closed' }[l.status] || l.status}</td><td class="n">${l.age != null ? l.age + ' mo' : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="mute">None yet.</td></tr>'}</table></div>`;
+    if (b.proj) o += `<div class="card"><h3>🏗️ Jobs</h3>${b.proj.active.map((p) => UI.irow('pj' + p.id, p.elapsed > p.deadline ? '⏰' : '🧱', p.label, Math.round(p.progress * 100) + '%', `Month ${p.elapsed}/${p.months}, deadline ${p.deadline}, crew ${p.crew}.`)).join('') || '<div class="mute">No jobs.</div>'}</div>`;
+    if (b.type === 'gym') o += `<div class="card"><h3>🏋️ Members</h3>${UI.irow('gm1', '🏋️', 'Members', N(b.members), 'About 4-5% leave each month. More leave if your price is high.')}</div>`;
+    return o || '<div class="card mute">Nothing stored here.</div>';
+  }
 })();
 
 </script>
@@ -6228,7 +6484,7 @@ select { max-width: 100%; }
 <script>/* js/ui/ui-misc.js */
 /* ui-misc.js - "More" screen: managers & CEO, news, event log, achievements & leaderboard, settings, help. */
 (function () {
-  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m; const N = (x) => Math.round(x).toLocaleString();
 
   UI.screens.more = () => {
     const tabs = [['mgr', '👔 Managers'], ['news', '📰 News'], ['log', '📜 Log'], ['ach', '🏆 Goals'], ['set', '⚙️ Settings'], ['help', '❓ Help']];
@@ -6312,16 +6568,60 @@ select { max-width: 100%; }
   UI.A.clearGo = () => { TG.Game.clearSave(); if (TG.IDB) TG.IDB.put('tycoon_save_v1', null); TG.G = null; UI.closeModal(); UI.newGameScreen(true); };
 
   // ---------- help ----------
-  function help() {
-    const C = TG.CONFIG;
-    return `<div class="card"><h3 style="margin-top:0">How to play</h3><ol class="plain"><li><b>Pick a business and a property</b> in Market. Listings are scored for the business you choose; read the pros and cons.</li>
-      <li><b>Set it up</b>: equipment gives capacity, staff run it, the location brings customers. Quick setup does the basics.</li>
-      <li><b>Press Next Month</b> (or type a number of months and Skip). The report shows income, expenses, events and <i>why</i> they happened, with the numbers.</li>
-      <li><b>Manage risk</b>: every risk shows its monthly odds. Maintenance, upgrades, insurance and good managers lower them; rushing, cheap gear and neglect raise them.</li>
-      <li><b>Grow</b>: hire managers so things run without you, open more businesses, buy real estate, invest. There is no ending: play as long as you like.</li></ol></div>
-      <div class="card"><h3 style="margin-top:0">Business types</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b>: ${esc(C.tiers[t].desc)}<br>${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => `${d.icon} ${esc(d.name)}`).join(' · ')}</p>`).join('')}</div>
-      <div class="card"><h3 style="margin-top:0">Colors</h3><div>${UI.pill('green', 'good')} good / low risk ${UI.pill('yellow', 'warn')} warning ${UI.pill('red', 'bad')} risk / loss</div></div>
-      <div class="card"><h3 style="margin-top:0">Tips</h3><ul class="plain small"><li>Small businesses earn good margins but hit a ceiling: one location, your time.</li><li>Farms, trucking and clothing brands start cheap and have no ceiling, but growth costs lots of time and money, and prices fall if everyone floods the market (including you).</li><li>Corporations need big capital and good managers. Big wins, big blowups.</li><li>Gambling always has a house edge. It can't be a strategy.</li><li>Negative cash for ${C.finance.bankruptcyMonths} months triggers a forced fire sale or bankruptcy. Bankruptcy isn't game over.</li></ul></div>`;
+  const MONEY = {
+    cafe: 'Drinks and food. Price × cups sold, minus beans, milk and wages.', foodtruck: 'Meals sold where the truck parks. Events and good spots pay most.',
+    bakery: 'Bread and cakes baked each morning. Unsold stock goes stale fast.', salon: 'Haircuts and color per visit. Good stylists keep regulars.',
+    carwash: 'Price per wash × cars. Sunny weeks busy, rainy weeks quiet.', lawn: 'Mowing jobs in spring and summer, little in winter.',
+    auto: 'Repair jobs: labor plus parts. Honest work brings repeat customers.', gym: 'Monthly memberships. January rush, then people quit.',
+    farm: 'Crops sold at harvest, or cattle and milk sold through the year at market prices.', freight: 'Rate per load × loads hauled, minus diesel, tolls and drivers.',
+    brand: 'Buy batches of clothes, sell them online. Hits sell out; flops sit in the warehouse.', hotel: 'Room-nights × room rate. Busy seasons and reviews drive it.',
+    law: 'Billable case hours × hourly rate.', clinic: 'Patient visits paid by insurance, often late.',
+    construction: 'Win bids, build, get paid by stages. Overruns eat profit.', factory: 'Products made on lines and sold in bulk at market price.',
+    tech: 'Users who pay a subscription. Growth costs engineers and servers first.', franchise: 'Fees and royalties from every shop that franchisees run.',
+  };
+  const TIPS = {
+    cafe: ['Watch the Baristas bar: over 100% means lost customers.', 'Fresh stock spoils in about 2 months: buy small, often.'],
+    foodtruck: ['A spare generator fund helps: if the truck stops, sales stop.', 'Food spoils in a month.'],
+    bakery: ['Match what you buy to what sells: leftovers spoil.', 'Ovens and mixers both limit output.'],
+    salon: ['Chairs without stylists earn nothing, and the reverse too.', 'Happy stylists stay; leaving ones can take clients.'],
+    carwash: ['Weather moves sales a lot: keep cash for slow months.', 'A running tunnel near 100% wears out much faster.'],
+    lawn: ['Winter is slow: do not overhire in spring.', 'Mowers wear quickly when every crew is maxed.'],
+    auto: ['Each tech needs a lift and the scanner keeps up with all of them.', 'Cutting corners raises lawsuit odds.'],
+    gym: ['Members leave after the January rush.', 'Cardio and weights each cap how many members fit.'],
+    farm: ['Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
+    freight: ['Diesel is about a third of costs: fill the yard tank when fuel is cheap.', 'Trucks without drivers earn nothing.'],
+    brand: ['Test with small batches before a big order.', 'Unsold stock costs storage and loses value.'],
+    hotel: ['Housekeepers and laundry both cap rooms cleaned.', 'Reviews drive occupancy: worn rooms hurt.'],
+    law: ['Attorneys are the bottleneck; paralegals free their time.', 'Reputation builds slowly.'],
+    clinic: ['Doctors are costly: keep exam rooms full.', 'Insurance pays late: keep a cash cushion.'],
+    construction: ['Bid only what crews and machines can handle.', 'Clients pay late; overruns are common.'],
+    factory: ['Each line needs about 14 workers to run full.', 'Selling far above market: buyers stop ordering.'],
+    tech: ['Most apps fail; some get huge. Keep cash runway.', 'Server and engineer bars over 100% mean outages.'],
+    franchise: ['Each regional manager covers about 10 shops.', 'Bad franchisees hurt the whole brand.'],
+  };
+  function help(g) {
+    const C = TG.CONFIG; const t0 = UI.tab.helpb || 'how';
+    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}</div>`;
+    if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
+    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
+    o += UI.irow('hm' + k, '💰', 'Makes money', null, MONEY[k] || '');
+    o += `<h4>👥 Staff</h4>` + Object.entries(d.roles).map(([r, rd]) => UI.irow('hr' + k + r, rd.support ? '🧹' : '🧑', rd.label, rd.cap > 1 ? `${N(rd.cap)}/mo` : '', `${rd.desc || ''} Training raises how much each can do. Overworked staff get unhappy and quit more.`)).join('');
+    o += `<h4>🛠️ Equipment</h4>` + d.equip.map((e) => { const cat = C.equipCats[e.cat] || ['🛠️']; return UI.irow('he' + k + e.id, cat[0], e.label, U.money(e.price), `${e.desc || ''} Lasts about ${Math.round(e.life / 12)} yrs. Breaks about ${(e.brk * 100).toFixed(1)}% a month when new; more when old or run near 100%.`); }).join('');
+    if (d.supply) o += `<h4>📦 Supplies</h4>` + UI.irow('hs' + k, d.supply.icon || '📦', d.supply.label || 'Supplies', '', `${d.supply.desc || 'Bought ahead and used as you sell.'} ${d.supply.shelf && d.supply.shelf < 900 ? `Goes bad after about ${d.supply.shelf} months.` : 'Does not go bad.'} Storage limits how much you can hold.`);
+    else if (k === 'farm') o += `<h4>📦 Supplies</h4>` + UI.irow('hs' + k, '🌱', 'Seed, feed, animals', '', 'Seed is bought before planting and limited by storage. Animals need feed and get older each month: calves grow, cows give milk, old cows retire.');
+    else o += `<h4>📦 Stock</h4>` + UI.irow('hs' + k, '📋', { construction: 'Jobs', tech: 'Users', franchise: 'Shops', brand: 'Batches', factory: 'Materials and products' }[k] || 'Stock', '', { construction: 'Each job goes bid → build → paid. Materials are bought per job.', tech: 'Users sign up, use the app, and some leave each month.', franchise: 'Shops open, grow, and some close.' }[k] || 'Bought or made, kept in storage, then sold.');
+    const risks = (d.risks || []).filter((r) => r.base).slice().sort((a, b) => b.base - a.base).slice(0, 5);
+    o += `<h4>⚠️ Main risks</h4>` + risks.map((r) => UI.irow('hk' + k + r.id, '⚠️', r.label, `~${(r.base * 100).toFixed(1)}%/mo`, `Usual odds before your choices change them. Caused by: ${r.why || 'bad luck'}.`)).join('');
+    o += `<h4>💡 Tips</h4><ul class="plain small">${(TIPS[k] || []).map((x) => `<li>${esc(x)}</li>`).join('')}<li>Nothing is guaranteed: every month is rolled from odds.</li></ul></div>`;
+    return o;
+  }
+  function howTo(C) {
+    const rows = [['🏪', 'Start', 'Pick a business and a place in Market. The place decides how many customers come.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
+      ['📦', 'Stock', 'Buy supplies ahead. Storage limits how much. Old stock goes bad.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
+      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
+    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, t)).join('')}</div>
+      <div class="card"><h3 style="margin-top:0">🎨 Colors</h3><div>${UI.pill('green', 'good')} ${UI.pill('yellow', 'watch')} ${UI.pill('red', 'problem')}</div><div class="mute">Tap any ⓘ or label to see what it means.</div></div>
+      <div class="card"><h3 style="margin-top:0">🏢 Business sizes</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b> ${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => d.icon).join(' ')}</p>`).join('')}<div class="mute">Tap a business icon above for its guide.</div></div>`;
   }
 })();
 
