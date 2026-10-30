@@ -42,7 +42,6 @@
     prop.bizId = b.id;
     TG.M.init(g, b, prop, opts);
     g.businesses.push(b);
-    if (!g.player.ownerBiz) g.player.ownerBiz = b.id;
     TG.rep.event(g, b, 'info', `Opened ${b.name}`, `Setup cost ${U.money(cost)}${d.license ? `; license takes ${d.license.months} months before opening` : ''}`);
     return { ok: true, biz: b };
   };
@@ -105,7 +104,7 @@
 
   B.baseRev = (g, b) => TG.M.baseRev(g, b);
   B.space = (b) => (B.def(b).space.unit === 'acres' ? (b.farm ? b.farm.acres : b.acres) : b.sqft);
-  B.owner = (g, b) => g.player.ownerBiz === b.id;
+  B.owner = () => false; // owner labor was removed: every business is run by its employees
 
   // ---------- context: staff stats & risk modifiers ----------
   B.ctx = (g, b) => {

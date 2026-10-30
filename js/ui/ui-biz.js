@@ -42,10 +42,8 @@
     o += UI.salesCard(g, b);
     o += UI.workCard(g, b);
     // how it runs
-    const owner = TG.B.owner(g, b);
     o += `<div class="card"><h3>⚙️ How it runs</h3>
-      ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}
-      ${UI.irow('own', '👤', 'You work here', null, `You can run one business yourself: adds a skilled worker and covers ordering.${g.player.ownerBiz && !owner ? ' (Now at ' + ((TG.B.get(g, g.player.ownerBiz) || {}).name || '') + '.)' : ''}`, owner ? UI.btn('✅ Yes', 'ownerOp', '', 'xs goodb') : UI.btn('No', 'ownerOp', b.id, 'xs'))}</div>`;
+      ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}</div>`;
     const risks = TG.B.topRisks(g, b).slice(0, 8);
     o += `<div class="card"><details><summary>⚠️ Risks next month</summary><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></details></div>`;
     if (last) o += `<div class="card"><details><summary>🧾 Money in & out</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table>${h.length > 2 ? UI.spark(h.slice(-36).map((x) => x.profit), '#2563eb') : ''}</details></div>`;
@@ -55,7 +53,6 @@
   }
   UI.A.bizPace = (p) => { biz().pace = p; UI.refresh(); };
   UI.A.bizSet = (v, el) => { const b = biz(); b[el.dataset.k] = v; UI.toast('Updated.'); UI.refresh(); };
-  UI.A.ownerOp = (id) => { TG.G.player.ownerBiz = id || null; UI.refresh(); };
 
   // "this month" flow + "next month"
   UI.flowCard = (g, b) => {
@@ -213,10 +210,10 @@
       <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased' : ''}${it.maint ? ' · 🛡️ plan' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
       ${UI.tipLine(k, `${C.equipTiers[it.tier].label}. Worth ${m(E.resale(g, b, it))}.${it.leased ? ' Lease ' + m(it.leasePay) + '/mo.' : ''}${it.warranty > 0 ? ' Warranty ' + it.warranty + ' mo.' : ''}${bc ? ' Break risk: ' + bc.factors.join(', ') + '.' : ''}`)}
       <div class="btns">${it.broken && it.broken !== 'destroyed' ? UI.btn(`🔧 Fix ${it.warranty > 0 || it.leased ? '(free)' : m(E.repairCost(g, b, it))}`, 'eqDo', `${it.id}|repair`, 'xs goodb') : ''}
-      ${!it.broken ? UI.btn(`🧰 Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}`, 'eqDo', `${it.id}|service`, 'xs') : ''}
+      ${!it.broken ? UI.btn(`🧰 Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}${TG.USES.used(it, 'service', g.month) ? ' ✓' : ''}`, 'eqDo', `${it.id}|service`, 'xs') : ''}
       ${!it.leased ? UI.btn(it.maint ? '🛡️ Stop plan' : `🛡️ Plan ${m(E.def(b, it.type).price * C.equipment.maintPlanCostPct * g.world.priceIdx)}/mo`, 'eqDo', `${it.id}|maint`, 'xs') : ''}
       ${it.hidden > 0 && !it.inspected ? UI.btn(`🔍 ${m(E.def(b, it.type).price * C.equipment.inspectCost * g.world.priceIdx)}`, 'eqDo', `${it.id}|inspect`, 'xs') : ''}
-      ${UI.btn('🔁 New', 'eqDo', `${it.id}|replace`, 'xs')}${UI.btn(it.leased ? '↩️ Return' : '💵 Sell', 'eqDo', `${it.id}|sell`, 'xs badb')}</div></div>`;
+      ${UI.btn(it.leased ? '↩️ Return' : '💵 Sell', 'eqDo', `${it.id}|sell`, 'xs badb')}</div></div>`;
   }
   UI.A.eqTierSet = (k) => { UI.S.eqTier = k; if (k === 'used') UI.S.eqLease = false; UI.refresh(); };
   UI.A.eqLeaseSet = () => { if ((UI.S.eqTier || 'standard') === 'used') return UI.toast('Used gear cannot be leased.', true); UI.S.eqLease = !UI.S.eqLease; UI.refresh(); };
@@ -230,10 +227,9 @@
   UI.A.eqDo = (arg) => {
     const g = TG.G, b = biz(); const [id, act] = arg.split('|'); const it = b.equip.find((x) => x.id === id); if (!it) return;
     if (act === 'repair') TG.E.repair(g, b, id, 'You');
-    if (act === 'service') TG.E.service(g, b, id);
+    if (act === 'service') { const r = TG.E.service(g, b, id); if (r === 'again') UI.toast('Already serviced this month: that visit did nothing (one service a month).', true); }
     if (act === 'maint') it.maint = !it.maint;
     if (act === 'inspect') { TG.E.inspect(g, b, id); UI.toast(`True wear: ${Math.round(it.wear)}%`); }
-    if (act === 'replace') { if (!TG.E.replace(g, b, id, 'standard', 'You')) UI.toast('Not enough cash.', true); }
     if (act === 'sell') { const v = TG.E.sell(g, b, id); UI.toast(v ? `Sold for ${m(v)}.` : 'Returned.'); }
     TG.D.removeFor(g, (dd) => dd.itemId === id && !b.equip.some((x) => x.id === id && x.broken));
     UI.refresh();

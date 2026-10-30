@@ -19,7 +19,7 @@
   C.maxHistory = 240;
 
   C.owner = {
-    operatedQuality: 8, operatedCogsCut: 0.03, absentQuality: -6,
+    operatedQuality: 0, operatedCogsCut: 0, absentQuality: 0, // owner labor removed in v4
     expQualityPerYear: 1.2, expQualityCap: 10,
   };
 
@@ -146,7 +146,7 @@
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
   };
   C.specialists = {
-    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls. Replaces the owner-operated bonus.' },
+    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there.' },
     ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and stock decisions.' },
     hr:         { label: 'HR manager', icon: '🤝', wage: [3500, 9000], desc: 'Better hires, fewer conflicts, better morale; replaces staff who leave.' },
     accountant: { label: 'Accountant', icon: '🧮', wage: [3200, 8500], desc: 'Lowers taxes legally, catches theft and errors, uses credit in a crunch.' },

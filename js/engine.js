@@ -206,6 +206,7 @@
   E.migrate = (g) => {
     g.reports = g.reports || []; g.newsFeed = g.newsFeed || []; g.stats = g.stats || { peakNW: 0, reached: {} };
     if (g.settings.crime === undefined) g.settings.crime = true;
+    if (g.player) g.player.ownerBiz = null; // v4: no owner labor
     g.settings.majorTypes = g.settings.majorTypes || { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true };
     // v2: a market for every good; exact prices replace low/normal/premium
     for (const id in TG.CONFIG.markets) if (!g.markets[id]) { const m = TG.CONFIG.markets[id]; g.markets[id] = { demand12: m.demand12, comp: 1, player12: 0, sales: [], price: m.base, hist: [] }; }

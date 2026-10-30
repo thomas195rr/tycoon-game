@@ -7,7 +7,7 @@
   // ============ BRAND / E-COMMERCE ============
   M.models.brand = {
     init(g, b) { b.brand = { stock: 0, stockCost: 0, incoming: [], followers: 0, lastOrders: 0, lostSales: 0 }; },
-    needs() { return { equip: [{ type: 'shelving', count: 1 }], staff: [] }; },
+    needs(g, b) { const sold = b && b.lastCtx ? b.lastCtx.served || 0 : 0; return { equip: [{ type: 'shelving', count: 1 }], staff: [{ role: 'packer', count: Math.max(1, Math.ceil(sold * 1.2 / TG.CONFIG.businesses.brand.roles.packer.cap)) }] }; },
     baseRev(g, b) { return Math.max(25000, (b.brand ? b.brand.lastOrders : 0) * 42) * g.world.priceIdx; },
     month(g, b, ctx) {
       const C = TG.CONFIG, d = C.businesses.brand, br = d.brand, s = b.brand, fo = b.fixesOn || {};

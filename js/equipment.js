@@ -116,6 +116,7 @@
     const it = b.equip.find((x) => x.id === itId); if (!it || it.broken) return false;
     const eq = TG.CONFIG.equipment; const cost = Math.round(E.def(b, it.type).price * eq.serviceCostPct * g.world.priceIdx);
     TG.F.spend(g, cost, 'Maintenance', b.id);
+    if (TG.USES.take(it, 'service', g.month) > 1) return 'again'; // one service a month per machine; more just costs money
     it.wear = U.clamp(it.wear - eq.serviceWearCut, 0, 100); it.hidden = Math.max(0, (it.hidden || 0) - 10);
     return true;
   };
@@ -201,7 +202,7 @@
     const destroyed = it.broken === 'destroyed';
     const opts = [];
     if (!destroyed) opts.push({ id: 'repair', label: `Repair (${it.warranty > 0 || it.leased ? 'covered' : U.money(E.repairCost(g, b, it))})` });
-    for (const tier of ['used', 'budget', 'standard', 'premium']) opts.push({ id: 'replace_' + tier, label: `Replace with ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} (${U.money(E.price(g, b, it.type, tier))})` });
+    for (const tier of ['used', 'budget', 'standard', 'premium']) opts.push({ id: 'replace_' + tier, label: `Sell it (${U.money(E.resale(g, b, it))}) and buy a ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} one (${U.money(E.price(g, b, it.type, tier))})` });
     opts.push({ id: 'leave', label: destroyed ? 'Scrap it, no replacement' : 'Leave it broken' });
     TG.D.add(g, { kind: 'broken', bizId: b.id, itemId: it.id, title: `${d.label} ${destroyed ? 'destroyed' : 'broken'}`,
       text: `${it.label} #${E.num(b, it)} (${TG.CONFIG.equipTiers[it.tier].label}, ${(it.age / 12).toFixed(1)} yrs, ${Math.round(E.effWear(it))}% wear) is out of action.${d.critical ? ' It is critical: capacity drops until it is fixed.' : ''}`,
@@ -219,7 +220,7 @@
     if (sold) TG.F.earn(g, sold, 'Asset sales', b.id, true);
     const n = E.buy(g, b, typeId, tier);
     if (n) n.maint = !!(it.maint);
-    TG.rep.decision(g, b, by, `Replaced ${it.label} with a ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} one (${U.money(price)})`);
+    TG.rep.decision(g, b, by, `Sold the old ${it.label} for ${U.money(sold)} and bought a ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} one (${U.money(price)})`);
     return true;
   };
 

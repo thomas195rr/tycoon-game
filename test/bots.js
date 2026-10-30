@@ -165,7 +165,7 @@ module.exports = function makeBots(TG) {
       () => { if (b.farm) { const a = Math.floor(rnd() * 6); if (a === 0) TG.M.farmBuyLand(g, b, 20, rnd() < 0.5); if (a === 1) TG.M.farmIrrigate(g, b, 20); if (a === 2) TG.M.farmStorage(g, b, 100); if (a === 3) TG.M.farmFutures(g, b, 50); if (a === 4) TG.M.farmBuyCattle(g, b, 10); if (a === 5) b.farm.sellPolicy = pick(['sell', 'store', 'auto']); } },
       () => { if (b.freight || b.type === 'freight') TG.M.freightHedge(g, b); },
       () => { const pr = pick(Object.keys(TG.CONFIG.reputation.pr)); TG.B.doPR(g, b, pr, null); },
-      () => { g.player.ownerBiz = pick(bs).id; },
+      () => {},
       () => { g.settings.gambling = rnd() < 0.8; g.settings.ceoBigMoves = rnd() < 0.5; },
       () => { if (rnd() < 0.2) { const p = g.properties.find((x) => !x.bizId); if (p) TG.P.sell(g, p.id); } },
       () => { if (rnd() < 0.05) TG.B.close(g, b, 'closed by owner'); },

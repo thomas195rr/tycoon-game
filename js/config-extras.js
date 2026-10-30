@@ -270,3 +270,13 @@
     users: '📱', loc: '🏬', jobs: '🏗️', loads: '📦', truck: '🚛', rooms: '🛏️', members: '🏋️', patients: '🩺', cases: '⚖️', info: 'ℹ️',
   };
 })();
+// v4: owner labor was removed, so small shops must pay for every worker; prices are retuned so careful play still works
+(function () {
+  const BZ = globalThis.TG.CONFIG.businesses;
+  const T = { cafe: 1.13, foodtruck: 1.1, bakery: 1.22, salon: 1.06, auto: 1.1, gym: 1.14 };
+  const MK = globalThis.TG.CONFIG.markets;
+  for (const t in T) { BZ[t].svc.ticket = Math.round(BZ[t].svc.ticket * T[t] * 100) / 100; if (MK['svc_' + t]) MK['svc_' + t].base = BZ[t].svc.ticket; }
+})();
+(function () { // v4: farms lost the free owner-farmer; farm goods pay a little more
+  const MK = globalThis.TG.CONFIG.markets; for (const k of ['grain', 'fruit', 'beef', 'milk']) if (MK[k]) MK[k].base = Math.round(MK[k].base * 1.2 * 100) / 100;
+})();
