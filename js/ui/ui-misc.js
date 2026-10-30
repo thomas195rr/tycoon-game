@@ -1,6 +1,6 @@
 /* ui-misc.js - "More" screen: managers & CEO, news, event log, achievements & leaderboard, settings, help. */
 (function () {
-  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m; const N = (x) => Math.round(x).toLocaleString();
 
   UI.screens.more = () => {
     const tabs = [['mgr', '👔 Managers'], ['news', '📰 News'], ['log', '📜 Log'], ['ach', '🏆 Goals'], ['set', '⚙️ Settings'], ['help', '❓ Help']];
@@ -84,15 +84,59 @@
   UI.A.clearGo = () => { TG.Game.clearSave(); if (TG.IDB) TG.IDB.put('tycoon_save_v1', null); TG.G = null; UI.closeModal(); UI.newGameScreen(true); };
 
   // ---------- help ----------
-  function help() {
-    const C = TG.CONFIG;
-    return `<div class="card"><h3 style="margin-top:0">How to play</h3><ol class="plain"><li><b>Pick a business and a property</b> in Market. Listings are scored for the business you choose; read the pros and cons.</li>
-      <li><b>Set it up</b>: equipment gives capacity, staff run it, the location brings customers. Quick setup does the basics.</li>
-      <li><b>Press Next Month</b> (or type a number of months and Skip). The report shows income, expenses, events and <i>why</i> they happened, with the numbers.</li>
-      <li><b>Manage risk</b>: every risk shows its monthly odds. Maintenance, upgrades, insurance and good managers lower them; rushing, cheap gear and neglect raise them.</li>
-      <li><b>Grow</b>: hire managers so things run without you, open more businesses, buy real estate, invest. There is no ending: play as long as you like.</li></ol></div>
-      <div class="card"><h3 style="margin-top:0">Business types</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b>: ${esc(C.tiers[t].desc)}<br>${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => `${d.icon} ${esc(d.name)}`).join(' · ')}</p>`).join('')}</div>
-      <div class="card"><h3 style="margin-top:0">Colors</h3><div>${UI.pill('green', 'good')} good / low risk ${UI.pill('yellow', 'warn')} warning ${UI.pill('red', 'bad')} risk / loss</div></div>
-      <div class="card"><h3 style="margin-top:0">Tips</h3><ul class="plain small"><li>Small businesses earn good margins but hit a ceiling: one location, your time.</li><li>Farms, trucking and clothing brands start cheap and have no ceiling, but growth costs lots of time and money, and prices fall if everyone floods the market (including you).</li><li>Corporations need big capital and good managers. Big wins, big blowups.</li><li>Gambling always has a house edge. It can't be a strategy.</li><li>Negative cash for ${C.finance.bankruptcyMonths} months triggers a forced fire sale or bankruptcy. Bankruptcy isn't game over.</li></ul></div>`;
+  const MONEY = {
+    cafe: 'Drinks and food. Price × cups sold, minus beans, milk and wages.', foodtruck: 'Meals sold where the truck parks. Events and good spots pay most.',
+    bakery: 'Bread and cakes baked each morning. Unsold stock goes stale fast.', salon: 'Haircuts and color per visit. Good stylists keep regulars.',
+    carwash: 'Price per wash × cars. Sunny weeks busy, rainy weeks quiet.', lawn: 'Mowing jobs in spring and summer, little in winter.',
+    auto: 'Repair jobs: labor plus parts. Honest work brings repeat customers.', gym: 'Monthly memberships. January rush, then people quit.',
+    farm: 'Crops sold at harvest, or cattle and milk sold through the year at market prices.', freight: 'Rate per load × loads hauled, minus diesel, tolls and drivers.',
+    brand: 'Buy batches of clothes, sell them online. Hits sell out; flops sit in the warehouse.', hotel: 'Room-nights × room rate. Busy seasons and reviews drive it.',
+    law: 'Billable case hours × hourly rate.', clinic: 'Patient visits paid by insurance, often late.',
+    construction: 'Win bids, build, get paid by stages. Overruns eat profit.', factory: 'Products made on lines and sold in bulk at market price.',
+    tech: 'Users who pay a subscription. Growth costs engineers and servers first.', franchise: 'Fees and royalties from every shop that franchisees run.',
+  };
+  const TIPS = {
+    cafe: ['Watch the Baristas bar: over 100% means lost customers.', 'Fresh stock spoils in about 2 months: buy small, often.'],
+    foodtruck: ['A spare generator fund helps: if the truck stops, sales stop.', 'Food spoils in a month.'],
+    bakery: ['Match what you buy to what sells: leftovers spoil.', 'Ovens and mixers both limit output.'],
+    salon: ['Chairs without stylists earn nothing, and the reverse too.', 'Happy stylists stay; leaving ones can take clients.'],
+    carwash: ['Weather moves sales a lot: keep cash for slow months.', 'A running tunnel near 100% wears out much faster.'],
+    lawn: ['Winter is slow: do not overhire in spring.', 'Mowers wear quickly when every crew is maxed.'],
+    auto: ['Each tech needs a lift and the scanner keeps up with all of them.', 'Cutting corners raises lawsuit odds.'],
+    gym: ['Members leave after the January rush.', 'Cardio and weights each cap how many members fit.'],
+    farm: ['Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
+    freight: ['Diesel is about a third of costs: fill the yard tank when fuel is cheap.', 'Trucks without drivers earn nothing.'],
+    brand: ['Test with small batches before a big order.', 'Unsold stock costs storage and loses value.'],
+    hotel: ['Housekeepers and laundry both cap rooms cleaned.', 'Reviews drive occupancy: worn rooms hurt.'],
+    law: ['Attorneys are the bottleneck; paralegals free their time.', 'Reputation builds slowly.'],
+    clinic: ['Doctors are costly: keep exam rooms full.', 'Insurance pays late: keep a cash cushion.'],
+    construction: ['Bid only what crews and machines can handle.', 'Clients pay late; overruns are common.'],
+    factory: ['Each line needs about 14 workers to run full.', 'Selling far above market: buyers stop ordering.'],
+    tech: ['Most apps fail; some get huge. Keep cash runway.', 'Server and engineer bars over 100% mean outages.'],
+    franchise: ['Each regional manager covers about 10 shops.', 'Bad franchisees hurt the whole brand.'],
+  };
+  function help(g) {
+    const C = TG.CONFIG; const t0 = UI.tab.helpb || 'how';
+    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}</div>`;
+    if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
+    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
+    o += UI.irow('hm' + k, '💰', 'Makes money', null, MONEY[k] || '');
+    o += `<h4>👥 Staff</h4>` + Object.entries(d.roles).map(([r, rd]) => UI.irow('hr' + k + r, rd.support ? '🧹' : '🧑', rd.label, rd.cap > 1 ? `${N(rd.cap)}/mo` : '', `${rd.desc || ''} Training raises how much each can do. Overworked staff get unhappy and quit more.`)).join('');
+    o += `<h4>🛠️ Equipment</h4>` + d.equip.map((e) => { const cat = C.equipCats[e.cat] || ['🛠️']; return UI.irow('he' + k + e.id, cat[0], e.label, U.money(e.price), `${e.desc || ''} Lasts about ${Math.round(e.life / 12)} yrs. Breaks about ${(e.brk * 100).toFixed(1)}% a month when new; more when old or run near 100%.`); }).join('');
+    if (d.supply) o += `<h4>📦 Supplies</h4>` + UI.irow('hs' + k, d.supply.icon || '📦', d.supply.label || 'Supplies', '', `${d.supply.desc || 'Bought ahead and used as you sell.'} ${d.supply.shelf && d.supply.shelf < 900 ? `Goes bad after about ${d.supply.shelf} months.` : 'Does not go bad.'} Storage limits how much you can hold.`);
+    else if (k === 'farm') o += `<h4>📦 Supplies</h4>` + UI.irow('hs' + k, '🌱', 'Seed, feed, animals', '', 'Seed is bought before planting and limited by storage. Animals need feed and get older each month: calves grow, cows give milk, old cows retire.');
+    else o += `<h4>📦 Stock</h4>` + UI.irow('hs' + k, '📋', { construction: 'Jobs', tech: 'Users', franchise: 'Shops', brand: 'Batches', factory: 'Materials and products' }[k] || 'Stock', '', { construction: 'Each job goes bid → build → paid. Materials are bought per job.', tech: 'Users sign up, use the app, and some leave each month.', franchise: 'Shops open, grow, and some close.' }[k] || 'Bought or made, kept in storage, then sold.');
+    const risks = (d.risks || []).filter((r) => r.base).slice().sort((a, b) => b.base - a.base).slice(0, 5);
+    o += `<h4>⚠️ Main risks</h4>` + risks.map((r) => UI.irow('hk' + k + r.id, '⚠️', r.label, `~${(r.base * 100).toFixed(1)}%/mo`, `Usual odds before your choices change them. Caused by: ${r.why || 'bad luck'}.`)).join('');
+    o += `<h4>💡 Tips</h4><ul class="plain small">${(TIPS[k] || []).map((x) => `<li>${esc(x)}</li>`).join('')}<li>Nothing is guaranteed: every month is rolled from odds.</li></ul></div>`;
+    return o;
+  }
+  function howTo(C) {
+    const rows = [['🏪', 'Start', 'Pick a business and a place in Market. The place decides how many customers come.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
+      ['📦', 'Stock', 'Buy supplies ahead. Storage limits how much. Old stock goes bad.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
+      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
+    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, t)).join('')}</div>
+      <div class="card"><h3 style="margin-top:0">🎨 Colors</h3><div>${UI.pill('green', 'good')} ${UI.pill('yellow', 'watch')} ${UI.pill('red', 'problem')}</div><div class="mute">Tap any ⓘ or label to see what it means.</div></div>
+      <div class="card"><h3 style="margin-top:0">🏢 Business sizes</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b> ${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => d.icon).join(' ')}</p>`).join('')}<div class="mute">Tap a business icon above for its guide.</div></div>`;
   }
 })();
