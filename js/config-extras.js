@@ -231,7 +231,7 @@
     cafe: ['🫘', 'Beans, milk & food', 0.18, 1200], foodtruck: ['🥩', 'Food supplies', 0.22, 500], bakery: ['🌾', 'Flour, butter & fillings', 0.15, 1000],
     salon: ['🧴', 'Hair products', 0.02, 150], carwash: ['🧼', 'Soap & wax', 0.01, 1500], lawn: ['⛽', 'Fuel & parts', 0.01, 250],
     auto: ['🔩', 'Parts', 0.005, 40], hotel: ['🧺', 'Linens & amenities', 0.02, 1200], clinic: ['💊', 'Medical supplies', 0.03, 900],
-    gym: ['🧽', 'Towels & cleaning', 0.01, 300], law: ['📚', 'Research credits & filings', 0, 300],
+    gym: ['🧽', 'Towels & cleaning', 0.01, 2000], law: ['📚', 'Research credits & filings', 0, 4000],
   };
   // shelf life in months: older lots are thrown out (milk goes off, linens wear out, medicine expires)
   const SHELF = { cafe: 2, foodtruck: 1, bakery: 1, salon: 24, carwash: 36, lawn: 24, auto: 60, hotel: 18, clinic: 18, gym: 12, law: 12 };

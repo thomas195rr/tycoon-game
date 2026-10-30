@@ -152,7 +152,7 @@
       locPref: { city: 1, suburb: 0.9, town: 0.65, rural: 0.3, remote: 0.15 },
       site: { traffic: 0.3, labor: 0.4, space: 0.15, loc: 0.15 },
       econSens: 0.1, weatherSens: 0, season: [1.15, 1.1, 1.05, 1, 0.95, 0.9, 0.9, 0.9, 1, 1.05, 1.05, 1.1],
-      svc: { ticket: 235, baseDemand: 2300, perSpace: 0.28, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },
+      svc: { ticket: 235, baseDemand: 2300, perSpace: 0.38, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },
       receivable: { delay: 3, badDebt: 0.05 },
       license: { months: 6, fee: 40000 },
       roles: {
