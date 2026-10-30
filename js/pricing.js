@@ -81,7 +81,11 @@
     for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.store && !it.broken) add += ed.store; }
     return Math.round(base + add);
   };
-  ST.ensure = (b) => { if (ST.def(b) && !b.stock) b.stock = { qty: 0, auto: true, inM: 0, usedM: 0, spoilM: 0, wasteM: 0 }; return b.stock; };
+  ST.ensure = (b) => { if (ST.def(b) && !b.stock) b.stock = { qty: 0, auto: true, inM: 0, usedM: 0, spoilM: 0, wasteM: 0, lots: [] }; const st = b.stock; if (st && !st.lots) st.lots = st.qty > 0 ? [{ a: 0, q: st.qty }] : []; return st; };
+  // stock is kept in lots by age (months) so you can see fresh vs old; oldest are used / sold / spoil first
+  const takeOld = (st, n) => { let left = n; st.lots.sort((x, y) => y.a - x.a); for (const l of st.lots) { const t = Math.min(l.q, left); l.q -= t; left -= t; if (left <= 0) break; } st.lots = st.lots.filter((l) => l.q > 0.01); };
+  ST.shelf = (b) => { const s = ST.def(b); return (s && s.shelf) || 999; };
+  ST.ages = (b) => { const st = ST.ensure(b); if (!st) return []; const sh = ST.shelf(b); const out = { fresh: 0, aging: 0, old: 0 }; for (const l of st.lots) { if (l.a >= sh * 0.75 && sh < 999) out.old += l.q; else if (l.a >= 1) out.aging += l.q; else out.fresh += l.q; } return out; };
   // buy supplies; premium = extra % paid (staff ordering without a manager); returns qty bought
   ST.buy = (g, b, qty, premium, label) => {
     const st = ST.ensure(b); if (!st) return 0;
@@ -91,7 +95,7 @@
     if (qty * unit > Math.max(0, g.cash)) qty = Math.max(0, Math.floor(Math.max(0, g.cash) / unit));
     if (qty <= 0) return 0;
     TG.F.spend(g, Math.round(qty * unit), label || 'Supplies & cost of sales', b.id);
-    st.qty += qty; st.inM = (st.inM || 0) + qty;
+    st.qty += qty; st.inM = (st.inM || 0) + qty; const l0 = st.lots.find((l) => l.a === 0); if (l0) l0.q += qty; else st.lots.push({ a: 0, q: qty });
     return qty;
   };
   // sell leftover supplies back (half price)
@@ -99,7 +103,7 @@
     const st = ST.ensure(b); if (!st) return 0; qty = Math.max(0, Math.min(Math.round(qty), Math.floor(st.qty)));
     if (!qty) return 0;
     const v = Math.round(qty * ST.unitCost(g, b) * TG.CONFIG.supply.sellBack);
-    st.qty -= qty; TG.F.earn(g, v, 'Asset sales', b.id, true); return v;
+    st.qty -= qty; takeOld(st, qty); TG.F.earn(g, v, 'Asset sales', b.id, true); return v;
   };
   // monthly restock before serving. need = units expected to be used this month.
   ST.restock = (g, b, need) => {
@@ -120,8 +124,16 @@
     return { by: who, got, prem };
   };
   // use stock; returns units actually used
-  ST.use = (b, n) => { const st = b.stock; if (!st) return n; const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; return u; };
-  ST.spoil = (b) => { const st = b.stock, s = ST.def(b); if (!st || !s) return 0; const x = st.qty * s.spoil; st.qty -= x; st.spoilM = x; return x; };
+  ST.use = (b, n) => { const st = b.stock; if (!st) return n; ST.ensure(b); const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; takeOld(st, u); return u; };
+  // end of month: a share of leftovers spoils (oldest first), everything ages a month, anything past shelf life is thrown out
+  ST.spoil = (b) => {
+    const st = b.stock, s = ST.def(b); if (!st || !s) return 0; ST.ensure(b);
+    let x = st.qty * s.spoil; takeOld(st, x);
+    for (const l of st.lots) l.a++;
+    const sh = ST.shelf(b); let exp = 0; for (const l of st.lots) if (l.a > sh) { exp += l.q; l.q = 0; }
+    st.lots = st.lots.filter((l) => l.q > 0.01); x += exp; st.expM = exp;
+    st.qty = Math.max(0, st.qty - x); st.spoilM = x; return x;
+  };
   ST.value = (g, b) => (b.stock ? b.stock.qty * ST.unitCost(g, b) * 0.8 : 0);
   // cheapest storage item per unit of space
   ST.bestStore = (b) => TG.CONFIG.businesses[b.type].equip.filter((x) => x.store).sort((x, y) => x.price / x.store - y.price / y.store)[0] || null;

@@ -187,9 +187,16 @@
     cafe: ['🫘', 'Beans, milk & food', 0.18, 1200], foodtruck: ['🥩', 'Food supplies', 0.22, 500], bakery: ['🌾', 'Flour, butter & fillings', 0.15, 1000],
     salon: ['🧴', 'Hair products', 0.02, 150], carwash: ['🧼', 'Soap & wax', 0.01, 1500], lawn: ['⛽', 'Fuel & parts', 0.01, 250],
     auto: ['🔩', 'Parts', 0.005, 40], hotel: ['🧺', 'Linens & amenities', 0.02, 1200], clinic: ['💊', 'Medical supplies', 0.03, 900],
+    gym: ['🧽', 'Towels & cleaning', 0.01, 300], law: ['📚', 'Research credits & filings', 0, 300],
   };
-  for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1 };
-  BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost' };
+  // shelf life in months: older lots are thrown out (milk goes off, linens wear out, medicine expires)
+  const SHELF = { cafe: 2, foodtruck: 1, bakery: 1, salon: 24, carwash: 36, lawn: 24, auto: 60, hotel: 18, clinic: 18, gym: 12, law: 12 };
+  const SUPD = { cafe: 'Used for every order. Milk and food go off in about 2 months.', foodtruck: 'Meat, buns and veg. Goes off within a month.', bakery: 'Flour, butter, fillings. Fresh stuff lasts about a month.',
+    salon: 'Shampoo, colour and styling products used on each visit.', carwash: 'Soap and wax used for every wash.', lawn: 'Fuel, blades and string for every job.',
+    auto: 'Parts fitted on each repair. Lasts years on the shelf.', hotel: 'Sheets, towels and soaps for each room-night. Linens wear out.', clinic: 'Gloves, syringes and medicines for each visit. Medicine expires.',
+    gym: 'Clean towels and cleaning products for each member visit.', law: 'Legal-database credits and court filing fees used per billable hour.' };
+  for (const t in SUP) BZ[t].supply = { icon: SUP[t][0], label: SUP[t][1], spoil: SUP[t][2], baseStore: SUP[t][3], unitCostShare: 1, shelf: SHELF[t], desc: SUPD[t] };
+  BZ.factory.supply = { icon: '🪨', label: 'Raw materials', spoil: 0.002, baseStore: 0, perSqft: 1.2, unitCostFrom: 'materialCost', shelf: 120, desc: 'Steel, plastic and parts. One per product made.' };
   C.supply = { staffReorderPremium: 0.06, staffReorderCover: [0.9, 1.08], sellBack: 0.5 };
   // make-ahead: bakeries and food trucks prepare before customers arrive; unsold goods are waste
   BZ.bakery.svc.makeAhead = 1.1; BZ.foodtruck.svc.makeAhead = 1.06;
