@@ -7,7 +7,7 @@
   const STREETS = ['Maple', 'Birch', 'Sunset', 'Park', 'Grove', 'Union', 'Liberty', 'Spring', 'Garden', 'Highland', 'Bay', 'Summit'];
   const condF = (c) => 0.7 + 0.5 * c / 100;
 
-  RE.init = (g) => { g.re = { holdings: [], listings: [], manager: null, handyman: false, fund: null, flipsDone: 0, flipsProfit: 0, m: { rev: 0, cost: 0 }, hist: [] }; RE.refill(g, RC().listingCount); };
+  RE.init = (g) => { g.re = { holdings: [], listings: [], manager: null, handyman: false, fund: null, flipsDone: 0, flipsProfit: 0, m: { rev: 0, cost: 0 }, hist: [] }; RE.refill(g, RC().listingCount); RE.ensureStarter(g); };
 
   RE.gen = (g, kindId, opts) => {
     const C = TG.CONFIG, k = RC().kinds[kindId]; opts = opts || {};
@@ -28,6 +28,12 @@
     return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
       age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
       life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
+  };
+  // v10: a first rental is always possible: keep at least one ordinary home and one small multi-unit building on the market
+  RE.ensureStarter = (g) => {
+    const L = g.re.listings, ok = (l) => !l.distressed;
+    if (!L.some((l) => ok(l) && (l.kind === 'house' || l.kind === 'condo'))) L.push(RE.gen(g, R.chance(0.5) ? 'house' : 'condo', { distressed: false }));
+    if (!L.some((l) => ok(l) && l.units > 1 && l.units <= 20)) L.push(RE.gen(g, R.chance(0.6) ? 'duplex' : 'smallapt', { distressed: false }));
   };
   RE.refill = (g, n) => {
     for (let i = 0; i < n; i++) {
@@ -278,6 +284,7 @@
     g.re.listings = g.re.listings.filter((l) => g.month - l.listed < l.life);
     RE.refill(g, Math.max(gone, rc.listingCount - g.re.listings.length));
     while (g.re.listings.length > 20) g.re.listings.shift();
+    RE.ensureStarter(g);
   };
   RE.holdingMonth = (g, h, X) => {
     const { C, rc, w, mgr, earn, spend, overSelf } = X; const k = rc.kinds[h.kind];

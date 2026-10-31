@@ -39,7 +39,7 @@ const SHOULD = {
   const rich = async (p) => { await p.click('[data-act="newGame"][data-arg="rich"]'); };
   // A) Leo, 10: cow farm
   await persona('Leo, 10: "I have a cow farm. What do I do with old cows?"', 375, rich, async ({ p, tap, text, say, type }) => {
-    await p.evaluate(() => { const g = TG.G; const pr = TG.P.gen(g, { kind: 'ranch' }); g.listings.unshift(pr); TG.P.acquire(g, pr.id, 'lease'); const b = TG.B.start(g, 'farm', pr.id, { ent: 'cows' }).biz; TG.B.quickSetup(g, b, true, 'standard'); const a = b.farm.areas.cows; a.st.dry = 1; TG.M.herdSync(a); TG.UI.go('biz'); });
+    await p.evaluate(() => { const g = TG.G; g.cash += 5e6; const pr = TG.P.gen(g, { kind: 'ranch' }); g.listings.unshift(pr); TG.P.acquire(g, pr.id, 'lease'); const b = TG.B.start(g, 'farm', pr.id, { ent: 'cows' }).biz; TG.B.quickSetup(g, b, true, 'standard'); const a = b.farm.areas.cows; a.st.dry = 1; TG.M.herdSync(a); TG.UI.go('biz'); });
     say('My Biz: ' + (await tap(/Farm/, 'main')));
     const t = await text(); const i = t.indexOf('Market-ready'), j = t.indexOf('Dry / old cows');
     say(j > i && i > 0 ? 'Sees 👵 Dry / old cows right after 🥩 Market-ready' : 'NO dry cow row near Market-ready'); mark('dry', j > i && i > 0, 'farm with 1 dry cow');

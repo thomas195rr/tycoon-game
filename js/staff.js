@@ -329,7 +329,7 @@
     const isSpec = !!(TG.CONFIG.specialists[e.role] || e.role === 'ceo' || e.role === 'rem');
     const demand = U.clamp((e.skill - P.skillFrom) / P.skillSpan, isSpec ? 0.2 : 0, 1);
     const pd = guess && !e.persSeen ? cs.pers.steady : S.persDef(e); const hr = !!S.hrOf(b);
-    const loyalF = 1.2 - e.loyalty / 125; const moraleF = e.morale < 45 ? 1.3 : 1;
+    const loyalF = 1.6 * Math.max(0.1, 1.5 - e.loyalty / 50); /* v10: loyalty matters more (same odds at loyalty 50), so a bonus visibly cuts the poach risk */ const moraleF = e.morale < 45 ? 1.3 : 1;
     let p = demand * (P.base + P.gapK * Math.max(0, gap - (P.tol || 0))) * pd.poach * loyalF * moraleF * (hr ? 0.8 : 1);
     if (gap < -0.1) p *= 0.5;
     p = U.clamp(p, 0, P.max);
