@@ -97,13 +97,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate(() => { TG.G.settings.gambling = true; TG.UI.tab.money = 'casino'; TG.UI.render(); });
   ok(await page.evaluate(() => !/Bets left/.test(document.querySelector('main').innerText) && /none \(bet any amount/.test(document.querySelector('main').innerText)), 'casino: no table limit, no bets-left counter');
   // ---- 4. take over a struggling business from the start dialog ----
-  await page.evaluate(() => { const g = TG.G; const p = TG.P.gen(g, TG.P.idealFor('salon')); g.listings.push(p); TG.P.acquire(g, p.id, 'lease'); TG.UI.startDialog(p.id, 'salon'); }); await sleep(200);
+  await page.evaluate(() => { const g = TG.G; g.cash = Math.max(g.cash, 500000); const p = TG.P.gen(g, TG.P.idealFor('salon')); g.listings.push(p); TG.P.acquire(g, p.id, 'lease'); TG.UI.startDialog(p.id, 'salon'); }); await sleep(200);
   await page.select('#stHow', 'take'); await sleep(200);
-  ok(await page.evaluate(() => /Price \(cash today\)/.test((document.getElementById('stTakeBox') || {}).innerText || '')), 'start dialog: takeover price, debt and condition shown');
+  { const tb = await page.evaluate(() => ((document.getElementById('stTakeBox') || {}).innerText || '')); ok(/Price \(cash today\)/.test(tb), 'start dialog: takeover price, debt and condition shown' + (/Price/.test(tb) ? '' : ` [${tb.slice(0, 160)}]`)); }
   const n0 = await page.evaluate(() => TG.G.businesses.length); await page.click('#modal [data-act="startGo"]'); await sleep(300);
   ok(await page.evaluate((n0) => TG.G.businesses.length === n0 + 1 && !!TG.G.businesses[n0].takeover, n0), 'took over a struggling salon');
   // ---- saves still work ----
   ok(await page.evaluate(() => TG.UI.save() !== false), 'game saves');
+  // reliable saves: after a reload, the game you play is not swapped for the saved copy by the 2.5 s load fallback
+  await page.reload(); await page.waitForFunction(() => TG.G && TG.G.businesses, { timeout: 8000 }); await page.evaluate(() => { window.__live = TG.G; TG.G.cash += 12345; }); await sleep(3200);
+  ok(await page.evaluate(() => TG.G === window.__live), 'boot: live game kept after the load fallback (no swap back to the save)');
   ok(errors.length === 0, `no page errors (${errors.slice(0, 3).join(' | ')})`);
   console.log(fails ? `${fails} V10 UI CHECK(S) FAILED` : 'ALL V10 UI CHECKS PASSED');
   await browser.close(); process.exit(fails ? 1 : 0);

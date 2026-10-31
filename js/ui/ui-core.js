@@ -178,8 +178,8 @@
       else UI.newGameScreen(true);
     };
     let fired = false; const once = (g) => { if (!fired) { fired = true; done(g); } };
-    try { TG.Game.loadAsync().then(once, () => once(TG.Game.load())); } catch (e) { once(TG.Game.load()); }
-    setTimeout(() => once(TG.Game.load()), 2500);
+    try { TG.Game.loadAsync().then((g) => { if (!fired) once(g); }, () => { if (!fired) once(TG.Game.load()); }); } catch (e) { once(TG.Game.load()); }
+    setTimeout(() => { if (!fired) once(TG.Game.load()); }, 2500); // v10 fix: only a fallback (it used to swap the live game for the last save 2.5 s after start)
     // installable app (service worker only works over http/https, not file://)
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => null);
   };

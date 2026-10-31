@@ -326,7 +326,7 @@
     if (E.onSaved) E.onSaved(st); return lsOk; };
   E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; E.markSeen(); return g; });
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); /* v10: the caller decides when to make it the live game */
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
   E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
