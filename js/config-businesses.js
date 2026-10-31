@@ -208,7 +208,7 @@
       name: 'Gym', icon: '🏋️', tier: 'small', model: 'service', cat: 'fitness',
       blurb: 'Membership money is steady, but the January rush fades and equipment wears hard.',
       setupCost: 35000, space: { unit: 'sqft', min: 2500, ideal: 9000 },
-      locPref: { city: 0.9, suburb: 1, town: 0.75, rural: 0.25, remote: 0.05 },
+      locPref: { city: 0.9, suburb: 1, town: 0.75, rural: 0.1, remote: 0.02 }, /* v9 audit: rural gyms lost money in every run */
       site: { traffic: 0.4, labor: 0.1, space: 0.3, loc: 0.2 },
       econSens: 0.45, weatherSens: 0.02, season: [1.3, 1.2, 1.05, 1, 0.97, 0.92, 0.9, 0.9, 0.97, 0.98, 0.95, 0.9],
       svc: { ticket: 58, baseDemand: 700, perSpace: 0.1, cogs: 0.05, utilPerSpace: 0.45, repExp: 0.8 },

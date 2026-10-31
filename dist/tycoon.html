@@ -337,10 +337,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   C.economy = {
     phases: {
-      boom:      { label: 'Boom',      econ: 1.10, dur: [18, 42], next: { slowdown: 1 }, rate: 0.055, housing: 0.006 },
-      slowdown:  { label: 'Slowdown',  econ: 0.98, dur: [6, 16],  next: { recession: 0.55, recovery: 0.2, boom: 0.25 }, rate: 0.05, housing: 0.0 },
-      recession: { label: 'Recession', econ: 0.84, dur: [8, 20],  next: { recovery: 1 }, rate: 0.025, housing: -0.009 },
-      recovery:  { label: 'Recovery',  econ: 1.0,  dur: [10, 26], next: { boom: 0.7, slowdown: 0.3 }, rate: 0.035, housing: 0.003 },
+      boom:      { label: 'Boom',      econ: 1.10, dur: [18, 42], next: { slowdown: 1 }, rate: 0.055, housing: 0.007 },
+      slowdown:  { label: 'Slowdown',  econ: 0.98, dur: [6, 16],  next: { recession: 0.55, recovery: 0.2, boom: 0.25 }, rate: 0.05, housing: 0.001 },
+      recession: { label: 'Recession', econ: 0.84, dur: [8, 20],  next: { recovery: 1 }, rate: 0.025, housing: -0.008 },
+      /* v9 audit: house prices now rise about with inflation (+2.6%/yr vs 1.5% before; prices rise 2.4%/yr) */
+      recovery:  { label: 'Recovery',  econ: 1.0,  dur: [10, 26], next: { boom: 0.7, slowdown: 0.3 }, rate: 0.035, housing: 0.004 },
     },
     rateDrift: 0.08, rateNoise: 0.0008, rateMin: 0.005, rateMax: 0.12,
     inflationPerMonth: 0.0018, fuelNoise: 0.04, housingNoise: 0.006, crashChance: 0.0025, crashDrop: [0.12, 0.28],
@@ -527,14 +528,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   C.realEstate = {
     kinds: {
-      condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0085, icon: '🏢' },
-      house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.008, icon: '🏠' },
-      duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0085, icon: '🏘️' },
+      condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0094, icon: '🏢' },
+      house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.0088, icon: '🏠' },
+      duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0094, icon: '🏘️' },
       smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0097, commercial: true, icon: '🏬' },
       apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0090, commercial: true, icon: '🏙️' },
-      strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0078, commercial: true, lease: 36, icon: '🛍️' },
-      officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0072, commercial: true, lease: 60, icon: '🏢' },
-      warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0075, commercial: true, lease: 60, icon: '🏭' },
+      strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0086, commercial: true, lease: 36, icon: '🛍️' },
+      officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0079, commercial: true, lease: 60, icon: '🏢' },
+      warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0083, commercial: true, lease: 60, icon: '🏭' },
       land:       { label: 'Development land', units: 0, price: [400000, 6000000], rentPct: 0, commercial: true, icon: '🗺️' },
       tower:      { label: 'Mixed-use tower', units: [80, 300], price: [40000000, 180000000], rentPct: 0.007, commercial: true, lease: 48, icon: '🌆' },
     },
@@ -542,10 +543,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     vacancyFillBase: 0.45, tenantBadChance: 0.2, screenedBadChance: 0.07, screeningCost: 60,
     lateRentChance: { good: 0.02, bad: 0.25 }, damageChance: { good: 0.004, bad: 0.04 }, damageCost: [0.004, 0.02],
     evictionMonths: [2, 5], evictionCost: [2500, 8000], lawyerEvictionCut: 0.4,
-    repairChance: 0.035, repairCost: [0.003, 0.02], bigRepairChance: 0.006, bigRepairCost: [0.02, 0.07],
-    injuryChance: 0.0012, injurySuit: [20000, 250000], disasterChance: 0.002, disasterCost: [0.1, 0.45],
-    taxHikeChance: 0.004, upkeepPct: 0.0012, insurancePct: 0.00035, conditionDecay: 0.25, propertyTax: 0.012,
-    managerFeePct: 0.08, handymanFee: 900, selfManageLimit: 6, selfManagePenalty: 0.03,
+    repairChance: 0.018, repairCost: [0.003, 0.02], bigRepairChance: 0.004, bigRepairCost: [0.02, 0.07],
+    injuryChance: 0.0004, injurySuit: [20000, 250000], disasterChance: 0.002, disasterCost: [0.1, 0.45],
+    taxHikeChance: 0.004, upkeepPct: 0.0005, insurancePct: 0.00035, conditionDecay: 0.12, /* v9 audit: running costs were ~7% of the price a year vs ~9% rent, so no rental could pay a mortgage */ propertyTax: 0.012,
+    managerFeePct: 0.08, handymanFee: 900, typicalRunPct: 0.048, /* v9 audit: measured running costs (tools/audit.js) for the listing's 'typical month' */ selfManageLimit: 6, selfManagePenalty: 0.03,
     neighborhoodShift: 0.015, rentGrowthCap: 0.002,
     flip: {
       inspectionCost: 600, inspectReveal: 0.65, hiddenProblem: 0.35, hiddenCost: [0.04, 0.18],
@@ -816,7 +817,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       name: 'Gym', icon: '🏋️', tier: 'small', model: 'service', cat: 'fitness',
       blurb: 'Membership money is steady, but the January rush fades and equipment wears hard.',
       setupCost: 35000, space: { unit: 'sqft', min: 2500, ideal: 9000 },
-      locPref: { city: 0.9, suburb: 1, town: 0.75, rural: 0.25, remote: 0.05 },
+      locPref: { city: 0.9, suburb: 1, town: 0.75, rural: 0.1, remote: 0.02 }, /* v9 audit: rural gyms lost money in every run */
       site: { traffic: 0.4, labor: 0.1, space: 0.3, loc: 0.2 },
       econSens: 0.45, weatherSens: 0.02, season: [1.3, 1.2, 1.05, 1, 0.97, 0.92, 0.9, 0.9, 0.97, 0.98, 0.95, 0.9],
       svc: { ticket: 58, baseDemand: 700, perSpace: 0.1, cogs: 0.05, utilPerSpace: 0.45, repExp: 0.8 },
@@ -995,7 +996,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       name: 'Medical clinic / hospital', icon: '🏥', tier: 'corp', model: 'service', cat: 'health',
       blurb: 'Licensed doctors, heavy regulation, slow insurance payments and very high stakes.',
       setupCost: 350000, space: { unit: 'sqft', min: 2500, ideal: 15000 },
-      locPref: { city: 1, suburb: 0.9, town: 0.65, rural: 0.3, remote: 0.15 },
+      locPref: { city: 1, suburb: 0.6, town: 0.3, rural: 0.15, remote: 0.05 }, /* v9 audit: clinics outside the city lost money in most runs; the listing now says so (poor fit) */
       site: { traffic: 0.3, labor: 0.4, space: 0.15, loc: 0.15 },
       econSens: 0.1, weatherSens: 0, season: [1.15, 1.1, 1.05, 1, 0.95, 0.9, 0.9, 0.9, 1, 1.05, 1.05, 1.1],
       svc: { ticket: 255, baseDemand: 2300, perSpace: 0.38, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },
@@ -1685,7 +1686,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     grassWeather: { drought: 0.55, heat: 0.75 },
     feedPrice: 160, feedTonsCap: 0.5, // tons of storage space per ton of feed (bales stack well)
     hunger: { healthDrop: 0.25, healthGain: 0.04, deathK: 0.05, sickK: 3 },
-    buyMarkup: 1.15, sellDrop: 0.97, inventoryValue: 0.7, milkCalfDip: 0.9,
+    buyMarkup: 1.08, sellDrop: 0.97, inventoryValue: 0.9, /* v9 audit: was 1.15 / 0.7: a cow bought lost 39% of its value in your net worth the day it arrived, though you can sell it for 97% */ milkCalfDip: 0.9,
   };
   C.farmGoods.cows = { icon: '🥛', label: 'Milk', unit: 't', market: 'milk' };
   FD.areas.cows.what = 'Grass for your cows. Cows also need FEED from storage when grass is short (winter, dry months).';
@@ -4072,6 +4073,47 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     LIVE.set(b, out); return out;
   };
   B.liveReset = (b) => { if (b) LIVE.delete(b); };
+  // v9 audit: a one-year practice run of a business that was just set up, on a THROWAWAY copy of the game.
+  // Chores (supplies, seed, feed, selling) are done on time, as a careful owner would. Used by the start dialog
+  // ("what it really costs") and by the careful test bot, so both see the same numbers.
+  // Returns per-month cash results (nets), cash left after each month, and the verdicts the dialog shows.
+  B.practice = (g, bizId, months, runs) => {
+    months = months || 12; runs = runs || 2; const G0 = TG.G; const LB0 = TG.LB && TG.LB.record; const all = [];
+    try {
+      if (TG.LB) TG.LB.record = () => null;
+      for (let k = 0; k < runs; k++) {
+        const g2 = JSON.parse(JSON.stringify(g)); g2.rngState = ((g.rngState || 1) + 7919 * (k + 1)) >>> 0; TG.G = g2; g2._practice = true;
+        const b2 = g2.businesses.find((x) => x.id === bizId); if (!b2) break;
+        if (!g2.ceo && TG.D.ceoPool) { const c = JSON.parse(JSON.stringify(TG.D.ceoPool(g2)[0])); c.wage = 0; c.profitShare = 0; c.skill = Math.max(c.skill || 0, 60); c.honesty = 100; g2.ceo = c; } // stands in for YOU doing the chores on time
+        const nets = [], cash = [];
+        for (let i = 0; i < months; i++) {
+          if (b2.stock) { const sq = TG.ST.suggest(b2, g2); if (sq > 0) TG.ST.buy(g2, b2, sq, 0); }
+          TG.Game.nextMonth(g2);
+          if (!g2.businesses.includes(b2)) { nets.push(-Math.abs(g2.cash)); cash.push(Math.min(0, g2.cash)); break; }
+          const h = b2.hist[b2.hist.length - 1]; nets.push(h ? (h.cash != null ? h.cash : h.profit) : 0); cash.push(g2.cash);
+        }
+        all.push({ nets, cash });
+      }
+    } finally { TG.G = G0; if (TG.LB) TG.LB.record = LB0; }
+    if (!all.length) return null;
+    const avgAt = (f) => U.avg(all, f);
+    const n = Math.min(...all.map((r) => r.nets.length));
+    const m1 = avgAt((r) => r.nets[0] || 0), m3 = avgAt((r) => U.sum(r.nets.slice(0, 3)) / 3);
+    const year = avgAt((r) => U.sum(r.nets)), late = avgAt((r) => U.sum(r.nets.slice(Math.min(4, r.nets.length - 1))) / Math.max(1, r.nets.length - 4));
+    const low = avgAt((r) => Math.min(...r.cash)); const outAt = Math.min(...all.map((r) => { const i = r.cash.findIndex((c) => c < 0); return i < 0 ? Infinity : i + 1; }));
+    const q4 = (a, b) => avgAt((r) => U.avg(r.nets.slice(a, b).length ? r.nets.slice(a, b) : [0], (x) => x));
+    return { runs: all, n, m1, m3, year, ops: avgAt((r) => U.sum(r.nets.slice(1)) * 12 / Math.max(1, r.nets.length - 1)), late, mid4: q4(4, 8), late4: q4(8, 12), low, outAt, closed: all.some((r) => r.nets.length < months) };
+  };
+  // the verdicts the start dialog shows (and the careful bot obeys): the year after setup lost money AND the end of the year is not getting better = likely a loser;
+  // cash below zero during the year = runs out of cash first. Only shops and farms get the loser verdict; other models only get the cash check.
+  B.practiceVerdict = (pr, payroll, type) => {
+    if (!pr) return { loser: true, broke: true };
+    const bar = Math.max(250, (payroll || 0) * 0.15);
+    const md = type && TG.CONFIG.businesses[type] ? TG.CONFIG.businesses[type].model : 'service'; /* the practice run only plays shops and farms like a person would; brands, factories, projects and startups need plans it cannot make */
+    const loser = pr.closed || ((md === 'service' || md === 'farm') && pr.ops < -bar * 12 && pr.late4 < -bar && pr.late4 <= pr.mid4 + Math.abs(pr.mid4) * 0.1); /* whole year after setup still negative (so a harvest year counts), AND the end of the year is not getting better */
+    return { loser, broke: pr.outAt < Infinity, perYear: Math.round(pr.late4 * 12) };
+  };
+
   TG.B = B;
 })();
 
@@ -5976,7 +6018,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     h.trend = U.clamp(h.trend + R.normal(0, 0.08), -1, 1);
     h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
     const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
-    h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length, 0, 100); // open repairs wear the building faster
+    h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length / Math.sqrt(Math.max(1, h.units || 1)), 0, 100); // open repairs wear the building faster
     const v = RE.value(g, h);
     spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
     spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
@@ -6013,7 +6055,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       } else { earn(t.rent * fee * (1 - withhold), 'Rent'); t.late = Math.max(0, t.late - 1); }
       if (withhold) TG.rep.event(g, null, 'bad', `Tenant at ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''} paid only half the rent`, 'They are waiting for a repair to be fixed.');
       if (mgr && R.chance(0.02) && mgr.honesty < 40) { const sk = Math.round(t.rent * 0.5); spend(sk, 'Theft losses'); }
-      if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; h.cond = U.clamp(h.cond - 5, 0, 100); RE.addIssue(g, h, i, t.rel < 0.45 ? 'damage left by a risky tenant' : 'accidental damage', c); }
+      if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; h.cond = U.clamp(h.cond - 5 / Math.max(1, h.units), 0, 100); /* v9: one unit's damage wears the building by 1/units (a 100-unit block used to drop to 0% in a year) */ RE.addIssue(g, h, i, t.rel < 0.45 ? 'damage left by a risky tenant' : 'accidental damage', c); }
       // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
       const held = g.month - t.since;
       if (held >= t.lease && held % 12 === t.lease % 12) {
@@ -9195,7 +9237,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const k = TG.CONFIG.realEstate.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const rc = TG.CONFIG.realEstate;
     const p = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc.propertyTax, insPct: rc.insurancePct }, UI.S.finTerm || 300);
     const pu = TG.RE.marketRent(g, l);
-    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
+    // v9 audit: what a typical month leaves you after ALL running costs and the loan (rentals with a loan often cost you cash each month)
+    const runPct = rc.typicalRunPct || 0.048; const rentL = TG.RE.estRent(g, l); const run = Math.round(l.price * runPct / 12); const left = Math.round(rentL - run - p.q.pay);
+    const flow = l.units ? `<div class="card"><h3>🧮 A typical month with this loan ${UI.tipBtn('reFlow')}</h3><table><tr><td>Rent you can count on</td><td class="n">${m(rentL)}</td></tr><tr><td>Running costs (tax, repairs, upkeep, insurance, turnover)</td><td class="n">−${m(run)}</td></tr><tr><td>Loan payment</td><td class="n">−${m(p.q.pay)}</td></tr><tr><td><b>${left >= 0 ? 'You keep' : 'You pay from your own cash'}</b></td><td class="n"><b class="${left >= 0 ? 'good' : 'bad'}">${m(Math.abs(left))}/mo</b></td></tr></table>${left < 0 ? `<div class="ev warn">⚠️ The rent does not cover the costs and the loan: you add about ${m(-left)} a month (${m(-left * 12)} a year). It only pays off if prices rise. Keep at least ${m(-left * 12)} spare cash, or pay more down, or buy with cash.</div>` : '<div class="mute">The rent covers the costs and the loan in a normal month. Repairs and empty months still happen: keep some spare cash.</div>'}${UI.tipLine('reFlow', `Running costs are about ${U.pct(runPct, 1)} of the price a year in this game (property tax ${U.pct(rc.propertyTax, 1)}, upkeep, repairs, insurance, tenant turnover and the odd eviction). Big buildings also need a property manager (about 8% of rent plus a salary). "Rent you can count on" is the full rent less about 8% for empty months.`)}</div>` : '';
+    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + flow + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
       <div class="btns">${UI.btn('📝 Apply & buy', 'reFinGo', id, 'sm pri', !!p.q.block || g.cash < p.cash)}${UI.btn('Cancel', 'closeModal', null, 'sm')}</div>`);
   };
   UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, 'Approved and bought.'); };
@@ -9566,16 +9611,24 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         const c0 = g2.cash; const r = TG.B.start(g2, type, pid, opts); if (!r || r.ok === false) { out.msg = r && r.msg; break; }
         if (q) TG.B.quickSetup(g2, r.biz, true, q);
         const today = c0 - g2.cash; const payroll = TG.S.payroll(r.biz); const after = g2.cash;
-        const nets = []; for (let i = 0; i < 3; i++) { if (i > 0 && r.biz.stock) { const sq = TG.ST.suggest(r.biz, g2); if (sq > 0) TG.ST.buy(g2, r.biz, sq, 0); } TG.Game.nextMonth(g2); /* assumes you buy supplies each month */ const h = r.biz.hist[r.biz.hist.length - 1]; nets.push(h ? (h.cash != null ? h.cash : h.profit) : 0); }
+        TG.G = g; const pr = TG.B.practice(g2, r.biz.id, 12, 1); TG.G = g2; /* v9: a whole year, so seasons and harvests show */
+        const nets = pr ? pr.runs[0].nets.slice() : [0]; const cashPath = pr ? pr.runs[0].cash.slice() : [after]; const verdict = TG.B.practiceVerdict(pr, payroll, type);
         nets[0] += today; // setup spending is booked into the first month's books: count it once, as "today"
-        runs.push({ today, payroll, after, nets });
+        runs.push({ today, payroll, after, nets, cashPath, closed: pr && pr.closed, verdict });
       }
       if (runs.length === 2) {
         const a = runs[0], b = runs[1];
         out.ok = true; out.today = (a.today + b.today) / 2; out.payroll = (a.payroll + b.payroll) / 2; out.after = (a.after + b.after) / 2;
-        out.m1 = (a.nets[0] + b.nets[0]) / 2; out.m3 = (U.sum(a.nets) + U.sum(b.nets)) / 6;
+        out.m1 = (a.nets[0] + b.nets[0]) / 2; out.m3 = (U.sum(a.nets.slice(0, 3)) + U.sum(b.nets.slice(0, 3))) / 6;
         const burn = Math.min(out.m1, out.m3); out.months = burn < 0 ? Math.max(0, out.after) / -burn : Infinity;
-        out.risky = out.after < 0 || out.months < 3 || out.m1 < -Math.max(2000, g.cash * 0.25);
+        // v9 audit: a full practice year. Cash running out before the first harvest/season pays, and a place that still loses money once it is going, are flagged
+        const firstOut = (r) => { const i = r.cashPath.findIndex((c) => c < 0); return i < 0 ? Infinity : i + 1; };
+        out.outAt = Math.min(firstOut(a), firstOut(b)); if (out.outAt < Infinity) out.months = Math.min(out.months, out.outAt);
+        out.year = (U.sum(a.nets) + U.sum(b.nets)) / 2; /* nets[0] already has the setup spending taken out */ out.late = ((a.verdict.perYear || 0) + (b.verdict.perYear || 0)) / 2;
+        out.loser = a.verdict.loser && b.verdict.loser;
+        out.yearOk = ['service', 'farm'].includes((TG.CONFIG.businesses[type] || {}).model); /* the practice year plays shops and farms; brands, factories, projects and startups need plans it cannot make */
+        if (type === 'farm' && out.loser) out.farmTip = 'Small farms often cannot cover a full-time farmhand and a tractor';
+        out.risky = out.after < 0 || out.months < 3 || out.outAt < Infinity || out.m1 < -Math.max(2000, g.cash * 0.25) || out.loser;
       }
     } catch (e) { out.err = e.message; } finally { TG.G = G0; TG.LB.record = LB0; }
     return out;
@@ -9583,8 +9636,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.startPreviewHtml = (p) => {
     if (!p.ok) return p.msg ? `<div class="ev bad"><b>You can't open this yet:</b> ${esc(p.msg)} You have ${m(TG.G.cash)}. Pick a cheaper business for this place, or sell/borrow first (💰 Money).</div>` : '<div class="mute">Could not estimate the first months.</div>';
     const row = (a, b) => `<tr><td>${a}</td><td class="n">${b}</td></tr>`;
-    return `<table>${row('💵 Cash spent today (setup, gear, staff hiring, supplies)', `<b>${m(p.today)}</b>`)}${row('💵 Cash left after opening', `<b class="${p.after < 0 ? 'bad' : ''}">${m(p.after)}</b>`)}${row('👥 Wages each month', m(p.payroll))}${row('📅 First month (estimate)', UI.signed(Math.round(p.m1)))}${row('📅 Average of first 3 months', UI.signed(Math.round(p.m3)))}${row('⏳ Cash lasts', p.months === Infinity ? 'not losing money' : p.months >= 24 ? '2+ years' : p.months < 1 ? 'less than a month' : `about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}`)}</table>
-      ${p.risky ? `<div class="ev bad"><b>⚠️ Risky:</b> ${p.after < 0 ? 'this costs more cash than you have.' : p.months < 3 ? (p.months < 1 ? 'at this rate your cash runs out in the first month.' : `at this rate your cash runs out in about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}.`) : 'the first month is expected to lose a lot.'} Try ${p.q === 'standard' ? 'budget or used gear, ' : ''}${p.q ? '"No, I\'ll do it myself" (hire fewer people), ' : ''}a cheaper place, or a smaller business.</div>` : '<div class="mute">Estimates from a practice run where you buy supplies every month: real months can be better or worse.</div>'}`;
+    return `<table>${row('💵 Cash spent today (setup, gear, staff hiring, supplies)', `<b>${m(p.today)}</b>`)}${row('💵 Cash left after opening', `<b class="${p.after < 0 ? 'bad' : ''}">${m(p.after)}</b>`)}${row('👥 Wages each month', m(p.payroll))}${row('📅 First month (estimate)', UI.signed(Math.round(p.m1)))}${row('📅 Average of first 3 months', UI.signed(Math.round(p.m3)))}${p.year != null && p.yearOk ? row('📅 Whole first year (practice run, not counting setup)', UI.signed(Math.round(p.year))) : ''}${row('⏳ Cash lasts', p.months === Infinity ? 'not losing money' : p.months >= 24 ? '2+ years' : p.months < 1 ? 'less than a month' : `about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}`)}</table>
+      ${p.loser ? `<div class="ev bad"><b>⚠️ Likely to lose money for good:</b> in a practice year it was still losing money at the end of the year and not getting better (about ${m(Math.abs(Math.round(p.late)))} a year at that pace)${p.farmTip ? '. ' + p.farmTip : ''}. This place or size may never pay: try a bigger or better place, or a different business.</div>` : ''}${p.outAt < Infinity && p.after >= 0 ? `<div class="ev bad"><b>⚠️ Risky:</b> cash runs out in month ${p.outAt} of the practice year${p.year > 0 ? ', before the money comes in (harvest, season or customers)' : ''}. Keep more cash, use a cheaper place, or borrow first.</div>` : ''}${p.risky && !p.loser && !(p.outAt < Infinity && p.after >= 0) ? `<div class="ev bad"><b>⚠️ Risky:</b> ${p.after < 0 ? 'this costs more cash than you have.' : p.months < 3 ? (p.months < 1 ? 'at this rate your cash runs out in the first month.' : `at this rate your cash runs out in about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}.`) : 'the first month is expected to lose a lot.'} Try ${p.q === 'standard' ? 'budget or used gear, ' : ''}${p.q ? '"No, I\'ll do it myself" (hire fewer people), ' : ''}a cheaper place, or a smaller business.</div>` : ''}<div class="mute">Estimates from a practice ${p.yearOk ? 'year' : 'run'} where you buy supplies, seed and feed on time: real months can be better or worse.</div>`;
   };
   const startDialog0 = UI.startDialog;
   UI.startDialog = (pid, type) => {

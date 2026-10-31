@@ -100,16 +100,24 @@
         const c0 = g2.cash; const r = TG.B.start(g2, type, pid, opts); if (!r || r.ok === false) { out.msg = r && r.msg; break; }
         if (q) TG.B.quickSetup(g2, r.biz, true, q);
         const today = c0 - g2.cash; const payroll = TG.S.payroll(r.biz); const after = g2.cash;
-        const nets = []; for (let i = 0; i < 3; i++) { if (i > 0 && r.biz.stock) { const sq = TG.ST.suggest(r.biz, g2); if (sq > 0) TG.ST.buy(g2, r.biz, sq, 0); } TG.Game.nextMonth(g2); /* assumes you buy supplies each month */ const h = r.biz.hist[r.biz.hist.length - 1]; nets.push(h ? (h.cash != null ? h.cash : h.profit) : 0); }
+        TG.G = g; const pr = TG.B.practice(g2, r.biz.id, 12, 1); TG.G = g2; /* v9: a whole year, so seasons and harvests show */
+        const nets = pr ? pr.runs[0].nets.slice() : [0]; const cashPath = pr ? pr.runs[0].cash.slice() : [after]; const verdict = TG.B.practiceVerdict(pr, payroll, type);
         nets[0] += today; // setup spending is booked into the first month's books: count it once, as "today"
-        runs.push({ today, payroll, after, nets });
+        runs.push({ today, payroll, after, nets, cashPath, closed: pr && pr.closed, verdict });
       }
       if (runs.length === 2) {
         const a = runs[0], b = runs[1];
         out.ok = true; out.today = (a.today + b.today) / 2; out.payroll = (a.payroll + b.payroll) / 2; out.after = (a.after + b.after) / 2;
-        out.m1 = (a.nets[0] + b.nets[0]) / 2; out.m3 = (U.sum(a.nets) + U.sum(b.nets)) / 6;
+        out.m1 = (a.nets[0] + b.nets[0]) / 2; out.m3 = (U.sum(a.nets.slice(0, 3)) + U.sum(b.nets.slice(0, 3))) / 6;
         const burn = Math.min(out.m1, out.m3); out.months = burn < 0 ? Math.max(0, out.after) / -burn : Infinity;
-        out.risky = out.after < 0 || out.months < 3 || out.m1 < -Math.max(2000, g.cash * 0.25);
+        // v9 audit: a full practice year. Cash running out before the first harvest/season pays, and a place that still loses money once it is going, are flagged
+        const firstOut = (r) => { const i = r.cashPath.findIndex((c) => c < 0); return i < 0 ? Infinity : i + 1; };
+        out.outAt = Math.min(firstOut(a), firstOut(b)); if (out.outAt < Infinity) out.months = Math.min(out.months, out.outAt);
+        out.year = (U.sum(a.nets) + U.sum(b.nets)) / 2; /* nets[0] already has the setup spending taken out */ out.late = ((a.verdict.perYear || 0) + (b.verdict.perYear || 0)) / 2;
+        out.loser = a.verdict.loser && b.verdict.loser;
+        out.yearOk = ['service', 'farm'].includes((TG.CONFIG.businesses[type] || {}).model); /* the practice year plays shops and farms; brands, factories, projects and startups need plans it cannot make */
+        if (type === 'farm' && out.loser) out.farmTip = 'Small farms often cannot cover a full-time farmhand and a tractor';
+        out.risky = out.after < 0 || out.months < 3 || out.outAt < Infinity || out.m1 < -Math.max(2000, g.cash * 0.25) || out.loser;
       }
     } catch (e) { out.err = e.message; } finally { TG.G = G0; TG.LB.record = LB0; }
     return out;
@@ -117,8 +125,8 @@
   UI.startPreviewHtml = (p) => {
     if (!p.ok) return p.msg ? `<div class="ev bad"><b>You can't open this yet:</b> ${esc(p.msg)} You have ${m(TG.G.cash)}. Pick a cheaper business for this place, or sell/borrow first (💰 Money).</div>` : '<div class="mute">Could not estimate the first months.</div>';
     const row = (a, b) => `<tr><td>${a}</td><td class="n">${b}</td></tr>`;
-    return `<table>${row('💵 Cash spent today (setup, gear, staff hiring, supplies)', `<b>${m(p.today)}</b>`)}${row('💵 Cash left after opening', `<b class="${p.after < 0 ? 'bad' : ''}">${m(p.after)}</b>`)}${row('👥 Wages each month', m(p.payroll))}${row('📅 First month (estimate)', UI.signed(Math.round(p.m1)))}${row('📅 Average of first 3 months', UI.signed(Math.round(p.m3)))}${row('⏳ Cash lasts', p.months === Infinity ? 'not losing money' : p.months >= 24 ? '2+ years' : p.months < 1 ? 'less than a month' : `about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}`)}</table>
-      ${p.risky ? `<div class="ev bad"><b>⚠️ Risky:</b> ${p.after < 0 ? 'this costs more cash than you have.' : p.months < 3 ? (p.months < 1 ? 'at this rate your cash runs out in the first month.' : `at this rate your cash runs out in about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}.`) : 'the first month is expected to lose a lot.'} Try ${p.q === 'standard' ? 'budget or used gear, ' : ''}${p.q ? '"No, I\'ll do it myself" (hire fewer people), ' : ''}a cheaper place, or a smaller business.</div>` : '<div class="mute">Estimates from a practice run where you buy supplies every month: real months can be better or worse.</div>'}`;
+    return `<table>${row('💵 Cash spent today (setup, gear, staff hiring, supplies)', `<b>${m(p.today)}</b>`)}${row('💵 Cash left after opening', `<b class="${p.after < 0 ? 'bad' : ''}">${m(p.after)}</b>`)}${row('👥 Wages each month', m(p.payroll))}${row('📅 First month (estimate)', UI.signed(Math.round(p.m1)))}${row('📅 Average of first 3 months', UI.signed(Math.round(p.m3)))}${p.year != null && p.yearOk ? row('📅 Whole first year (practice run, not counting setup)', UI.signed(Math.round(p.year))) : ''}${row('⏳ Cash lasts', p.months === Infinity ? 'not losing money' : p.months >= 24 ? '2+ years' : p.months < 1 ? 'less than a month' : `about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}`)}</table>
+      ${p.loser ? `<div class="ev bad"><b>⚠️ Likely to lose money for good:</b> in a practice year it was still losing money at the end of the year and not getting better (about ${m(Math.abs(Math.round(p.late)))} a year at that pace)${p.farmTip ? '. ' + p.farmTip : ''}. This place or size may never pay: try a bigger or better place, or a different business.</div>` : ''}${p.outAt < Infinity && p.after >= 0 ? `<div class="ev bad"><b>⚠️ Risky:</b> cash runs out in month ${p.outAt} of the practice year${p.year > 0 ? ', before the money comes in (harvest, season or customers)' : ''}. Keep more cash, use a cheaper place, or borrow first.</div>` : ''}${p.risky && !p.loser && !(p.outAt < Infinity && p.after >= 0) ? `<div class="ev bad"><b>⚠️ Risky:</b> ${p.after < 0 ? 'this costs more cash than you have.' : p.months < 3 ? (p.months < 1 ? 'at this rate your cash runs out in the first month.' : `at this rate your cash runs out in about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}.`) : 'the first month is expected to lose a lot.'} Try ${p.q === 'standard' ? 'budget or used gear, ' : ''}${p.q ? '"No, I\'ll do it myself" (hire fewer people), ' : ''}a cheaper place, or a smaller business.</div>` : ''}<div class="mute">Estimates from a practice ${p.yearOk ? 'year' : 'run'} where you buy supplies, seed and feed on time: real months can be better or worse.</div>`;
   };
   const startDialog0 = UI.startDialog;
   UI.startDialog = (pid, type) => {

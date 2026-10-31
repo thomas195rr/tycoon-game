@@ -71,10 +71,11 @@
 
   C.economy = {
     phases: {
-      boom:      { label: 'Boom',      econ: 1.10, dur: [18, 42], next: { slowdown: 1 }, rate: 0.055, housing: 0.006 },
-      slowdown:  { label: 'Slowdown',  econ: 0.98, dur: [6, 16],  next: { recession: 0.55, recovery: 0.2, boom: 0.25 }, rate: 0.05, housing: 0.0 },
-      recession: { label: 'Recession', econ: 0.84, dur: [8, 20],  next: { recovery: 1 }, rate: 0.025, housing: -0.009 },
-      recovery:  { label: 'Recovery',  econ: 1.0,  dur: [10, 26], next: { boom: 0.7, slowdown: 0.3 }, rate: 0.035, housing: 0.003 },
+      boom:      { label: 'Boom',      econ: 1.10, dur: [18, 42], next: { slowdown: 1 }, rate: 0.055, housing: 0.007 },
+      slowdown:  { label: 'Slowdown',  econ: 0.98, dur: [6, 16],  next: { recession: 0.55, recovery: 0.2, boom: 0.25 }, rate: 0.05, housing: 0.001 },
+      recession: { label: 'Recession', econ: 0.84, dur: [8, 20],  next: { recovery: 1 }, rate: 0.025, housing: -0.008 },
+      /* v9 audit: house prices now rise about with inflation (+2.6%/yr vs 1.5% before; prices rise 2.4%/yr) */
+      recovery:  { label: 'Recovery',  econ: 1.0,  dur: [10, 26], next: { boom: 0.7, slowdown: 0.3 }, rate: 0.035, housing: 0.004 },
     },
     rateDrift: 0.08, rateNoise: 0.0008, rateMin: 0.005, rateMax: 0.12,
     inflationPerMonth: 0.0018, fuelNoise: 0.04, housingNoise: 0.006, crashChance: 0.0025, crashDrop: [0.12, 0.28],
@@ -261,14 +262,14 @@
 
   C.realEstate = {
     kinds: {
-      condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0085, icon: '🏢' },
-      house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.008, icon: '🏠' },
-      duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0085, icon: '🏘️' },
+      condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0094, icon: '🏢' },
+      house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.0088, icon: '🏠' },
+      duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0094, icon: '🏘️' },
       smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0097, commercial: true, icon: '🏬' },
       apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0090, commercial: true, icon: '🏙️' },
-      strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0078, commercial: true, lease: 36, icon: '🛍️' },
-      officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0072, commercial: true, lease: 60, icon: '🏢' },
-      warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0075, commercial: true, lease: 60, icon: '🏭' },
+      strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0086, commercial: true, lease: 36, icon: '🛍️' },
+      officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0079, commercial: true, lease: 60, icon: '🏢' },
+      warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0083, commercial: true, lease: 60, icon: '🏭' },
       land:       { label: 'Development land', units: 0, price: [400000, 6000000], rentPct: 0, commercial: true, icon: '🗺️' },
       tower:      { label: 'Mixed-use tower', units: [80, 300], price: [40000000, 180000000], rentPct: 0.007, commercial: true, lease: 48, icon: '🌆' },
     },
@@ -276,10 +277,10 @@
     vacancyFillBase: 0.45, tenantBadChance: 0.2, screenedBadChance: 0.07, screeningCost: 60,
     lateRentChance: { good: 0.02, bad: 0.25 }, damageChance: { good: 0.004, bad: 0.04 }, damageCost: [0.004, 0.02],
     evictionMonths: [2, 5], evictionCost: [2500, 8000], lawyerEvictionCut: 0.4,
-    repairChance: 0.035, repairCost: [0.003, 0.02], bigRepairChance: 0.006, bigRepairCost: [0.02, 0.07],
-    injuryChance: 0.0012, injurySuit: [20000, 250000], disasterChance: 0.002, disasterCost: [0.1, 0.45],
-    taxHikeChance: 0.004, upkeepPct: 0.0012, insurancePct: 0.00035, conditionDecay: 0.25, propertyTax: 0.012,
-    managerFeePct: 0.08, handymanFee: 900, selfManageLimit: 6, selfManagePenalty: 0.03,
+    repairChance: 0.018, repairCost: [0.003, 0.02], bigRepairChance: 0.004, bigRepairCost: [0.02, 0.07],
+    injuryChance: 0.0004, injurySuit: [20000, 250000], disasterChance: 0.002, disasterCost: [0.1, 0.45],
+    taxHikeChance: 0.004, upkeepPct: 0.0005, insurancePct: 0.00035, conditionDecay: 0.12, /* v9 audit: running costs were ~7% of the price a year vs ~9% rent, so no rental could pay a mortgage */ propertyTax: 0.012,
+    managerFeePct: 0.08, handymanFee: 900, typicalRunPct: 0.048, /* v9 audit: measured running costs (tools/audit.js) for the listing's 'typical month' */ selfManageLimit: 6, selfManagePenalty: 0.03,
     neighborhoodShift: 0.015, rentGrowthCap: 0.002,
     flip: {
       inspectionCost: 600, inspectReveal: 0.65, hiddenProblem: 0.35, hiddenCost: [0.04, 0.18],

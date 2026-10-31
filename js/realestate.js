@@ -281,7 +281,7 @@
     h.trend = U.clamp(h.trend + R.normal(0, 0.08), -1, 1);
     h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
     const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
-    h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length, 0, 100); // open repairs wear the building faster
+    h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length / Math.sqrt(Math.max(1, h.units || 1)), 0, 100); // open repairs wear the building faster
     const v = RE.value(g, h);
     spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
     spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
@@ -318,7 +318,7 @@
       } else { earn(t.rent * fee * (1 - withhold), 'Rent'); t.late = Math.max(0, t.late - 1); }
       if (withhold) TG.rep.event(g, null, 'bad', `Tenant at ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''} paid only half the rent`, 'They are waiting for a repair to be fixed.');
       if (mgr && R.chance(0.02) && mgr.honesty < 40) { const sk = Math.round(t.rent * 0.5); spend(sk, 'Theft losses'); }
-      if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; h.cond = U.clamp(h.cond - 5, 0, 100); RE.addIssue(g, h, i, t.rel < 0.45 ? 'damage left by a risky tenant' : 'accidental damage', c); }
+      if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; h.cond = U.clamp(h.cond - 5 / Math.max(1, h.units), 0, 100); /* v9: one unit's damage wears the building by 1/units (a 100-unit block used to drop to 0% in a year) */ RE.addIssue(g, h, i, t.rel < 0.45 ? 'damage left by a risky tenant' : 'accidental damage', c); }
       // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
       const held = g.month - t.since;
       if (held >= t.lease && held % 12 === t.lease % 12) {

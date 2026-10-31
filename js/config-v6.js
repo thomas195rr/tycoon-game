@@ -114,7 +114,7 @@
     grassWeather: { drought: 0.55, heat: 0.75 },
     feedPrice: 160, feedTonsCap: 0.5, // tons of storage space per ton of feed (bales stack well)
     hunger: { healthDrop: 0.25, healthGain: 0.04, deathK: 0.05, sickK: 3 },
-    buyMarkup: 1.15, sellDrop: 0.97, inventoryValue: 0.7, milkCalfDip: 0.9,
+    buyMarkup: 1.08, sellDrop: 0.97, inventoryValue: 0.9, /* v9 audit: was 1.15 / 0.7: a cow bought lost 39% of its value in your net worth the day it arrived, though you can sell it for 97% */ milkCalfDip: 0.9,
   };
   C.farmGoods.cows = { icon: '🥛', label: 'Milk', unit: 't', market: 'milk' };
   FD.areas.cows.what = 'Grass for your cows. Cows also need FEED from storage when grass is short (winter, dry months).';

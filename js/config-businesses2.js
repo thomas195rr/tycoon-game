@@ -149,7 +149,7 @@
       name: 'Medical clinic / hospital', icon: '🏥', tier: 'corp', model: 'service', cat: 'health',
       blurb: 'Licensed doctors, heavy regulation, slow insurance payments and very high stakes.',
       setupCost: 350000, space: { unit: 'sqft', min: 2500, ideal: 15000 },
-      locPref: { city: 1, suburb: 0.9, town: 0.65, rural: 0.3, remote: 0.15 },
+      locPref: { city: 1, suburb: 0.6, town: 0.3, rural: 0.15, remote: 0.05 }, /* v9 audit: clinics outside the city lost money in most runs; the listing now says so (poor fit) */
       site: { traffic: 0.3, labor: 0.4, space: 0.15, loc: 0.15 },
       econSens: 0.1, weatherSens: 0, season: [1.15, 1.1, 1.05, 1, 0.95, 0.9, 0.9, 0.9, 1, 1.05, 1.05, 1.1],
       svc: { ticket: 255, baseDemand: 2300, perSpace: 0.38, cogs: 0.12, utilPerSpace: 1.2, repExp: 0.8 },

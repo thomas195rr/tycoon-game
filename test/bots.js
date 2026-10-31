@@ -25,6 +25,11 @@ module.exports = function makeBots(TG) {
         const plan = TG.B.quickSetup(g, s.biz, false);
         if (plan.cost > g.cash * 0.95) { restore(g, snap); continue; }
         TG.B.quickSetup(g, s.biz, true, opts.tier || 'standard');
+        // v9 audit: a careful player reads the start dialog (a practice year) and walks away from starts it flags
+        if (opts.check && TG.B.practice) {
+          const v = TG.B.practiceVerdict(TG.B.practice(g, s.biz.id, 12, 2), TG.S.payroll(s.biz), type);
+          if (v.loser || v.broke) { restore(g, snap); continue; }
+        }
         return s.biz;
       }
     }
@@ -85,6 +90,13 @@ module.exports = function makeBots(TG) {
     }
     // cheap upgrades that say what they add (+x% capacity / ticket): a careful owner buys one of each once the shop pays
     if (p3 > 0 && age > 3) for (const ed of d.equip) if ((ed.ticketBoost || ed.staffBoost) && TG.E.count(b, ed.id) < 1 && g.cash > ed.price * 5) TG.E.buy(g, b, ed.id, 'standard');
+    // v9 audit: the 💪 Work card shows red bars (over 100%): a careful owner adds one worker / machine for the busiest red row
+    if (Array.isArray(b.work) && p3 > -50000) {
+      const st = b.work.filter((w) => w.kind === 'staff' && w.role && w.util > 1.05 && !(d.roles[w.role] || {}).support).sort((x, y) => y.util - x.util)[0];
+      if (st) { const rd = TG.S.roleDef(b, st.role); if (rd && g.cash > rd.wage[1] * 6) hireBest(g, b, st.role); }
+      const eq = b.work.filter((w) => w.kind === 'eq' && w.util > 1.1 && w.pools && w.pools.length).sort((x, y) => y.util - x.util)[0];
+      const ed = eq && d.equip.find((x) => x.id === eq.pools[0] && x.critical); if (ed && g.cash > TG.E.price(g, b, ed.id, 'standard') * 3) TG.E.buy(g, b, ed.id, 'standard');
+    }
     if (lc.limit === 'staff' && lc.demand > lc.cap * 1.15 && p3 > 0 && g.cash > 20000) { const kr = TG.M.keyRole(d); if (kr) hireBest(g, b, kr); }
     if (b.stock && g.cash > 15000 && TG.ST.cap(b) < Math.min(lc.demand || 0, lc.cap || 0) * 1.1) TG.ST.addStorage(g, b, Math.min(lc.demand, lc.cap) * 1.1);
     if (lc.limit === 'support' && lc.demand > lc.cap * 1.1 && g.cash > 20000) { const sr = Object.keys(d.roles).find((r) => d.roles[r].support); if (sr) hireBest(g, b, sr); }

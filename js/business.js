@@ -615,5 +615,46 @@
     LIVE.set(b, out); return out;
   };
   B.liveReset = (b) => { if (b) LIVE.delete(b); };
+  // v9 audit: a one-year practice run of a business that was just set up, on a THROWAWAY copy of the game.
+  // Chores (supplies, seed, feed, selling) are done on time, as a careful owner would. Used by the start dialog
+  // ("what it really costs") and by the careful test bot, so both see the same numbers.
+  // Returns per-month cash results (nets), cash left after each month, and the verdicts the dialog shows.
+  B.practice = (g, bizId, months, runs) => {
+    months = months || 12; runs = runs || 2; const G0 = TG.G; const LB0 = TG.LB && TG.LB.record; const all = [];
+    try {
+      if (TG.LB) TG.LB.record = () => null;
+      for (let k = 0; k < runs; k++) {
+        const g2 = JSON.parse(JSON.stringify(g)); g2.rngState = ((g.rngState || 1) + 7919 * (k + 1)) >>> 0; TG.G = g2; g2._practice = true;
+        const b2 = g2.businesses.find((x) => x.id === bizId); if (!b2) break;
+        if (!g2.ceo && TG.D.ceoPool) { const c = JSON.parse(JSON.stringify(TG.D.ceoPool(g2)[0])); c.wage = 0; c.profitShare = 0; c.skill = Math.max(c.skill || 0, 60); c.honesty = 100; g2.ceo = c; } // stands in for YOU doing the chores on time
+        const nets = [], cash = [];
+        for (let i = 0; i < months; i++) {
+          if (b2.stock) { const sq = TG.ST.suggest(b2, g2); if (sq > 0) TG.ST.buy(g2, b2, sq, 0); }
+          TG.Game.nextMonth(g2);
+          if (!g2.businesses.includes(b2)) { nets.push(-Math.abs(g2.cash)); cash.push(Math.min(0, g2.cash)); break; }
+          const h = b2.hist[b2.hist.length - 1]; nets.push(h ? (h.cash != null ? h.cash : h.profit) : 0); cash.push(g2.cash);
+        }
+        all.push({ nets, cash });
+      }
+    } finally { TG.G = G0; if (TG.LB) TG.LB.record = LB0; }
+    if (!all.length) return null;
+    const avgAt = (f) => U.avg(all, f);
+    const n = Math.min(...all.map((r) => r.nets.length));
+    const m1 = avgAt((r) => r.nets[0] || 0), m3 = avgAt((r) => U.sum(r.nets.slice(0, 3)) / 3);
+    const year = avgAt((r) => U.sum(r.nets)), late = avgAt((r) => U.sum(r.nets.slice(Math.min(4, r.nets.length - 1))) / Math.max(1, r.nets.length - 4));
+    const low = avgAt((r) => Math.min(...r.cash)); const outAt = Math.min(...all.map((r) => { const i = r.cash.findIndex((c) => c < 0); return i < 0 ? Infinity : i + 1; }));
+    const q4 = (a, b) => avgAt((r) => U.avg(r.nets.slice(a, b).length ? r.nets.slice(a, b) : [0], (x) => x));
+    return { runs: all, n, m1, m3, year, ops: avgAt((r) => U.sum(r.nets.slice(1)) * 12 / Math.max(1, r.nets.length - 1)), late, mid4: q4(4, 8), late4: q4(8, 12), low, outAt, closed: all.some((r) => r.nets.length < months) };
+  };
+  // the verdicts the start dialog shows (and the careful bot obeys): the year after setup lost money AND the end of the year is not getting better = likely a loser;
+  // cash below zero during the year = runs out of cash first. Only shops and farms get the loser verdict; other models only get the cash check.
+  B.practiceVerdict = (pr, payroll, type) => {
+    if (!pr) return { loser: true, broke: true };
+    const bar = Math.max(250, (payroll || 0) * 0.15);
+    const md = type && TG.CONFIG.businesses[type] ? TG.CONFIG.businesses[type].model : 'service'; /* the practice run only plays shops and farms like a person would; brands, factories, projects and startups need plans it cannot make */
+    const loser = pr.closed || ((md === 'service' || md === 'farm') && pr.ops < -bar * 12 && pr.late4 < -bar && pr.late4 <= pr.mid4 + Math.abs(pr.mid4) * 0.1); /* whole year after setup still negative (so a harvest year counts), AND the end of the year is not getting better */
+    return { loser, broke: pr.outAt < Infinity, perYear: Math.round(pr.late4 * 12) };
+  };
+
   TG.B = B;
 })();

@@ -1,0 +1,85 @@
+Start options and locations (median/yr, grew, ruin; "none" = could not start with that budget):
+auto
+   options: starter (half cash, lease): 21% 92% 8% | normal (cash/mortgage): 13% 92% 8% | normal (lease): 13% 92% 0% | big budget: 6% 88% 0%
+   locations: town(22) 18% 91% | suburb(42) 14% 93% | city(32) 8% 88%
+bakery
+   options: starter (half cash, lease): 15% 88% 13% | normal (cash/mortgage): 12% 100% 0% | normal (lease): 11% 88% 13% | big budget: 5% 96% 4%
+   locations: town(10) 14% 80% | suburb(23) 14% 96% | city(63) 8% 94%
+brand
+   options: starter (half cash, lease): 9% 100% 0% | normal (cash/mortgage): 5% 96% 0% | normal (lease): 5% 100% 0% | big budget: 3% 75% 0%
+   locations: suburb(68) 6% 96% | city(26) 3% 85% | town(2) 8% 100%
+cafe
+   options: starter (half cash, lease): 12% 96% 4% | normal (cash/mortgage): 11% 92% 0% | normal (lease): 7% 75% 4% | big budget: 5% 88% 0%
+   locations: suburb(21) 14% 100% | town(4) 15% 100% | city(71) 7% 83%
+carwash
+   options: starter (half cash, lease): – 0% 0% none 24 | normal (cash/mortgage): 17% 100% 0% | normal (lease): 17% 100% 0% | big budget: 10% 100% 0%
+   locations: suburb(36) 16% 100% | town(23) 16% 100% | city(13) 13% 100%
+clinic
+   options: starter (half cash, lease): -1% 50% 17% | normal (cash/mortgage): 13% 92% 0% | normal (lease): 12% 100% 0% | big budget: 7% 96% 0%
+   locations: city(87) 9% 90% | town(3) -45% 0% | suburb(6) -5% 50%
+construction
+   options: starter (half cash, lease): 22% 100% 0% | normal (cash/mortgage): 19% 96% 0% | normal (lease): 17% 96% 0% | big budget: 11% 100% 0%
+   locations: suburb(74) 17% 100% | town(16) 22% 94% | city(6) 12% 83%
+factory
+   options: starter (half cash, lease): – 0% 0% none 24 | normal (cash/mortgage): 7% 92% 0% | normal (lease): 8% 100% 0% | big budget: 4% 88% 0%
+   locations: town(22) 7% 95% | suburb(37) 5% 92% | city(10) 3% 90% | rural(3) 8% 100%
+farm:cows
+   options: starter (half cash, lease): – 0% 0% none 24 | normal (cash/mortgage): 1% 50% 0% none 8 | normal (lease): 2% 71% 0% none 17 | big budget: 8% 91% 0% none 1
+   locations: rural(31) 5% 65% | remote(15) 6% 93%
+farm:crops
+   options: starter (half cash, lease): 9% 71% 14% none 10 | normal (cash/mortgage): 7% 69% 0% none 8 | normal (lease): 9% 71% 0% none 7 | big budget: 1% 61% 0% none 6
+   locations: rural(47) 6% 68% | remote(17) 5% 71% | town(1) -23% 0%
+farm:orchard
+   options: starter (half cash, lease): 7% 92% 4% | normal (cash/mortgage): 6% 83% 4% | normal (lease): 6% 79% 8% | big budget: 3% 83% 0%
+   locations: remote(56) 5% 88% | rural(38) 6% 84% | town(2) -35% 0%
+foodtruck
+   options: starter (half cash, lease): 15% 71% 13% | normal (cash/mortgage): 9% 75% 8% | normal (lease): 9% 83% 4% | big budget: 5% 100% 0%
+   locations: city(53) 6% 81% | suburb(37) 9% 84% | town(6) 18% 83%
+franchise
+   options: starter (half cash, lease): 13% 100% 0% | normal (cash/mortgage): 10% 100% 0% | normal (lease): 9% 100% 0% | big budget: 5% 100% 0%
+   locations: city(94) 9% 100% | suburb(2) 11% 100%
+freight
+   options: starter (half cash, lease): 7% 96% 0% | normal (cash/mortgage): 5% 83% 0% | normal (lease): 3% 79% 0% | big budget: 6% 79% 0%
+   locations: town(68) 5% 93% | suburb(27) 1% 63% | rural(1) 7% 100%
+gym
+   options: starter (half cash, lease): 11% 75% 17% | normal (cash/mortgage): 6% 79% 4% | normal (lease): 7% 83% 4% | big budget: 3% 83% 0%
+   locations: town(12) 10% 83% | suburb(52) 7% 92% | city(32) 2% 59%
+hotel
+   options: starter (half cash, lease): 12% 100% 0% | normal (cash/mortgage): 6% 100% 0% | normal (lease): 6% 100% 0% | big budget: 4% 100% 0%
+   locations: town(19) 9% 100% | city(36) 4% 100% | suburb(40) 7% 100% | rural(1) 25% 100%
+law
+   options: starter (half cash, lease): 13% 96% 4% | normal (cash/mortgage): 10% 100% 0% | normal (lease): 9% 96% 0% | big budget: 5% 100% 0%
+   locations: city(96) 9% 98%
+lawn
+   options: starter (half cash, lease): 22% 79% 21% | normal (cash/mortgage): 16% 100% 0% | normal (lease): 15% 96% 4% | big budget: 10% 100% 0%
+   locations: suburb(79) 14% 92% | town(7) 22% 100% | city(10) 13% 100%
+salon
+   options: starter (half cash, lease): 15% 83% 8% | normal (cash/mortgage): 11% 83% 8% | normal (lease): 12% 71% 8% | big budget: 6% 83% 4%
+   locations: town(1) 18% 100% | suburb(33) 12% 88% | city(62) 8% 76%
+tech
+   options: starter (half cash, lease): 17% 71% 25% | normal (cash/mortgage): 10% 88% 0% | normal (lease): 12% 75% 4% | big budget: 4% 71% 0%
+   locations: city(96) 9% 76%
+re:apartment
+   options: cash: 4% 96% 0% | mortgage: -4% 35% 13% none 1 | mortgage if it covers: 9% 75% 0% none 20
+   locations: city(20) 2% 60% | rural(6) -1% 33% | suburb(17) 5% 82% | town(8) 6% 75%
+re:condo
+   options: cash: 5% 88% 0% | mortgage: -2% 42% 17% | mortgage if it covers: 10% 83% 0% none 18
+   locations: rural(5) 2% 60% | city(16) 7% 81% | suburb(25) 2% 56% | town(8) 6% 75%
+re:duplex
+   options: cash: 5% 92% 0% | mortgage: 1% 52% 0% none 3 | mortgage if it covers: 5% 60% 0% none 19
+   locations: rural(3) 7% 100% | town(17) 5% 76% | suburb(18) 4% 67% | city(12) 4% 67%
+re:house
+   options: cash: 4% 88% 0% | mortgage: -2% 42% 21% | mortgage if it covers: 2% 100% 0% none 23
+   locations: rural(5) 1% 60% | city(13) 4% 77% | suburb(23) 2% 57% | town(8) 6% 75%
+re:officebldg
+   options: cash: 4% 96% 0% | mortgage: -4% 16% 11% none 5 | mortgage if it covers: -2% 0% 0% none 23
+   locations: suburb(15) 3% 73% | town(19) 2% 58% | city(7) -3% 29% | rural(3) 4% 67%
+re:smallapt
+   options: cash: 4% 96% 0% | mortgage: -2% 30% 9% none 1 | mortgage if it covers: -1% 40% 20% none 14
+   locations: suburb(21) 3% 57% | town(20) 2% 65% | city(15) 2% 53% | rural(1) 3% 100%
+re:strip
+   options: cash: 4% 96% 0% | mortgage: -1% 42% 8% | mortgage if it covers: 4% 60% 0% none 19
+   locations: rural(5) 3% 80% | city(15) 2% 60% | suburb(24) 3% 67% | town(9) 6% 78%
+re:warehouse
+   options: cash: 3% 79% 0% | mortgage: -4% 47% 5% none 5 | mortgage if it covers: 11% 100% 0% none 23
+   locations: city(17) 4% 59% | rural(7) 5% 86% | suburb(14) 2% 71% | town(6) -0% 50%
