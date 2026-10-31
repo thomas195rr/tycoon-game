@@ -273,7 +273,7 @@
     if (spec) b.spec[spec] = null; else b.staff = b.staff.filter((x) => x.id !== e.id);
     const label = S.roleDef(b, e.role).label;
     const isKey = spec === 'gm' || spec === 'ops' || (TG.CONFIG.businesses[b.type].roles[e.role] || {}).licensed || e.skill >= 70;
-    TG.rep.event(g, b, isKey ? 'major' : 'bad', `${e.name} (${label}) quit`, `Why: ${why}. Morale ${Math.round(e.morale)}, loyalty ${Math.round(e.loyalty)}, ambition ${e.ambition > 60 ? 'high' : 'normal'}`, isKey ? { major: 'keyQuit' } : null);
+    TG.rep.event(g, b, isKey ? 'major' : 'bad', `${e.name} (${label}) quit`, `${why[0].toUpperCase() + why.slice(1)}. Morale ${Math.round(e.morale)}, loyalty ${Math.round(e.loyalty)}, ambition ${e.ambition > 60 ? 'high' : 'normal'}`, isKey ? { major: 'keyQuit' } : null);
     TG.rep.staff(g, b, `${e.name} (${label}) quit: ${why}`);
   };
 

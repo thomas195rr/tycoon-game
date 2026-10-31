@@ -8,6 +8,13 @@
   const qty = (id, def) => `<input type="number" id="${id}" min="1" value="${Math.max(1, Math.round(def || 1))}" aria-label="how many">`;
   const FD = () => TG.CONFIG.businesses.farm.farm;
 
+  // v8: Auto reorder only exists with a manager who handles supplies; otherwise say so plainly + offer a one-tap "fill for next month"
+  UI.autoBtn = (g, b, st) => {
+    const h = TG.D.handler(g, b, 'stock'); const q = TG.ST.suggest(b, g); const fill = q > 0 ? UI.btn(`📦 Fill for next month: ${N(q)} (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'xs pri') : '';
+    if (!h) return fill + UI.btn('🤖 Auto: needs a manager', 'stAutoNo', null, 'xs');
+    return fill + UI.btn(st.auto ? `🤖 Auto ✓ (${esc((TG.CONFIG.specialists[h.role] || { label: 'CEO' }).label)})` : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : ''));
+  };
+  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire a Shift lead, Ops manager or GM in Staff to do it.', true);
   // ================= STOCK CARD (every business) =================
   UI.stockCard = (g, b) => {
     const d = TG.B.def(b); let rows = ''; let title = '📦 What you have';
@@ -30,7 +37,7 @@
       const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const uc = TG.ST.unitCost(g, b);
       const per = Math.max(1, Math.round(lc.served || cap / 3));
       o += UI.irow('sup' + b.id, s.icon, s.label, `${N(st.qty)}/${N(cap)}`, `${s.desc || 'Used up by every sale.'} ${m(uc)} each. ${U.pct(s.spoil, 0)} of leftovers spoil each month. Run out = customers turned away.`,
-        qty('qSup', per) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')),
+        qty('qSup', per) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st),
         `last month: +${N(st.inM)} in · −${N(st.usedM)} used${st.spoilM ? ' · −' + N(st.spoilM) + ' spoiled' : ''}${st.lastBy ? ' · ordered by ' + esc(st.lastBy) : ''}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(cap, 1))}</div>`;
     }
@@ -47,7 +54,7 @@
   }
   UI.A.stBuy = () => { const g = TG.G, b = biz(); const n = TG.ST.buy(g, b, UI.num('qSup', 0), 0); after(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)}.`); };
   UI.A.stSell = () => { const g = TG.G, b = biz(); const v = TG.ST.sell(g, b, UI.num('qSup', 0)); after(v > 0 ? { ok: true } : { ok: false, msg: 'Nothing to sell.' }, `Sold back for ${m(v)} (half price).`); };
-  UI.A.stAuto = () => { const b = biz(); const st = TG.ST.ensure(b); st.auto = !st.auto; UI.toast(st.auto ? 'Staff/manager will reorder each month.' : 'Only you order now. Watch the count!'); UI.refresh(); };
+  UI.A.stAuto = () => { const b = biz(); const st = TG.ST.ensure(b); st.auto = !st.auto; UI.toast(st.auto ? 'Your manager will reorder each month.' : 'Only you order now. Watch the count!'); UI.refresh(); };
 
   // ---- farm: a short summary per area (details live on the 🌄 Land tab) ----
   function farmRows(g, b) {
@@ -57,11 +64,11 @@
       const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
       o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(a.herd, cap, true)}</div>`;
-      o += `<div class="small" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `${HC.stages[k].icon} ${N(a.st[k])}`).join(' · ')}</div>`;
+      o += `<div class="small herdchips" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `<span title="${esc(HC.stages[k].what || '')}">${HC.stages[k].icon} ${N(Math.floor(a.st[k] || 0))} ${esc(HC.stages[k].label.toLowerCase())}</span>`).join('')}</div>`;
       const fm = TG.M.feedMonths(g, b);
       o += UI.irow('fd' + b.id, '🌽', 'Feed in storage', `${N(f.feed || 0)} t`, `Cows eat grass first, then feed from storage (winter and dry months need lots). Next month they need about ${N(fc.buy)} t of feed. Feed costs ${m(TG.M.feedPrice(g))}/t. No feed = hungry cows: less milk, more sickness and deaths.${mgr ? ' Your manager keeps it topped up (Manager tab).' : ' No manager: you must buy it yourself.'}`,
-        qty('qFeed', Math.max(1, fc.buy * 2 - (f.feed || 0))) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
-      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(a.st.ready), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', a.st.ready || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
+        qty('qFeed', Math.max(Math.round(fc.buy * 2 - (f.feed || 0)), Math.round(TG.M.feedNeed(a) || 1), 1)) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
+      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(Math.floor(a.st.ready || 0)), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', Math.floor(a.st.ready || 0) || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
       const pc = TG.M.farmParlorCap(b); o += UI.irow('mlk' + b.id, '🥛', 'Cows milked', `${N(Math.min(a.st.milker, pc))}/${N(a.st.milker)}`, `A milking parlor milks ${N(160)} cows. The dairy truck collects milk every day and sells it at your milk price. Unmilked cows make nothing.`, UI.btn('+ Parlor', 'tab', 'biz:equip', 'xs'), `about ${N(Math.min(a.st.milker, pc) * TG.M.areaE(b, 'cows').milkPerCow)} t milk / month`);
     }
     const cap = TG.M.farmStoreCap(b), used = TG.M.farmStoreUsed(b);
@@ -77,10 +84,10 @@
     return { title: '🚜 Farm', rows: o };
   }
   UI.A.cowBuy = (k) => after(TG.M.farmBuyCattle(TG.G, biz(), UI.num('qc_' + (k || 'milker'), 0), k || 'milker'), 'Bought.');
-  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${r.head} for ${m(r.rev)}.` : null); };
-  UI.A.feedBuy = () => { const r = TG.M.farmBuyFeed(TG.G, biz(), UI.num('qFeed', 0), 'You'); after(r, r.ok ? `Bought ${N(r.tons)} t of feed for ${m(r.cost)}.` : null); };
+  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${N(r.head)} for ${m(r.rev)}.` : null); };
+  UI.A.feedBuy = () => { const want = Math.round(UI.num('qFeed', 0)); const r = TG.M.farmBuyFeed(TG.G, biz(), want, 'You'); after(r, r.ok ? `Bought ${N(r.tons)}${r.tons < want - 0.5 ? ` of ${N(want)}` : ''} t of feed for ${m(r.cost)}${r.tons < want - 0.5 ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
   UI.A.cropSell = (good) => { const g = TG.G, b = biz(); good = good || 'grain'; const t = Math.min(UI.num('q' + good, 0), b.farm.stored[good] || 0); if (!(t > 0)) return UI.toast('Nothing stored.', true); const v = TG.M.models.farm.sellStored(g, b, good, t); UI.toast(v > 0 ? `Sold for ${m(v)}.` : 'Buyers said no at your price.', !(v > 0)); UI.refresh(); };
-  UI.A.seedBuy = () => after(TG.M.farmBuySeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed bought.');
+  UI.A.seedBuy = () => { const g = TG.G, want = Math.round(UI.num('qSeed', 0)); const c0 = g.cash; const r = TG.M.farmBuySeeds(g, biz(), want); after(r, r.ok ? `Bought seed for ${N(r.acres)}${r.acres < want ? ` of ${N(want)}` : ''} acres for ${m(c0 - g.cash)}${r.acres < want ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
   UI.A.seedSell = () => after(TG.M.farmSellSeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed sold (half price).');
 
   // ---- brand ----
@@ -102,7 +109,7 @@
   function factoryRows(g, b) {
     const f = b.factory, fd = TG.CONFIG.businesses.factory.factory, M = TG.M.models.factory; const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const lc = UI.lc(b);
     let o = UI.irow('fraw' + b.id, '🪨', 'Raw materials', `${N(st.qty)}/${N(cap)}`, `Every unit made uses one. ${m(TG.ST.unitCost(g, b))} each. Space depends on your building and silos.`,
-      qty('qSup', Math.max(1, lc.served || 1000)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')));
+      qty('qSup', Math.max(1, lc.served || 1000)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st));
     o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`;
     o += UI.irow('fln' + b.id, '🏭', 'Production lines', `${M.lines(b).length}/${M.maxLines(b)}`, 'More lines need more space and more workers.', UI.btn('+ Line', 'tab', 'biz:equip', 'xs'), `made ${N(lc.served)} of ${N(lc.cap)} last month`);
     o += UI.irow('ffin' + b.id, '📦', 'Finished goods', N(f.stock), `Waiting to be sold. Storage costs ${m(fd.storagePerUnit * g.world.priceIdx)} each a month.`, ['hold', 'sell'].map((p) => UI.btn(p === 'hold' ? '⏸️ Hold if cheap' : '💵 Sell all', 'facPol', p, 'xs' + ((f.policy === 'hold') === (p === 'hold') ? ' pri' : ''))).join(''));
@@ -113,7 +120,7 @@
   // ---- tech ----
   function techRows(g, b) {
     const t = b.tech, T = TG.CONFIG.businesses.tech.tech; const sc = TG.E.capacity(b, 'server'); const eng = b.staff.filter((e) => e.role === TG.M.keyRole(TG.B.def(b))).length;
-    let o = t.phase === 'build' ? UI.irow('tdev' + b.id, '🧱', 'App being built', `${Math.min(100, Math.round(t.dev / T.devPoints * 100))}%`, 'Engineers build the app. No users until it launches.') + `<div style="margin:0 0 6px 48px">${UI.bar(t.dev, T.devPoints)}</div>` : '';
+    let o = t.phase === 'build' ? UI.irow('tdev' + b.id, '🧱', 'App being built', `${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% now`, 'Engineers build the app each month. No users until it reaches 100% and launches.') + `<div style="margin:0 0 6px 48px">${UI.bar(t.dev, T.devPoints)}</div>` : '';
     o += UI.irow('tus' + b.id, '📱', 'Users', `${N(t.users)}/${N(sc)}`, 'Each user pays every month. More users than servers can handle = outages and people leave.', UI.btn('+ Server', 'tab', 'biz:equip', 'xs'), `best ever ${N(t.peak)}`);
     o += UI.irow('tfit' + b.id, '🎯', 'Do people love it?', t.pmfEst != null ? '~' + U.pct(t.pmfEst) : '?', 'Product fit. Most apps never find it. Research gives a rough guess.', t.researched ? '' : UI.btn(`🔍 ${m(T.researchCost * g.world.priceIdx)}`, 'fix', 'research|1', 'xs'));
     o += UI.irow('teng' + b.id, '🧑‍💻', 'Engineers', N(eng), 'Build faster and keep users happy.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
@@ -145,7 +152,7 @@
     let o = UI.irow('ftr' + b.id, '🚛', 'Trucks working', `${tr.filter((x) => !x.broken).length}/${tr.length}`, 'Each truck can do a set number of loads a month if it has a driver.', UI.btn('+ Truck', 'tab', 'biz:equip', 'xs'), `average wear ${Math.round(TG.E.avgWear(b, (x) => x.type === 'truck'))}%`);
     { const st = TG.ST.ensure(b); const cap = TG.ST.cap(b);
       o += UI.irow('fdz' + b.id, '⛽', 'Diesel', `${N(st.qty)}/${N(cap)}`, `${TG.ST.def(b).desc} ${m(TG.ST.unitCost(g, b))} a tank now. Room grows with trucks and yard tanks.`,
-        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')), 'tanks (1 tank ≈ 1 load)');
+        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st), 'tanks (1 tank ≈ 1 load)');
       o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`; }
     o += UI.irow('fdr' + b.id, '🧑‍✈️', 'Drivers', `${dr}/${tr.length}`, 'About one driver per truck.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
     o += UI.irow('fld' + b.id, '📦', 'Loads', `${N(lc.served)}/${N(lc.cap)}`, 'Loads hauled / loads you could haul last month.');

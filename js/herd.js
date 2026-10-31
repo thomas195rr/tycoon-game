@@ -11,10 +11,13 @@
   const blank = () => ({ calf: 0, heifer: 0, steer: 0, ready: 0, milker: 0, dry: 0, bull: 0 });
   const E = () => FD().enterprises.cows;
   M.herdSync = (a) => { if (!a.st) a.st = blank(); for (const k of ST) a.st[k] = Math.max(0, a.st[k] || 0); a.herd = U.sum(ST, (k) => a.st[k]); return a.herd; };
+  // v8: whole animals. Monthly growth is worked out in fractions; each stage shows whole head and the leftover
+  // part-animal carries over to next month (a.rem), so nothing is lost or invented over time and no luck is used.
+  M.herdRound = (a, fixed) => { if (!a.st) return; a.rem = a.rem || {}; for (const k of ST) { const x = Math.max(0, (a.st[k] || 0) + (fixed ? 0 : a.rem[k] || 0)); const i = fixed ? Math.round(x) : Math.floor(x + 1e-9); a.rem[k] = fixed ? 0 : Math.max(0, x - i); a.st[k] = i; } M.herdSync(a); };
   M.herdInit = (a, total) => { // a balanced starter herd
     total = Math.max(0, Math.round(total)); const bull = total > 0 ? Math.max(1, Math.round(total / 40)) : 0; const t = Math.max(0, total - bull);
     a.st = { calf: t * 0.16, heifer: t * 0.12, steer: t * 0.1, ready: t * 0.04, milker: t * 0.48, dry: t * 0.1, bull };
-    if (a.health == null) a.health = 0.9; M.herdSync(a);
+    if (a.health == null) a.health = 0.9; M.herdSync(a); M.herdRound(a, true);
   };
   M.pastureCap = (b, a) => Math.round((a || b.farm.areas.cows).acres * E().headPerAcre);
   M.farmHeadCap = (b) => M.pastureCap(b) + Math.round(TG.E.sumField(b, 'head'));
@@ -77,7 +80,9 @@
 
   M.models.farm.feedCost = (g, b) => M.herdForecast(g, b).feed;
   M.models.farm.herdMonth = function (g, b, ctx, cov, q) {
-    const f = b.farm, a = f.areas.cows, c = HC(), m = a.m; M.herdSync(a);
+    const f = b.farm, a = f.areas.cows, c = HC(), m = a.m;
+    if (a.rem && a.st) for (const k of ST) { a.st[k] = (a.st[k] || 0) + (a.rem[k] || 0); a.rem[k] = 0; } // v8: part-animals rejoin the math, whole head shown after
+    M.herdSync(a);
     if (a.health == null) a.health = 0.9;
     if (!a.herd) { m.feedEaten = 0; return; }
     const cap = M.farmHeadCap(b), room = a.herd / Math.max(1, cap);
@@ -109,7 +114,7 @@
     if (milk > 0) { const o = this.offer(g, b, 'cows', milk, 'Milk sales'); m.lost = (m.lost || 0) + o.unsold; TG.M.logVolX(g, f, o.sold); }
     // 6) manager orders: sell market-ready, cull dry cows, keep within room, keep feed topped up
     TG.D.farmCowOrders(g, b);
-    M.herdSync(a);
+    M.herdRound(a);
   };
   M.models.farm.inventoryHerd = (g, b) => { const a = b.farm.areas.cows; if (!a.st) return 0; return U.sum(ST, (k) => a.st[k] * M.cowValue(g, k)) * HC().inventoryValue + (b.farm.feed || 0) * M.feedPrice(g) * 0.8; };
 

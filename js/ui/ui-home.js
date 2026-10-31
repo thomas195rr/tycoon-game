@@ -8,11 +8,14 @@
     if (!g.businesses.length && !g.re.holdings.length) {
       out += `<div class="card hi"><h3>👋 Let's start!</h3>
         <div class="irow"><span class="ic">1️⃣</span><span class="lb">Pick a business and a place in 🗺️ Shop</span></div>
-        <div class="irow"><span class="ic">2️⃣</span><span class="lb">Press ▶ Next Month</span></div>
-        <div class="irow"><span class="ic">3️⃣</span><span class="lb">See what happened, fix the red things, grow</span></div>
+        <div class="irow"><span class="ic">2️⃣</span><span class="lb">📦 Buy supplies on its Now tab. Nobody reorders for you until you hire a manager!</span></div>
+        <div class="irow"><span class="ic">3️⃣</span><span class="lb">Press ▶ Next Month</span></div>
+        <div class="irow"><span class="ic">4️⃣</span><span class="lb">See what happened, fix the red things, grow. Stuck? Tap ❓ Help at the top.</span></div>
         <div class="btns">${UI.btn('🗺️ Go shopping', 'go', 'market', 'pri')}${UI.btn('🏘️ Houses to rent out', 'goMoneyTab', 're')}</div>
         ${g.player.noLoanUntil > g.month ? `<div class="mute">🏦 Banks won't lend for ${g.player.noLoanUntil - g.month} more months.</div>` : ''}</div>`;
     }
+    { const lb = g.player.lastBankrupt; if (lb && g.month - lb.m <= 3) out += `<div class="ev bad"><b>💥 You went bankrupt (${esc(U.dateStr(lb.m))})</b><div class="small">${esc(lb.why)}. Your businesses and buildings were taken; you kept ${m(TG.CONFIG.finance.bankruptcy.keepCash)}. Banks won't lend for ${Math.max(0, g.player.noLoanUntil - g.month)} more months. Start small: lease a cheap spot in 🗺️ Shop.</div></div>`; }
+    if (g.cash < 0) { const left = TG.CONFIG.finance.bankruptcyMonths - (g.negMonths || 0); out += `<div class="ev bad"><b>⚠️ Cash is below zero (${m(g.cash)})</b><div class="small">You pay late fees every month, and after ${Math.max(0, left)} more month${left === 1 ? '' : 's'} like this creditors sell your things. Fix it: sell something, cut staff, or borrow (Money tab).</div></div>`; }
     out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
       ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
       ${(() => { const lr = g.lastReport && g.lastReport.money; const v = lr ? lr.net : last ? last.profit : null; return UI.tile('h_pf', '💰', v != null ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Left with last month', v == null ? '' : v >= 0 ? 'g' : 'r', 'Cash change last month: everything in minus everything out (sales, rent, wages, machines, loan payments, tax...). Tap 📄 Last month for the full report.'); })()}
@@ -47,7 +50,7 @@
     const tone = !h ? '' : res < 0 || bad || shut ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
     return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(Math.round(res)) : '<span class="mute">new</span>'}</span></div>${shut ? `<div class="closed small">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}</div>` : ''}
-      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you' : b.spec.gm ? ' · 👔 boss' : ' · ⚠️ no boss'}${lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}%` : ''}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
+      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you run it' : b.spec.gm ? ' · 👔 GM runs it' : g.ceo ? ' · 👔 CEO oversees' : b.spec.ops ? ' · 🧑‍💼 ops mgr (no GM)' : b.spec.lead ? ' · 🧑‍🍳 shift lead (supplies only)' : ' · ⚠️ no manager: you do it all'}${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}% busy` : ''; const t = W.slice().sort((x, y) => y.util - x.util)[0]; return ` · ${t.util > 1 ? '🔴' : '📊'} busiest: ${esc(t.t.toLowerCase())} ${t.util >= 9 ? 'none working' : Math.round(t.util * 100) + '%'}`; })()}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };
   UI.A.goMoreTab = (t) => { UI.tab.more = t; UI.go('more'); };
@@ -125,16 +128,19 @@
       <div class="kv"><span>Your name</span><span><input type="text" id="ngName" value="${esc((TG.G && TG.G.player.name) || 'You')}" maxlength="24"></span>
       <span>Starting money</span><span><select id="ngMoney"><option value="random">Random ($90k-$260k)</option><option value="low">Low</option><option value="high">High</option></select></span>
       <span>Event frequency</span><span><select id="ngFreq"><option value="normal">Normal</option><option value="calm">Calm (fewer bad events)</option></select></span>
-      <span>Gambling & high-risk investing</span><span><select id="ngGamble"><option value="1">On</option><option value="0">Off (hidden)</option></select></span>
-      <span>Seed (optional)</span><span><input type="number" id="ngSeed" placeholder="random"></span></div></div>
+      <span>Gambling & high-risk investing</span><span><select id="ngGamble"><option value="0">Off (hidden)</option><option value="1">On</option></select></span>
+      <span>Crime options</span><span><select id="ngCrime"><option value="0">Off (hidden)</option><option value="1">On</option></select></span>
+      <span>Game code (optional)</span><span><input type="number" id="ngSeed" placeholder="random"></span></div>
+      <div class="mute">Crime options add illegal side hustles (risky: fines, jail). You can change this later in Settings.</div>
+      <div class="mute">Game code: leave blank for a new random world. Type the same code twice to get the same world (to replay or compare with a friend).</div></div>
       <h3>Choose a start</h3>${Object.entries(sc).map(([id, s]) => `<div class="card"><div class="row sp"><div class="grow"><b>${esc(s.label)}</b><div class="mute">${esc(s.desc)}</div></div>${UI.btn('Start', 'newGame', id, 'pri')}</div></div>`).join('')}
       ${first ? '' : '<div class="mute">Starting a new game replaces the current autosave (export it first in Settings if you want to keep it).</div>'}`;
     if (first) { document.querySelector('#app').innerHTML = `<header class="top"><span class="date">🏢 Tycoon</span></header><main><h2>New game</h2>${o}</main>`; }
     else UI.modal('New game', o);
   };
   UI.A.newGame = (scenario) => {
-    const seedV = UI.num('ngSeed', NaN);
-    const g = TG.Game.newGame({ scenario, name: UI.val('ngName') || 'You', money: UI.val('ngMoney'), seed: Number.isFinite(seedV) ? seedV : undefined, settings: { eventFreq: UI.val('ngFreq') || 'normal', gambling: UI.val('ngGamble') !== '0' } });
+    const raw = String(UI.val('ngSeed') || '').trim(); const seedV = /^\d+$/.test(raw) ? Number(raw) : NaN; // v8: blank = truly random
+    const g = TG.Game.newGame({ scenario, name: UI.val('ngName') || 'You', money: UI.val('ngMoney'), seed: Number.isFinite(seedV) ? seedV : undefined, settings: { eventFreq: UI.val('ngFreq') || 'normal', gambling: UI.val('ngGamble') !== '0', crime: UI.val('ngCrime') === '1' } });
     TG.G = g; UI.closeModal(); UI.save(); UI.go(scenario === 'farm' ? 'biz' : 'home');
     UI.toast('New game started. Good luck!');
   };

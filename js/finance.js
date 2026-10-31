@@ -332,7 +332,7 @@
     { const d = C.keepCash - g.cash; if (d > 0) F.earn(g, d, 'Debts wiped in bankruptcy', null, true); else if (d < 0) F.spend(g, -d, 'Cash taken in bankruptcy', null, true); }
     g.cash = C.keepCash; g.negMonths = 0;
     g.loc.limit = 0; g.player.bankruptcies++; TG.CREDIT.derog(g, 'bankruptcy'); g.player.noLoanUntil = g.month + C.noLoanMonths;
-    g.player.ownerBiz = null;
+    g.player.ownerBiz = null; g.player.lastBankrupt = { m: g.month, why };
     TG.rep.event(g, null, 'major', 'Full bankruptcy: you lost almost everything', `${why}. You keep ${U.money(C.keepCash)} and damaged credit. Rebuild from here: lease a cheap lot and start small.`, { major: 'cash' });
     TG.rep.news(g, 'You declared bankruptcy', 'bad');
   };

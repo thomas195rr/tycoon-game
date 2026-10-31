@@ -16,7 +16,8 @@
     const grade = R.weighted({ A: 1, B: 2, C: 1.5 });
     const distressed = opts.distressed != null ? opts.distressed : (kindId === 'house' || kindId === 'condo' || kindId === 'duplex') && R.chance(0.3);
     const units = Array.isArray(k.units) ? R.int(k.units[0], k.units[1]) : k.units;
-    let price = R.range(k.price[0], k.price[1]) * C.regions[region].price * (grade === 'A' ? 1.25 : grade === 'C' ? 0.78 : 1) * g.world.housing;
+    const pr = R.range(0, 1); const uf = Array.isArray(k.units) && k.units[1] > k.units[0] ? (units - k.units[0]) / (k.units[1] - k.units[0]) : pr; /* v8: more units = pricier building, so rent per unit stays sensible */
+    let price = (k.price[0] + (k.price[1] - k.price[0]) * (Array.isArray(k.units) ? 0.75 * uf + 0.25 * pr : pr)) * C.regions[region].price * (grade === 'A' ? 1.25 : grade === 'C' ? 0.78 : 1) * g.world.housing;
     const cond = distressed ? R.range(15, 40) : R.range(45, 95);
     const nb = R.range(0.9, 1.1);
     const trend = R.range(-1, 1);
@@ -132,7 +133,7 @@
     const ev = R.chance(Math.pow(1 - q, 2) * 1.1) ? 1 + (R.chance((1 - q) * 0.5) ? 1 : 0) : 0;
     const inc = U.clamp(1.6 + 3.2 * q + R.normal(0, 0.5), 0.8, 8);
     const cs = Math.round(U.clamp(470 + 360 * q + R.normal(0, 45), 350, 840));
-    return { name: k.commercial ? R.pick(BIZN) : `${R.pick(FIRST)} ${R.pick(LAST)}`, evictions: ev, income: Math.round(inc * 10) / 10, credit: cs, rel: U.clamp(q + R.normal(0, 0.12), 0.02, 0.98) };
+    return { name: ['strip', 'officebldg', 'warehouse'].indexOf(h.kind) >= 0 ? R.pick(BIZN) : `${R.pick(FIRST)} ${R.pick(LAST)}${R.chance(0.3) ? ' & family' : ''}`, evictions: ev, income: Math.round(inc * 10) / 10, credit: cs, rel: U.clamp(q + R.normal(0, 0.12), 0.02, 0.98) };
   };
   RE.applicantMarks = (a) => [ // good / okay / bad markers the player reads
     { label: 'Past evictions', val: String(a.evictions), mark: a.evictions === 0 ? 'good' : 'bad' },
@@ -219,7 +220,7 @@
     const ok = TG.CREDIT.apply(g, 'mortgage', newAmt, { collateral: { kind: 'property', id: h.id }, label: 'Refi mortgage: ' + h.name, noCash: true, ltv: C.refinanceLtv }); if (!ok.ok) return ok;
     if (old) g.loans = g.loans.filter((x) => x !== old);
     const loan = ok.loan;
-    h.mortgageId = loan.id; TG.F.earn(g, cashOut, 'Refinance cash-out', null, true); TG.F.spend(g, 0, 'Refinance fees', null, true);
+    h.mortgageId = loan.id; const fee = Math.round(newAmt * C.refinanceFee); TG.F.earn(g, cashOut + fee, 'Refinance cash-out', null, true); TG.F.spend(g, fee, 'Refinance fees', null, true); /* v8: the fee shows in the money report */
     return { ok: true, cashOut };
   };
   RE.develop = (g, hid, units) => {

@@ -1,0 +1,14 @@
+#!/bin/bash
+# usage: pt cmd id k=v ...
+cmd=$1; id=$2; shift 2; qs="id=$id"; for a in "$@"; do qs="$qs&$(python3 -c 'import sys,urllib.parse;k,v=sys.argv[1].split("=",1);print(k+"="+urllib.parse.quote(v))' "$a")"; done
+curl -s --max-time 120 "http://127.0.0.1:18791/$cmd?$qs" | python3 -c '
+import sys,json; sys.stdout.reconfigure(errors="replace")
+d=sys.stdin.read()
+try: j=json.loads(d)
+except Exception: print(d); sys.exit()
+if isinstance(j,dict) and "shot" in j:
+  print("SHOT",j["shot"],j["info"])
+  for k in ("weird","overflow","errs","cons"):
+    if j[k]: print(k.upper(),j[k])
+  print("\n".join(j["els"]))
+else: print(j)'

@@ -21,9 +21,10 @@ const CLICKS = Number(arg('clicks', 600)), W = Number(arg('width', 375)), SHOTS 
   await shot('00-newgame');
   await page.evaluate(() => { document.getElementById('ngSeed').value = '7'; });
   await page.click('[data-act="newGame"][data-arg="classic"]');
+  await page.evaluate(() => { TG.G.settings.gambling = true; TG.G.settings.crime = true; TG.UI.render(); }); // v8: new-game screen defaults these Off
   const check = async (label) => {
     const r = await page.evaluate((w) => ({ over: document.documentElement.scrollWidth > w + 1 ? document.documentElement.scrollWidth : 0, scr: document.body.innerText.includes('Screen error') ? document.body.innerText.match(/Screen error[^\n]*/)[0] : '', nan: /\bNaN\b|undefined|\[object Object\]|Infinity/.test(document.body.innerText) ? (document.body.innerText.match(/.{0,40}(\bNaN\b|undefined|\[object Object\]|Infinity).{0,40}/) || [''])[0] : '' }), W);
-    if (r.over) errors.push(`${label}: horizontal overflow ${r.over}px`);
+    if (r.over) { const who = await page.evaluate((w) => { const o = []; for (const e of document.querySelectorAll('body *')) { const b = e.getBoundingClientRect(); const p = e.parentElement && e.parentElement.getBoundingClientRect(); if (b.width > 0 && b.right > w + 1 && (!p || p.right <= w + 1)) o.push(e.tagName + '.' + e.className + ' "' + (e.innerText || '').slice(0, 30).replace(/\n/g, '/') + '"'); } return o.slice(0, 3).join(' | '); }, W); errors.push(`${label}: horizontal overflow ${r.over}px ${who}`); }
     if (r.scr) errors.push(`${label}: ${r.scr}`);
     if (r.nan) errors.push(`${label}: bad text "${r.nan}"`);
   };
@@ -49,7 +50,7 @@ const CLICKS = Number(arg('clicks', 600)), W = Number(arg('width', 375)), SHOTS 
   await page.click('[data-act="skip"]'); await new Promise((r) => setTimeout(r, 1500)); await check('skip'); await shot('08-skip');
   await page.evaluate(() => TG.UI.closeModal());
   // random clicking
-  const SKIP = ['clearSave', 'clearGo', 'importSave', 'importGo', 'bk', 'bkGo', 'newGameOpen', 'newGame', 'copyCode'];
+  const SKIP = ['reloadTab', 'clearSave', 'clearGo', 'importSave', 'importGo', 'bk', 'bkGo', 'newGameOpen', 'newGame', 'copyCode'];
   let clicks = 0, seed = 12345; const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
   const counts = {}; const jumps = [];
   while (clicks < CLICKS) {

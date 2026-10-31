@@ -67,14 +67,15 @@
   // ---------- categories (Thomas's layout: money in first, then expense groups with subtotals) ----------
   LG.IN = [
     ['sales', '🛒', 'Sales'], ['rent', '🔑', 'Rent from tenants'], ['inv', '📈', 'Investments'],
-    ['borrow', '🏦', 'Borrowed money (loans, credit line, investors)'], ['sold', '🏷️', 'Things you sold (machines, buildings, businesses)'], ['other', '✨', 'Other money in'],
+    ['borrow', '🏦', 'Borrowed money (loans, credit line, investors)'], ['sold', '🏷️', 'Things you sold (machines, buildings, businesses)'], ['back', '🔐', 'Deposits returned'], ['wiped', '🧽', 'Unpaid bills wiped by bankruptcy (not income)'], ['other', '✨', 'Other money in'],
   ];
   LG.OUT = [
     ['loans', '🏦', 'Loans'], ['property', '🏠', 'Property'], ['wages', '👥', 'Wages'], ['product', '📦', 'Cost of product'],
-    ['equip', '🛠️', 'Equipment'], ['buy', '🏗️', 'Buying property & businesses'], ['tax', '🧾', 'Taxes'], ['inv', '📈', 'Investing & bets'], ['other', '📎', 'Other'],
+    ['equip', '🛠️', 'Equipment'], ['buy', '🏗️', 'Buying property & businesses'], ['deposit', '🔐', 'Deposits (paid back when a lease ends)'], ['late', '⏰', 'Late fees (cash below zero)'], ['tax', '🧾', 'Taxes'], ['inv', '📈', 'Investing & bets'], ['other', '📎', 'Other'],
   ];
   const T = (re) => (l) => re.test(l);
   const IN_RULES = [
+    ['back', T(/Lease deposits returned/)], ['wiped', T(/Debts wiped/)],
     ['rent', T(/^Rent$/)],
     ['borrow', T(/Loan proceeds|Credit line draw|Refinance cash-out|Investor funding|IPO proceeds|Fund raise/)],
     ['inv', T(/Trading gains|Gambling winnings|Investments sold|Angel exits|Angel stakes sold/)],
@@ -82,6 +83,7 @@
     ['sales', T(/Revenue|sales|Subscriptions|Royalties|Franchise fees|Freight/i)],
   ];
   const OUT_RULES = [
+    ['deposit', T(/^Lease deposits$/)], ['late', T(/^Late fees$/)],
     ['loans', T(/Loan|Credit line|Margin|Refinance fees|Late fees/)],
     ['tax', T(/Income tax|Tax audit/)],
     ['property', T(/Real estate (property tax|upkeep|insurance|repairs)|Tenant|Disaster damage|Evictions|Property manager|Handyman|Unit turnover|^Rent|Property tax|Building upkeep|Code violation/)],

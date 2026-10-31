@@ -54,12 +54,25 @@ for (const ent of ['crops', 'cattle', 'dairy', 'orchard']) {
   const sh = s.re.holdings[0]; sh.tenants = sh.tenants.map((t, i) => (i === 0 ? t : null)); delete sh.searches; delete sh.issues; sh.search = { m: s.month, rent: 1500, list: [{ name: 'A', income: 3, credit: 700, evictions: 0, rel: 0.9 }], i: 0 };
   for (const x of s.loans) { delete x.intPaid; delete x.prinPaid; } for (const x of s.businesses) delete x.shut;
   let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v6 save failed to load: ' + e.message); }
-  if (g2) { TG.G = g2; ok(g2.v === 7, 'version bumped to 7');
+  if (g2) { TG.G = g2; ok(g2.v === TG.VERSION && g2.v >= 7, 'version bumped to current');
     const h = g2.re.holdings[0]; ok(!h.search && h.searches && Object.keys(h.searches).length === 1 && Array.isArray(h.issues), 'old building-wide search moved to one empty unit');
     const u = Number(Object.keys(h.searches)[0]); ok(!h.tenants[u], 'search sits on a vacant unit');
     ok(typeof g2.cashMark === 'number' && g2.acc.led, 'ledger + cash mark added'); ok(g2.loans.every((x) => typeof x.intPaid === 'number' && typeof x.prinPaid === 'number'), 'loan interest/principal counters added');
     ok(g2.businesses.every((x) => typeof x.shut === 'number'), 'closed counter added');
     ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), 'v6->v7 save round-trips');
     try { for (let i = 0; i < 12; i++) { bots.careful(g2, g2.businesses[0]); const r = TG.Game.nextMonth(g2); ok(Math.abs(r.money.diff) < 1, `month ${i} after migration does not reconcile (${r.money.diff})`); } } catch (e) { ok(false, 'crash after v7 migration ' + e.stack.split('\n').slice(0, 3).join(' | ')); }
+  } }
+// ---- v8: v7 saves -> whole cattle, stop-on-trouble on, supplies warning on ----
+{ const TG = load(); const bots = require('./bots')(TG); const g = TG.Game.newGame({ seed: 91 }); g.cash = 3e6; TG.G = g;
+  const b = bots.startBiz(g, 'farm', { ent: 'cows' }); for (let i = 0; i < 3; i++) TG.Game.nextMonth(g);
+  const s = JSON.parse(TG.Game.serialize(g)); s.v = 7; s.settings.stopOnMajor = false; delete s.settings.warnSupplies; s.settings.majorTypes = { breakdown: true };
+  const a0 = s.businesses[0].farm.areas.cows; a0.st.calf += 0.37; a0.st.milker += 0.61; delete a0.rem;
+  let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v7 save failed to load: ' + e.message); }
+  if (g2) { TG.G = g2; ok(g2.v === 8, 'version bumped to 8'); const a = g2.businesses[0].farm.areas.cows;
+    ok(Object.values(a.st).every((x) => Number.isInteger(x)), 'cattle are whole numbers after migration: ' + JSON.stringify(a.st));
+    ok(g2.settings.stopOnMajor === true && g2.settings.majorTypes.closed && g2.settings.majorTypes.cash && g2.settings.majorTypes.crime && g2.settings.majorTypes.breakdown, 'skip stops on trouble by default, old choices kept');
+    ok(g2.settings.warnSupplies === true, 'supplies warning on');
+    try { for (let i = 0; i < 12; i++) { bots.careful(g2, g2.businesses[0]); const r = TG.Game.nextMonth(g2); ok(Math.abs(r.money.diff) < 1, `v8 month ${i} does not reconcile`); ok(Object.values(a.st).every((x) => Number.isInteger(x)), 'cattle stay whole'); } } catch (e) { ok(false, 'crash after v8 migration ' + e.stack.split('\n').slice(0, 3).join(' | ')); }
+    ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), 'v7->v8 save round-trips');
   } }
 console.log(fails ? `${fails} MIGRATION CHECK(S) FAILED` : 'ALL MIGRATION CHECKS PASSED'); process.exit(fails ? 1 : 0);

@@ -77,17 +77,19 @@
     const rate = CR.rate(g, type, sc); const pay = type === 'loc' ? Math.round(amount * TG.CONFIG.finance.loc.minPayPct) : Math.round(TG.F.payment(amount, rate, term));
     const fee = type === 'loc' ? Math.round(c.fee.loc * g.world.priceIdx) : Math.round(amount * (c.fee[type] || 0.015));
     const nw = TG.F.netWorth(g, true); const debt = TG.F.debt(g) + amount; const dv = nw.assets + (opts.asset || 0) > 0 ? debt / (nw.assets + (opts.asset || 0)) : 2;
-    const inc = CR.income(g); const dti = (TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay)) / Math.max(1500, inc + (opts.extraIncome || 0));
+    const inc = CR.income(g); const incEff = Math.max(c.minIncome || 1500, inc + (opts.extraIncome || 0)); const dti = (TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay)) / incEff;
+    const prof = Math.max(0, TG.F.avgProfit(g)), sav = Math.max(0, g.cash - TG.F.debt(g)) / 240;
     const inq = CR.ensure(g).inq.filter((m) => g.month - m < c.inqMonths).length;
     const recentLate = U.sum(CR.ensure(g).lates.filter((x) => g.month - x.m < 12), (x) => x.sev);
     const F = []; let z = c.base[type] || 0;
     const add = (label, val, mark, dz, why) => { F.push({ label, val, mark, why }); z += dz; };
     add('Credit score', String(sc), sc >= 720 ? 'good' : sc >= 640 ? 'ok' : 'bad', (sc - 680) / 45, `${CR.label(sc)}. Higher = better odds and a lower rate.`);
-    add('Payments vs income', U.pct(Math.min(dti, 9)), dti < 0.35 ? 'good' : dti < 0.55 ? 'ok' : 'bad', dti < 0.35 ? 0.4 : dti < 0.55 ? -0.3 : -1.6 - Math.min(2, dti - 0.55) * 1.5, `All loan payments would take ${U.pct(Math.min(dti, 9))} of the money you make (${U.money(inc + (opts.extraIncome || 0))}/mo, counting profit and some of your spare savings). Under 35% is comfortable.`);
+    add('Payments vs income', U.pct(Math.min(dti, 9)), dti < 0.35 ? 'good' : dti < 0.55 ? 'ok' : 'bad', dti < 0.35 ? 0.4 : dti < 0.55 ? -0.3 : -1.6 - Math.min(2, dti - 0.55) * 1.5, `All loan payments (${U.money(TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay))}/mo) would take ${U.pct(Math.min(dti, 9))} of what lenders count as your monthly income: ${U.money(incEff)}/mo = profit ${U.money(prof)}${opts.extraIncome ? ` + rent ${U.money(opts.extraIncome)}` : ''} + savings ${U.money(sav)} (spare cash spread over 20 years)${inc + (opts.extraIncome || 0) < incEff ? `; lenders assume at least ${U.money(incEff)}` : ''}. Under 35% is comfortable.`);
     add('Debt vs what you own', U.pct(Math.min(dv, 9)), dv < 0.45 ? 'good' : dv < 0.7 ? 'ok' : 'bad', dv < 0.45 ? 0.4 : dv < 0.7 ? -0.3 : -1.4 - Math.min(2, dv - 0.7) * 2, `After this loan you would owe ${U.money(debt)} against ${U.money(nw.assets + (opts.asset || 0))} of things you own.`);
     if (opts.ltv != null) add('Down payment', U.pct(1 - opts.ltv), opts.ltv <= 0.75 ? 'good' : opts.ltv <= 0.85 ? 'ok' : 'bad', opts.ltv <= 0.75 ? 0.5 : opts.ltv <= 0.85 ? 0 : -0.8, 'The property backs the loan. A bigger down payment makes lenders safer.');
     if (type === 'equipment') { const cap = CR.equipCap(g); add('Machines as security', U.money(cap), amount <= cap ? 'good' : 'bad', amount <= cap ? 0.4 : -2.5, `Lenders lend up to 70% of what your machines are worth, minus other equipment loans (${U.money(cap)}).`); }
     if (type === 'business') { const x = CR.indScore(g); const st = x > 0.04 ? 'good' : x > -0.04 ? 'ok' : 'bad'; add('Your industries', g.businesses.length ? (x > 0.04 ? 'doing well' : x > -0.04 ? 'steady' : 'struggling') : 'no business yet', g.businesses.length ? st : 'bad', g.businesses.length ? x * 6 : -0.8, 'Lenders check how your industries are doing right now (Industry Outlook).'); }
+    if (type === 'emergency') { const broke = nw.nw <= 0 || (g.cash < 0 && nw.assets * 0.5 < nw.liab); add('Can you pay it back?', broke ? 'unlikely' : 'yes', broke ? 'bad' : 'good', broke ? -2.6 : 0.2, broke ? 'You already owe more than you could raise by selling what you own. Lenders rarely give emergency money to someone who is already sinking.' : 'You own enough to cover your debts.'); }
     add('Recent applications', String(inq), inq <= 1 ? 'good' : inq <= 3 ? 'ok' : 'bad', -0.25 * Math.max(0, inq - 1), 'Lots of applications in a short time looks desperate.');
     add('Late payments (last year)', recentLate > 0 ? recentLate.toFixed(1) : 'none', recentLate <= 0 ? 'good' : recentLate < 2 ? 'ok' : 'bad', -0.7 * recentLate, 'Missed or late payments in the last 12 months.');
     let odds = U.clamp(1 / (1 + Math.exp(-z)), 0.02, 0.97);
@@ -96,7 +98,20 @@
     const max = CR.max(g, type); if (amount > max) block = block || `Lenders cap this at about ${U.money(max)} for you.`;
     if (!(amount > 0)) block = block || 'Enter an amount.';
     if (block) odds = 0;
-    return { type, amount, term, rate, pay, fee, odds, factors: F, score: sc, block, max };
+    // v8: what would raise the odds (plain words, from the weak spots)
+    const tips = [];
+    for (const f of F) if (f.mark !== 'good') {
+      if (f.label === 'Credit score') tips.push('Pay every loan on time for a few months and keep the credit line use under 30%: your score climbs.');
+      if (f.label === 'Payments vs income' && type === 'mortgage') tips.push('Pick a cheaper building or a longer length (smaller payment), or show steady monthly profit first.');
+      else if (f.label === 'Payments vs income') tips.push(`Borrow less (try about ${U.money(Math.max(1000, Math.round(amount * Math.min(0.9, 0.35 / Math.max(0.01, dti)) / 1000) * 1000))}), pick a longer length, or show steady monthly profit first.`);
+      if (f.label === 'Debt vs what you own') tips.push('Pay down other debt or own more (cash, buildings, machines) before applying.');
+      if (f.label === 'Down payment') tips.push('A bigger down payment helps.');
+      if (f.label === 'Your industries') tips.push(g.businesses.length ? 'Lenders like businesses in industries that are doing well (see Industry Outlook).' : 'Run a business for a while first: lenders want to see one.');
+      if (f.label === 'Recent applications') tips.push('Wait a few months between applications: each one counts against you.');
+      if (f.label === 'Late payments (last year)') tips.push('Late payments fade after 12 months of paying on time.');
+      if (f.label === 'Can you pay it back?') tips.push('Sell something or cut costs first: an emergency loan will not fix a business that keeps losing money.');
+    }
+    return { type, amount, term, rate, pay, fee, odds, factors: F, score: sc, block, max, tips, incEff };
   };
   CR.equipCap = (g) => Math.max(0, Math.round(U.sum(g.businesses, (b) => TG.E.value(g, b)) * 0.7 - U.sum(g.loans.filter((l) => l.type === 'equipment'), (l) => l.balance)));
   CR.max = (g, type) => {

@@ -261,7 +261,7 @@
       if (t.phase === 'build') {
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
-        ctx.note = `Building the product: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done`;
+        ctx.note = `Building the app: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done after this month`;
         { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
         if (t.dev >= T.devPoints) { t.phase = 'live'; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;

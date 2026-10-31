@@ -10,12 +10,13 @@ const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdi
   const errors = []; page.on('pageerror', (e) => errors.push('pageerror: ' + e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto('file://' + path.join(__dirname, '..', 'index.html')); await page.evaluate(() => { localStorage.clear(); return TG.IDB.put('tycoon_save_v1', null); }); await page.reload(); await page.waitForSelector('[data-act="newGame"]');
   await page.click('[data-act="newGame"][data-arg="rich"]');
+  await page.evaluate(() => { TG.G.settings.gambling = true; TG.G.settings.crime = true; TG.UI.render(); }); // v8: new-game screen defaults these Off
   const types = (await page.evaluate(() => Object.keys(TG.CONFIG.businesses))).filter((t) => !ONLY || ONLY.split(',').includes(t));
-  const SKIP = ['clearSave', 'clearGo', 'importSave', 'importGo', 'bk', 'bkGo', 'newGameOpen', 'newGame', 'copyCode', 'go', 'next', 'skip', 'bizSell', 'bizSellGo', 'bizClose', 'bizCloseGo', 'bizBk', 'bizBkGo', 'techPivotGo', 'goMoreTab', 'goMoneyTab'];
+  const SKIP = ['help', 'reloadTab', 'clearSave', 'clearGo', 'importSave', 'importGo', 'bk', 'bkGo', 'newGameOpen', 'newGame', 'copyCode', 'go', 'next', 'skip', 'bizSell', 'bizSellGo', 'bizClose', 'bizCloseGo', 'bizBk', 'bizBkGo', 'techPivotGo', 'goMoreTab', 'goMoneyTab'];
   let pressed = 0; const acts = new Set();
   const check = async (label) => {
     const r = await page.evaluate((w) => ({ over: document.documentElement.scrollWidth > w + 1 ? document.documentElement.scrollWidth : 0, bad: (document.body.innerText.match(/.{0,40}(Screen error|\bNaN\b|undefined|\[object Object\]|Infinity).{0,40}/) || [''])[0] }), W);
-    if (r.over) errors.push(`${label}: overflow ${r.over}px`); if (r.bad) errors.push(`${label}: "${r.bad}"`);
+    if (r.over) { const who = await page.evaluate((w) => { const o = []; for (const e of document.querySelectorAll('body *')) { const b = e.getBoundingClientRect(); const p = e.parentElement && e.parentElement.getBoundingClientRect(); if (b.width > 0 && b.right > w + 1 && (!p || p.right <= w + 1)) o.push(e.tagName + '.' + e.className + ' "' + (e.innerText || '').slice(0, 30).replace(/\n/g, '/') + '"'); } return o.slice(0, 3).join(' | '); }, W); errors.push(`${label}: overflow ${r.over}px ${who}`); } if (r.bad) errors.push(`${label}: "${r.bad}"`);
   };
   const pressAll = async (label) => {
     const done = new Set();

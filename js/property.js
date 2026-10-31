@@ -88,7 +88,9 @@
     for (const k in d.site) { s += d.site[k] * (f[k] == null ? 0.5 : f[k]); tot += d.site[k]; }
     s = s / tot;
     if (f.space < 0.15) s *= 0.5; // far too small is a deal-breaker
+    else if (f.space < 0.75) s *= 0.55 + 0.6 * f.space; // v8: well under the ideal size is a real minus (fewer customers fit)
     if (f.loc < 0.1) s *= 0.7;
+    { const v = d.space.unit === 'acres' ? p.acres : p.sqft; if (v > d.space.ideal * 2.5) s *= 0.82; } // v8: far bigger than needed = paying for empty space
     const noise = (hash(p.id + type) - 0.5) * 2 * TG.CONFIG.property.suitNoise;
     return U.clamp(s + noise, 0, 1);
   };
@@ -108,7 +110,7 @@
     if (f.space < 0.15) cons.push(`Far too small for a ${d.name.toLowerCase()} (${d.space.unit === 'acres' ? p.acres + ' acres' : p.sqft.toLocaleString() + ' sq ft'})`);
     else if (f.space < 0.6) cons.push('Smaller than ideal: caps how big this can get');
     else if (f.space > 0.95) pros.push('Good size for the business');
-    else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal * 4) cons.push('Much more space than needed: you pay tax on unused space');
+    else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal * 2.5) cons.push('Much bigger than needed: you pay rent or price and tax on space you won\'t use');
     else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal) pros.push('Room to expand later');
     if (f.loc >= 0.85) pros.push(`${C.locations[p.loc].label} location suits a ${d.name.toLowerCase()}`);
     else if (f.loc <= 0.3) cons.push(`${C.locations[p.loc].label} location is a poor fit for a ${d.name.toLowerCase()}`);
@@ -157,7 +159,7 @@
     if (mode === 'lease') {
       const rent = P.leaseRent(g, p), dep = rent * C.property.leaseDeposit;
       if (g.cash < dep + rent) return { ok: false, msg: `Need ${U.money(dep + rent)} for deposit and first month.` };
-      TG.F.spend(g, dep + rent, 'Lease deposits', null, true);
+      TG.F.spend(g, dep, 'Lease deposits', null, true); TG.F.spend(g, rent, 'Rent paid up front', null, true);
       p.leased = true; p.rent = rent; p.deposit = dep;
     } else if (mode === 'mortgage') {
       const down = Math.round(p.price * C.property.mortgageDown);

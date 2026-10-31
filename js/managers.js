@@ -6,7 +6,7 @@
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
     pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    stock: ['ops', 'gm', 'lead'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
   };
 
   D.add = (g, dec) => {

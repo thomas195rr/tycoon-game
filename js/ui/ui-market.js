@@ -8,7 +8,7 @@
     const C = TG.CONFIG.businesses; let o = '';
     for (const t of ['small', 'between', 'corp']) {
       o += `<optgroup label="${tierLbl[t]}">`;
-      for (const [id, d] of Object.entries(C)) if (d.tier === t) o += `<option value="${id}"${id === sel ? ' selected' : ''}>${d.icon} ${esc(d.name)} (setup ~${m(d.setupCost)})</option>`;
+      for (const [id, d] of Object.entries(C)) if (d.tier === t) o += `<option value="${id}"${id === sel ? ' selected' : ''}>${d.icon} ${esc(d.name.split(' / ')[0])} ~${m(d.setupCost)}</option>`;
       o += '</optgroup>';
     }
     return o;
@@ -16,10 +16,10 @@
 
   UI.screens.market = () => {
     const g = TG.G, C = TG.CONFIG; const type = UI.S.mkType, d = C.businesses[type];
-    let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn ${k === type ? 'pri' : ''}" style="font-size:26px;min-width:56px" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}</button>`).join('')}</div></div>`;
+    let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn mkic ${k === type ? 'pri' : ''}" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}<small>${esc(x.name.split(' / ')[0])}</small></button>`).join('')}</div></div>`;
     o += `<div class="card"><div class="row"><span class="small">I want to start a</span><select data-change="mkType">${UI.typeOptions(type)}</select></div>
       <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}</div>
-      <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
+      <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : type === 'foodtruck' ? `a small spot to park and prep (${d.space.min.toLocaleString()}-${d.space.ideal.toLocaleString()} sq ft: a cheap lot or tiny storefront is fine)` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
       <div class="row" style="margin-top:6px"><span class="small">Sort</span><select data-change="mkSort">${[['suit', 'Best fit'], ['price', 'Cheapest'], ['priceD', 'Most expensive'], ['size', 'Biggest'], ['loc', 'Location']].map(([v, l]) => `<option value="${v}"${UI.S.mkSort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <span class="small">Max price</span><input type="number" id="mkMax" value="${esc(UI.S.mkMax)}" placeholder="any" data-change="mkMax"></div></div>`;
     // owned/leased empty properties first
@@ -29,8 +29,9 @@
       for (const p of free) o += propCard(p, type, true);
     }
     let L = g.listings.map((p) => ({ p, s: TG.P.suit(p, type) }));
+    const canAfford = (p) => g.cash >= p.price * (1 + C.property.buyCostPct) || g.cash >= TG.P.leaseRent(g, p) * (1 + C.property.leaseDeposit) * 3; // v8: Best fit prefers places you can actually get
     const mx = Number(UI.S.mkMax); if (mx > 0) L = L.filter((x) => x.p.price <= mx);
-    const sorters = { suit: (a, b) => b.s - a.s, price: (a, b) => a.p.price - b.p.price, priceD: (a, b) => b.p.price - a.p.price, size: (a, b) => (b.p.sqft + b.p.acres * 40000) - (a.p.sqft + a.p.acres * 40000), loc: (a, b) => (a.p.loc + a.p.region).localeCompare(b.p.loc + b.p.region) };
+    const sorters = { suit: (a, b) => b.s * (canAfford(b.p) ? 1 : 0.6) - a.s * (canAfford(a.p) ? 1 : 0.6), price: (a, b) => a.p.price - b.p.price, priceD: (a, b) => b.p.price - a.p.price, size: (a, b) => (b.p.sqft + b.p.acres * 40000) - (a.p.sqft + a.p.acres * 40000), loc: (a, b) => (a.p.loc + a.p.region).localeCompare(b.p.loc + b.p.region) };
     L.sort(sorters[UI.S.mkSort] || sorters.suit);
     o += `<h3>For sale (${L.length})</h3><div class="mute" style="margin:-4px 0 6px">New listings appear every month. Lease = no big purchase, but monthly rent and nothing to sell later.</div>`;
     for (const x of L) o += propCard(x.p, type, false, x.s);
@@ -48,7 +49,12 @@
     const mort = TG.F.payment(p.price - down, TG.F.rateFor(g, 'mortgage'), C.finance.loans.mortgage.term);
     let btns = '';
     if (mine) btns = UI.btn(`Start ${esc(C.businesses[type].name)} here`, 'startHere', p.id, 'pri') + UI.btn('Start another type…', 'startPick', p.id) + UI.btn(p.leased ? 'End lease' : `Sell (~${m(TG.P.value(g, p) * (1 - C.property.sellCostPct))})`, 'sellProp', p.id, 'badb');
-    else btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`🏦 Mortgage (${m(down + fees)} down, ~${m(mort)}/mo)…`, 'propFin', p.id, '', g.cash < down + fees) + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < rent * (1 + C.property.leaseDeposit));
+    else {
+      const fp = UI.finPreview(g, p.price, 1 - C.property.mortgageDown, { taxPct: 0.012, insPct: C.finance.insurance.property.val }, UI.S.finTerm || C.finance.loans.mortgage.term); void mort;
+      const leaseNow = Math.round(rent * (1 + C.property.leaseDeposit));
+      btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`🏦 Mortgage: ${m(fp.cash)} now · ${fp.q.block ? 'no chance' : Math.round(fp.q.odds * 100) + '% odds'}…`, 'propFin', p.id, '') + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < leaseNow);
+      btns = `<div class="mute" style="width:100%">Buy = price ${m(p.price)} + closing ${m(fees)}. Lease = ${m(leaseNow)} today (first month + deposit you get back when the lease ends).${g.cash < p.price + fees ? ` <span class="bad">Need ${m(p.price + fees - g.cash)} more to buy.</span>` : ''}</div>` + btns;
+    }
     return `<div class="card"><div class="row sp"><b>${kind.icon || '🏠'} ${esc(kind.label)} · ${esc(p.name)}</b>${UI.pill(`${sl.label} fit ${Math.round(s * 100)}%`, sl.tone)}</div>
       <div class="mute">${esc(TG.P.locLabel(p))} · ${esc(TG.P.sizeLabel(p))}${mine ? ` · ${p.leased ? `leased ${m(p.rent)}/mo` : `owned, worth ~${m(TG.P.value(g, p))}`}` : ` · <b>${m(p.price)}</b>`}</div>
       <div class="grid2 small" style="margin-top:4px"><div>${pc.pros.map((x) => `<div class="good">+ ${esc(x)}</div>`).join('') || '<div class="mute">No standout pros</div>'}</div><div>${pc.cons.map((x) => `<div class="bad">− ${esc(x)}</div>`).join('') || '<div class="mute">No obvious cons</div>'}</div></div>
@@ -56,7 +62,9 @@
   }
 
   UI.A.acq = (arg) => {
-    const [id, mode] = arg.split('|'); const g = TG.G;
+    const [id, mode, ok] = arg.split('|'); const g = TG.G;
+    { const p0 = g.listings.find((x) => x.id === id); if (p0 && mode === 'cash' && ok !== 'y') { const c = Math.round(p0.price * (1 + TG.CONFIG.property.buyCostPct)); if (c > g.cash * 0.4) return UI.confirm(`Pay ${m(c)} cash for ${p0.name || 'this property'}? That is ${Math.round(c / Math.max(1, g.cash) * 100)}% of your cash, leaving ${m(g.cash - c)} for gear, staff and supplies.`, 'acq', `${id}|cash|y`); } }
+    UI.closeModal();
     const r = TG.P.acquire(g, id, mode); if (!UI.res(r)) return;
     UI.toast(mode === 'lease' ? 'Lease signed.' : 'Property bought.'); UI.refresh();
     UI.startDialog(r.prop.id, UI.S.mkType);

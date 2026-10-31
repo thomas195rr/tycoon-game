@@ -16,7 +16,7 @@
     let o = `<div class="card"><div class="kv"><span>Cash</span><span class="${g.cash < 0 ? 'bad' : ''}">${m(g.cash)}</span><span>Total assets</span><span>${m(nwd.assets)}</span><span>Total debt</span><span>${m(nwd.liab)}</span><span>Net worth</span><span>${m(nwd.nw)}</span>
       <span>Credit score</span><span>${TG.CREDIT.score(g).score} ${UI.pill(TG.CREDIT.label(TG.CREDIT.score(g).score).toLowerCase(), TG.CREDIT.tone(TG.CREDIT.score(g).score))}</span>
       <span>Debt payments</span><span>${m(F.totalPayments(g))}/mo</span><span>Income tax rate</span><span>${U.pct(C.incomeTax)}${g.businesses.some((b) => b.spec && b.spec.accountant) || g.ceo ? ` (−${U.pct(C.accountantTaxCut)} with accountant)` : ''}</span>
-      <span>Tax losses carried forward</span><span>${m(g.taxLoss)}</span><span>Tax paid last 12 months</span><span>${m(U.sum(g.taxPaid))}</span></div>
+      <span>Past losses that lower future tax <div class="mute">(losses carried forward: next profits are tax-free until used up)</div></span><span>${m(g.taxLoss)}</span><span>Tax paid last 12 months</span><span>${m(U.sum(g.taxPaid))}</span></div>
       ${g.player.noLoanUntil > g.month ? `<div class="ev bad">Lenders refuse new loans for ${g.player.noLoanUntil - g.month} more months (bankruptcy).</div>` : ''}
       ${g.cash < 0 ? `<div class="ev bad">Cash is negative: ${C.bankruptcyMonths - g.negMonths} month(s) until creditors force a fire sale. Interest and fees pile up.</div>` : ''}
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
@@ -65,15 +65,21 @@
     o += `<h3>For sale (${r.listings.length})</h3><div class="mute" style="margin:-4px 0 6px">Distressed homes are cheap flip candidates but may hide problems: an inspection (${m(RC.flip.inspectionCost)}) finds most of them.</div>`;
     for (const l of r.listings.slice().sort((a, b) => a.price - b.price)) {
       const k = RC.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const down = Math.round(l.price * (1 - ltv) + l.price * TG.CONFIG.property.buyCostPct);
-      const rent = l.units ? Math.round(l.price * k.rentPct * l.units / Math.max(1, l.units)) : 0;
+      const rent = l.units ? TG.RE.marketRent(g, l) : 0; const fees = Math.round(l.price * TG.CONFIG.property.buyCostPct); const cashAll = l.price + fees; const rc0 = TG.CONFIG.realEstate; const fp = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc0.propertyTax, insPct: rc0.insurancePct }, UI.S.finTerm || 300); const nowM = fp.cash; const oddsM = fp.q.block ? 'no chance' : Math.round(fp.q.odds * 100) + '% odds';
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)}</b><b>${m(l.price)}</b></div><div class="small">${esc(l.name)} · ${esc(TG.CONFIG.locations[l.loc].label)}, ${esc(TG.CONFIG.regions[l.region].label)} · grade ${l.grade} · condition ${Math.round(l.cond)}/100 · ${l.units ? `${l.units} unit(s)` : `${l.acres} acres`}${l.distressed ? ' · ' + UI.pill('distressed', 'warn') : ''}</div>
-        ${l.units ? `<div class="mute">Rent roughly ${m(rent * l.units)}/mo if fully rented, before costs (tax, upkeep, insurance, vacancies).</div>` : '<div class="mute">No income: land is for developing.</div>'}
+        ${l.units ? `<div class="mute">Rent about <b>${m(rent)}/unit</b>${l.units > 1 ? ` × ${l.units} units = <b>${m(rent * l.units)}/mo when full</b>` : '/mo when rented'}, before costs (tax, upkeep, insurance, empty months).</div>` : '<div class="mute">No income: land is for developing.</div>'}
         ${l.inspected ? `<div class="ev ${l.found ? 'bad' : 'good'}">${l.found ? `Inspection found hidden problems (~${m(l.hidden * l.price)})` : 'Inspection found nothing major'}</div>` : ''}
-        <div class="btns">${UI.btn('Buy cash', 'reBuy', `${l.id}|0`, 'sm pri', g.cash < l.price * 1.02)}${UI.btn(`🏦 Mortgage (${m(down)} down)…`, 'reFin', l.id, 'sm', g.cash < down)}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
+        <div class="mute">Cash price ${m(l.price)} + closing ${m(fees)} = ${m(cashAll)}. With a mortgage you pay ${m(nowM)} now (down payment + closing + loan fee), then ${m(fp.total)}/mo.</div>
+        ${g.cash < nowM ? `<div class="small bad">Need ${m(nowM - g.cash)} more cash for the mortgage.</div>` : g.cash < cashAll ? `<div class="small mute">Need ${m(cashAll - g.cash)} more to pay all cash.</div>` : ''}
+        <div class="btns">${UI.btn(`Buy cash (${m(cashAll)})`, 'reBuy', `${l.id}|0`, 'sm pri', g.cash < cashAll)}${UI.btn(`🏦 Mortgage (${m(nowM)} now · ${oddsM})…`, 'reFin', l.id, 'sm')}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
     }
     return o;
   }
-  UI.A.reBuy = (arg) => { const [id, mo] = arg.split('|'); after(TG.RE.buy(TG.G, id, mo === '1'), 'Bought.'); };
+  UI.A.reBuy = (arg) => {
+    const [id, mo, ok] = arg.split('|'); const g = TG.G; const l = g.re.listings.find((x) => x.id === id);
+    if (l && mo === '0' && ok !== 'y') { const c = Math.round(l.price * (1 + TG.CONFIG.property.buyCostPct)); if (c > g.cash * 0.4) return UI.confirm(`Pay ${m(c)} cash for ${l.name}? That is ${Math.round(c / Math.max(1, g.cash) * 100)}% of your cash, leaving ${m(g.cash - c)}.`, 'reBuy', `${id}|0|y`); }
+    UI.closeModal(); after(TG.RE.buy(g, id, mo === '1'), 'Bought.');
+  };
   UI.A.reInspect = (id) => { const t = TG.RE.inspect(TG.G, id); if (t) UI.toast(t); UI.refresh(); };
   UI.A.reSet = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (!h) return; const k = el.dataset.k; h[k] = k === 'upkeep' ? v : v === '1'; UI.refresh(); };
   UI.A.reDo = (arg) => {

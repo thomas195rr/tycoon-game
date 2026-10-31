@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 7;
+  const VERSION = 8;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -38,7 +38,7 @@
       cash: 0, player: { name: opts.name || 'You', credit: 700, bankruptcies: 0, noLoanUntil: 0, ownerBiz: null, exp: {} },
       properties: [], listings: [], businesses: [], loans: [], loc: { balance: 0, rate: 0 }, lawsuits: [], decisions: [], log: [], history: [],
       acc: TG.F.newAcc(), taxLoss: 0, taxPaid: [], negMonths: 0, ceo: null, scenario: opts.scenario || 'classic', reports: [], newsFeed: [],
-      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
+      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: true, majorTypes: { closed: true, cash: true, crime: true, breakdown: true, keyQuit: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', ceoBigMoves: false, confirmPending: true, warnSupplies: true }, opts.settings || {}),
       achievements: {}, stats: { peakNW: 0, reached: {}, recessionProfitYears: 0 }, started: Date.now(),
     };
     TG.G = g;
@@ -53,8 +53,8 @@
     if (sc === 'rich') g.cash = 2000000;
     TG.CREDIT.ensure(g); TG.CREDIT.sync(g);
     if (sc === 'farm') {
-      const p = TG.P.gen(g, TG.P.idealFor('farm')); p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; g.properties.push(p);
-      g.cash = 1e9; const r = TG.B.start(g, 'farm', p.id, { name: 'Family Farm' }); const b = r.biz;
+      const p = TG.P.gen(g, TG.P.idealFor('farm')); if (p.acres > 320 || p.acres < 60) { const a2 = R.int(80, 300); p.price = Math.round(p.price * a2 / Math.max(1, p.acres)); p.acres = a2; } /* v8: a family farm, not a 3,000-acre ranch run by 2 farmhands */ p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; g.properties.push(p);
+      g.cash = 1e9; const r = TG.B.start(g, 'farm', p.id, { name: 'Family Farm' }); if (!r.biz) throw new Error('farm start: ' + r.msg); const b = r.biz;
       TG.B.quickSetup(g, b, true, 'used');
       for (const it of b.equip) { it.wear = R.range(55, 80); it.age = R.int(100, 200); it.warranty = 0; }
       b.rep = 18; for (const e of b.staff) { e.morale = R.range(30, 45); }
@@ -172,6 +172,7 @@
       if (stopOn && i < n - 1) {
         const hit = r.majors.find((x) => types[x.kind]);
         if (hit) { stopped = { date: r.date, text: hit.text, kind: hit.kind }; break; }
+        if (types.cash !== false && g.cash < 0) { stopped = { date: r.date, text: `Cash fell below zero (${U.money(g.cash)})`, kind: 'cash' }; break; }
       }
       if (opts.onProgress) opts.onProgress(i + 1, n);
     }
@@ -265,6 +266,14 @@
     for (const l of g.loans || []) { if (l.intPaid == null) { l.intPaid = 0; l.prinPaid = Math.max(0, (l.principal || l.balance) - l.balance); l.histUnknown = true; } }
     for (const b of g.businesses) if (b.shut == null) b.shut = 0;
     if ((g.v || 1) < 7) g.v = 7;
+    // v8: skips stop on trouble by default, whole animals, supplies 'Auto' only with a manager, save revisions (two tabs)
+    if (g.v < 8) {
+      g.settings.stopOnMajor = true; g.settings.warnSupplies = true;
+      g.settings.majorTypes = Object.assign({ closed: true, cash: true, crime: true }, g.settings.majorTypes, { closed: true, cash: true, crime: true });
+      for (const b of g.businesses) { if (b.farm && b.farm.areas && b.farm.areas.cows && b.farm.areas.cows.st && TG.M.herdRound) TG.M.herdRound(b.farm.areas.cows, true); }
+      g.v = 8;
+    }
+      if (g.settings.warnSupplies == null) g.settings.warnSupplies = true;
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };
@@ -298,17 +307,27 @@
       return IDB.put(k, null); }); },
   };
   TG.IDB = IDB;
-  E.save = (g) => {
+  // v8: two tabs on one save. Every save bumps a shared revision number; a tab that did not see the latest
+  // revision (another tab saved after it loaded) refuses to save and asks you to reload, so it cannot wipe that progress.
+  const META_KEY = 'tycoon_save_meta';
+  E.TAB = Math.random().toString(36).slice(2, 10);
+  E.meta = () => { try { return JSON.parse(store.get(META_KEY) || 'null') || {}; } catch (e) { return {}; } };
+  E.seenRev = null; E.stale = false;
+  E.markSeen = () => { E.seenRev = E.meta().rev || 0; E.stale = false; };
+  E.save = (g, force) => {
+    const mt = E.meta();
+    if (!force && E.seenRev != null && (mt.rev || 0) !== E.seenRev && mt.tab && mt.tab !== E.TAB) { E.stale = true; E.saveState = { ok: false, at: Date.now(), where: '', err: 'stale', stale: true }; if (E.onStale) E.onStale(); return false; }
+    const rev = (mt.rev || 0) + 1;
     let txt; try { g.savedAt = Date.now(); txt = E.serialize(g); } catch (e) { E.saveState = { ok: false, at: Date.now(), where: '', err: 'could not package the game' }; return false; }
-    const lsOk = E.saveText(txt); const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    const lsOk = E.saveText(txt); if (lsOk) { try { store.set(META_KEY, JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId })); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
     E.saveIdb(txt, st);
     if (E.onSaved) E.onSaved(st); return lsOk; };
   E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; return g; });
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; E.markSeen(); return g; });
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
-  E.load = () => { const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
+  E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
   E.clearSave = () => store.del(SAVE_KEY);
   const b64e = (s) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'));
   const b64d = (s) => (typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'));

@@ -452,7 +452,7 @@
       ctx.note = mgrTried ? `Closed: no supplies (${st.short === 'room' ? 'no storage room' : 'not enough cash'} for your manager to buy any)` : 'Closed: no supplies, no manager';
       ctx.served = 0; ctx.busy = 0;
       b.rep = U.clamp(b.rep - 1.5, 0, 100); // customers find the doors shut
-      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'cash' });
+      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'closed' });
     } else { b.shut = 0; ctx.closed = null; }
   };
   // idle staff while closed: each closed month the odds they walk out rise, more if unhappy; the rest stay (and get paid)

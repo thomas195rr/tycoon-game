@@ -129,3 +129,28 @@ details.grp .in1 { margin-left: 14px; }
 .unit .ub { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
 .closed { background: #fee2e2; border: 2px solid #dc2626; color: #991b1b; border-radius: 10px; padding: 8px 10px; font-weight: 800; }
 .sched td { font-size: 13px; padding: 2px 3px; }
+/* ---- v8 ---- */
+.tabs { flex-wrap: wrap; overflow-x: visible; }
+#app { padding-bottom: 196px; }
+footer.turn .stopRow { max-width: 820px; margin: -2px auto 0; padding: 0 8px 5px; display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--mute); }
+footer.turn .stopRow .btn { padding: 2px 8px; min-height: 0; font-size: 12.5px; }
+header.top .chip.help { cursor: pointer; background: var(--infobg); }
+.mkic { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; font-size: 26px; min-width: 64px; max-width: 76px; padding: 4px 2px; line-height: 1.1; }
+.mkic small { font-size: 11px; font-weight: 700; white-space: normal; text-align: center; margin-top: 2px; }
+.stale { position: sticky; top: 0; z-index: 9; background: var(--badbg); color: var(--bad); padding: 10px; font-weight: 700; border-bottom: 3px solid var(--bad); }
+.prevbox table td { padding: 2px 4px; }
+.herdchips span { display: inline-block; margin: 2px 6px 2px 0; }
+@media (orientation: landscape) and (max-height: 520px) {
+  header.top { position: static; }
+  nav.bottom button { min-height: 40px; font-size: 11px; padding: 2px; }
+  nav.bottom button .ic { display: inline; font-size: 18px; margin-right: 3px; }
+  footer.turn { bottom: 40px; }
+  footer.turn .next { min-height: 36px; font-size: 16px; }
+  footer.turn .stopRow { display: none; }
+  #app { padding-bottom: 110px; }
+}
+@media (max-width: 520px) { footer.turn .stopRow .wide { display: none; } }
+@media (max-width: 360px) { footer.turn .yrs { display: none; } footer.turn .next { font-size: 16px; padding: 8px 6px; flex-basis: 80px; } footer.turn input { width: 54px; flex-basis: 54px; } }
+.pill { max-width: 100%; white-space: normal; overflow-wrap: anywhere; } /* v8: long pills wrap on 320px phones */
+@media (max-width: 360px) { td .btn { white-space: normal; } table { table-layout: auto; max-width: 100%; } } /* v8: 320px phones */
+@media (max-width: 360px) { table { display: block; overflow-x: auto; font-size: 13px; } } /* v8: wide tables scroll inside their card on 320px phones */

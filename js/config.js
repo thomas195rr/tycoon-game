@@ -154,6 +154,7 @@
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
   };
   C.specialists = {
+    lead:       { label: 'Shift lead', icon: '🧑‍🍳', wage: [2600, 3800], desc: 'Cheap first manager for a small shop: only reorders supplies each month (sometimes a bit too much or too little). Makes no other decisions.' },
     gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there.' },
     ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and stock decisions.' },
     hr:         { label: 'HR manager', icon: '🤝', wage: [3500, 9000], desc: 'Better hires, fewer conflicts, better morale; replaces staff who leave.' },

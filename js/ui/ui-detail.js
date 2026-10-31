@@ -23,7 +23,7 @@
 
   // ---------- 🛒 sales vs sales capacity ----------
   UI.salesCard = (g, b) => {
-    const lc = UI.lc(b); if (lc.cap == null || b.proj || b.fr) return '';
+    const done = !!(b.hist && b.hist.length && b.lastCtx && b.lastCtx.cap != null); const lc = done ? b.lastCtx : UI.lc(b); if (lc.cap == null || b.proj || b.fr) return ''; // v8: the finished month (matches the report)
     const d = TG.B.def(b); const gd = TG.PR.good(b) || {}; const unit = gd.unit || 'sale';
     if (b.farm || b.tech || b.factory) return ''; // these show their own sales rows (harvest, users, production)
     const r = lc.priceR || 1; const pf = TG.PR.demandF(r);
@@ -33,8 +33,8 @@
       staff: ['👥', 'Not enough staff', 'Your workers were full. Hire or train more.'], equipment: ['🛠️', 'Not enough equipment', 'A machine group was full. Buy more of the red one in Gear.'],
       space: ['📐', 'Not enough space', 'Your building is full. A bigger place is needed.'], support: ['🧹', 'Not enough helpers', 'Support staff were full.'], stock: ['📦', 'Ran out of stock', 'Supplies ran out. Buy more yourself (a manager can reorder for you) or add storage.'] }[lim] || ['❓', lim, ''];
     const k = 'sl' + b.id;
-    return `<div class="card"><h3>🛒 Sales ${UI.tipBtn(k)}</h3>${UI.tipLine(k, 'Sales = the smallest of: customers who want to buy, and how much you can serve (staff, machines, space, stock).')}
-      <div class="tiles">${UI.tile(k + 's', '🛒', N(sold), 'Sold', sold >= cap * 0.95 ? 'y' : 'g', `You sold ${N(sold)} ${unit}s last month.`)}${UI.tile(k + 'c', '🧱', N(cap), 'Could sell', '', 'The most your staff, machines and space could handle.')}${UI.tile(k + 'd', '🧲', N(dem), 'Wanted', dem > cap ? 'y' : 'g', 'Customers who wanted to buy at your price. Reputation, ads, the economy and price change it.')}${UI.tile(k + 'p', '🏷️', Math.round(pf * 100) + '%', 'Price effect', r > 1.05 ? 'r' : r < 0.95 ? 'y' : 'g', `Your price is ${Math.round(r * 100)}% of market, so you get about ${Math.round(pf * 100)}% of the normal number of customers.`)}</div>
+    return `<div class="card"><h3>🛒 Sales ${done ? 'last month' : '(expected next month)'} ${UI.tipBtn(k)}</h3>${UI.tipLine(k, 'Sales = the smallest of: customers who want to buy, and how much you can serve (staff, machines, space, stock).')}
+      <div class="tiles">${UI.tile(k + 's', '🛒', N(sold), 'Sold', sold >= cap * 0.95 ? 'y' : 'g', done ? `You sold ${N(sold)} ${unit}s last month.` : `Expected to sell about ${N(sold)} ${unit}s next month.`)}${UI.tile(k + 'c', '🧱', N(cap), 'Could sell', '', 'The most your staff, machines and space could handle.')}${UI.tile(k + 'd', '🧲', N(dem), 'Wanted', dem > cap ? 'y' : 'g', 'Customers who wanted to buy at your price. Reputation, ads, the economy and price change it.')}${UI.tile(k + 'p', '🏷️', Math.round(pf * 100) + '%', 'Price effect', r > 1.05 ? 'r' : r < 0.95 ? 'y' : 'g', `Your price is ${Math.round(r * 100)}% of market, so you get about ${Math.round(pf * 100)}% of the normal number of customers.`)}</div>
       ${UI.irow(k + 'l', L[0], 'Held back by: ' + L[1], null, L[2])}</div>`;
   };
 

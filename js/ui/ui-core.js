@@ -36,7 +36,7 @@
   UI.tile = (key, icon, value, label, tone, tip) => `<div class="tile ${tone || ''}" data-act="tip" data-arg="${esc(key)}" data-nosave="1"><div class="ti">${icon}</div><div class="tv">${value}</div><div class="tl">${esc(label)}</div></div>${UI.S.tips[key] && tip ? `<div class="tip" style="grid-column:1/-1;margin:0">${esc(tip)}</div>` : ''}`;
   UI.dot = (c) => `<span class="dot ${c || ''}"></span>`;
   UI.fmtN = (v, u) => (u === '$' ? U.money(v) : u === '%' ? Math.round(v) + '%' : Math.round(v).toLocaleString() + (u ? (u[0] === '/' ? '' : ' ') + u : ''));
-  UI.num = (id, def) => { const el = document.getElementById(id); const v = el ? Number(String(el.value).replace(/[^0-9.\-]/g, '')) : NaN; return Number.isFinite(v) ? v : def; };
+  UI.num = (id, def) => { const el = document.getElementById(id); if (!el) return def; const t = String(el.value).trim().replace(/[$,\s]/g, ''); if (t === '') return def; const v = Number(t); return Number.isFinite(v) ? v : def; }; // v8: blank = default, "1e3" = 1000 (was 13)
   UI.val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
 
   UI.toast = (msg, bad) => {
@@ -58,7 +58,7 @@
 
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
-  const JAIL_OK = ['next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
+  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
   // v6 instant updates: derived numbers (capacity, work bars, limits, forecast) for a business as it is RIGHT NOW.
   // TG.B.live recomputes them whenever the business changed (it is cached otherwise), so every action shows its effect at once.
   const LV = (b) => (TG.G && b ? TG.B.live(TG.G, b) : null);
@@ -72,7 +72,7 @@
   UI.saveChip = () => {
     const st = TG.Game.saveState || {};
     if (st.ok === false) return `<span class="chip save no" id="saveInd" data-act="exportSave">⚠️ Not saved</span>`;
-    if (st.ok) { const d = new Date(st.at); return `<span class="chip save ok" id="saveInd" data-act="saveInfo" data-nosave="1">💾 Saved ✓ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</span>`; }
+    if (st.ok) { const d = new Date(st.at); return `<span class="chip save ok" id="saveInd" data-act="saveInfo" data-nosave="1">💾 ✓</span>`; }
     return `<span class="chip save" id="saveInd" data-act="saveInfo" data-nosave="1">💾</span>`;
   };
   UI.header = () => {
@@ -81,11 +81,11 @@
     return `<header class="top"><span class="chip">📅 ${U.dateStr(g.month)}</span>
       <span class="chip cash ${g.cash < 0 ? 'neg' : ''}">💵 ${UI.m(g.cash)}</span>
       <span class="chip">📈 ${UI.m(nw)}</span>
-      <span class="chip">${ph === 'boom' ? '☀️' : ph === 'recession' ? '🌧️' : '⛅'} ${TG.W.phaseLabel(g)}</span>
+      <span class="chip" data-act="econInfo" data-nosave="1" style="cursor:pointer">${ph === 'boom' ? '☀️' : ph === 'recession' ? '🌧️' : '⛅'} Economy: ${TG.W.phaseLabel(g)}</span>
       ${pend ? `<span class="chip dec" data-act="decisions">⚠️ ${pend}</span>` : ''}${UI.saveChip()}</header>
       ${TG.Game.saveState && TG.Game.saveState.ok === false ? `<div class="banner" style="margin:8px 10px 0">⚠️ This browser is not keeping your save (${esc(TG.Game.saveState.err || 'storage blocked')}). ${UI.btn('📤 Export save', 'exportSave', null, 'sm pri')}</div>` : ''}`;
   };
-  UI.A.saveInfo = () => { const st = TG.Game.saveState || {}; UI.toast(st.ok ? `Saved on this ${st.where || 'device'} after every month and every tap.` : 'Not saved yet.'); };
+  UI.A.saveInfo = () => { const st = TG.Game.saveState || {}; const d = new Date(st.at || Date.now()); UI.toast(st.ok ? `💾 Saved at ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} on this ${st.where || 'device'}. The game saves after every month and every tap.` : 'Not saved yet.'); };
   TG.Game.onSaved = () => { const el = document.getElementById('saveInd'); if (el) el.outerHTML = UI.saveChip(); };
   UI.footer = () => {
     const v = UI.S.skipVal || '';

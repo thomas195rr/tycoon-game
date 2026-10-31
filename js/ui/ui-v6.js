@@ -46,6 +46,8 @@
     o += `<div class="ev ${q.block ? 'bad' : q.odds >= 0.7 ? 'good' : q.odds >= 0.4 ? 'warn' : 'bad'}"><b>Approval odds: ${q.block ? 'no chance' : U.pct(q.odds)}</b>${q.block ? `<div class="small">${esc(q.block)}</div>` : ''}
       <div class="small">Rate ${U.pct(q.rate, 1)} · ${S.type === 'loc' ? `minimum payment ${m(q.pay)}/mo when fully used` : `${m(q.pay)}/mo for ${S.term} months`} · fee ${m(q.fee)}</div></div>
       <table>${q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}<div class="mute">${esc(f.why)}</div></td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      ${q.tips && q.tips.length ? `<div class="small"><b>What would raise your odds:</b><ul style="margin:4px 0 0 18px;padding:0">${q.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      <div class="mute">A "no" still counts as an application (a small, temporary hit to your score).</div>
       <div class="btns">${UI.btn(`📝 Apply (${q.block ? 'blocked' : U.pct(q.odds) + ' odds'})`, 'lnApply', null, 'sm pri', !!q.block)}</div></div>`;
     // credit line
     const lim = F.locLimit(g);
@@ -83,7 +85,9 @@
       ${row('<b>Total each month</b>', `<b>${m(p.total)}/mo</b>`)}${row('<b>Cash today</b>', `<b>${m(p.cash)}</b>`)}</table>
       <div class="mute">Cash today = down payment + closing ${m(p.fees)} + loan fee ${m(p.q.fee)}. Tax and insurance are estimates.</div>
       <div class="ev ${p.q.block ? 'bad' : p.q.odds >= 0.7 ? 'good' : p.q.odds >= 0.4 ? 'warn' : 'bad'}"><b>Approval odds: ${p.q.block ? 'no chance' : U.pct(p.q.odds)}</b>${p.q.block ? ` · ${esc(p.q.block)}` : ''}</div>
-      <table>${p.q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}</td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      <table>${p.q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}${f.why ? `<div class="mute">${esc(f.why)}</div>` : ''}</td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      ${p.q.tips && p.q.tips.length ? `<div class="small"><b>What would raise your odds:</b><ul style="margin:4px 0 0 18px;padding:0">${p.q.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      ${g.cash < p.cash ? `<div class="ev bad">You need ${m(p.cash - g.cash)} more cash today to apply (you have ${m(g.cash)}).</div>` : ''}
       <div class="mute">Applying counts as a loan application even if the bank says no.</div></div>`;
   };
   UI.A.finTerm = (v, el) => { UI.S.finTerm = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
@@ -92,8 +96,8 @@
     const g = TG.G; const l = g.re.listings.find((x) => x.id === id); if (!l) return;
     const k = TG.CONFIG.realEstate.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const rc = TG.CONFIG.realEstate;
     const p = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc.propertyTax, insPct: rc.insurancePct }, UI.S.finTerm || 300);
-    const rent = TG.RE.estRent(g, l);
-    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + `<div class="card"><div class="kv kvl"><span>Rent if ${l.units ? 'rented (est.)' : '—'}</span><span>${l.units ? m(rent) + '/mo' : 'no rent (land)'}</span></div></div>
+    const pu = TG.RE.marketRent(g, l);
+    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
       <div class="btns">${UI.btn('📝 Apply & buy', 'reFinGo', id, 'sm pri', !!p.q.block || g.cash < p.cash)}${UI.btn('Cancel', 'closeModal', null, 'sm')}</div>`);
   };
   UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, 'Approved and bought.'); };
@@ -110,8 +114,9 @@
     const RE = TG.RE, T = TG.CONFIG.tenants; if (!h.units || h.kind === 'land') return '';
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
     let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
+    if (h.units > 1) o += `<div class="small">Your rent ${m(ask)}/unit × ${h.units} units = <b>${m(ask * h.units)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
-    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect about ${Math.max(0, Math.round(pv.n))} applicant(s) per search, mostly ${pv.label}.</div>`;
+    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect roughly ${Math.max(1, Math.round(pv.n) - 2)}-${Math.round(pv.n) + 2} applicants per search (it varies), mostly ${pv.label}.</div>`;
     void cur;
     return o;
   };
@@ -161,8 +166,8 @@
 
   // ================= 📊 REPORTS TAB (results and forecasts live here; the Now tab is for doing) =================
   UI.salesSummary = (g, b) => {
-    const lc = UI.lc(b); if (lc.cap == null || b.proj || b.fr || b.farm || b.tech || b.factory) return '';
-    return UI.irow('ss' + b.id, '🛒', 'Sold last month', `${N(lc.served)}/${N(lc.cap)}`, `Customers wanted ${N(lc.demand)}. Full sales detail is in 📊 Reports.`, UI.btn('📊', 'tab', 'biz:rep', 'xs'), `wanted ${N(lc.demand)}`);
+    const done = !!(b.hist && b.hist.length && b.lastCtx && b.lastCtx.cap != null); const lc = done ? b.lastCtx : UI.lc(b); if (lc.cap == null || b.proj || b.fr || b.farm || b.tech || b.factory) return '';
+    return UI.irow('ss' + b.id, '🛒', done ? 'Sold last month' : 'Expected sales next month', `${N(lc.served)}/${N(lc.cap)}`, `Customers wanted ${N(lc.demand)}. Full sales detail is in 📊 Reports.`, UI.btn('📊', 'tab', 'biz:rep', 'xs'), `wanted ${N(lc.demand)}`);
   };
   UI.reportsTab = (g, b) => {
     const h = b.hist, last = h[h.length - 1];

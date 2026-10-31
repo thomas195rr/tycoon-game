@@ -143,6 +143,31 @@ details.grp .in1 { margin-left: 14px; }
 .unit .ub { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
 .closed { background: #fee2e2; border: 2px solid #dc2626; color: #991b1b; border-radius: 10px; padding: 8px 10px; font-weight: 800; }
 .sched td { font-size: 13px; padding: 2px 3px; }
+/* ---- v8 ---- */
+.tabs { flex-wrap: wrap; overflow-x: visible; }
+#app { padding-bottom: 196px; }
+footer.turn .stopRow { max-width: 820px; margin: -2px auto 0; padding: 0 8px 5px; display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--mute); }
+footer.turn .stopRow .btn { padding: 2px 8px; min-height: 0; font-size: 12.5px; }
+header.top .chip.help { cursor: pointer; background: var(--infobg); }
+.mkic { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; font-size: 26px; min-width: 64px; max-width: 76px; padding: 4px 2px; line-height: 1.1; }
+.mkic small { font-size: 11px; font-weight: 700; white-space: normal; text-align: center; margin-top: 2px; }
+.stale { position: sticky; top: 0; z-index: 9; background: var(--badbg); color: var(--bad); padding: 10px; font-weight: 700; border-bottom: 3px solid var(--bad); }
+.prevbox table td { padding: 2px 4px; }
+.herdchips span { display: inline-block; margin: 2px 6px 2px 0; }
+@media (orientation: landscape) and (max-height: 520px) {
+  header.top { position: static; }
+  nav.bottom button { min-height: 40px; font-size: 11px; padding: 2px; }
+  nav.bottom button .ic { display: inline; font-size: 18px; margin-right: 3px; }
+  footer.turn { bottom: 40px; }
+  footer.turn .next { min-height: 36px; font-size: 16px; }
+  footer.turn .stopRow { display: none; }
+  #app { padding-bottom: 110px; }
+}
+@media (max-width: 520px) { footer.turn .stopRow .wide { display: none; } }
+@media (max-width: 360px) { footer.turn .yrs { display: none; } footer.turn .next { font-size: 16px; padding: 8px 6px; flex-basis: 80px; } footer.turn input { width: 54px; flex-basis: 54px; } }
+.pill { max-width: 100%; white-space: normal; overflow-wrap: anywhere; } /* v8: long pills wrap on 320px phones */
+@media (max-width: 360px) { td .btn { white-space: normal; } table { table-layout: auto; max-width: 100%; } } /* v8: 320px phones */
+@media (max-width: 360px) { table { display: block; overflow-x: auto; font-size: 13px; } } /* v8: wide tables scroll inside their card on 320px phones */
 
 </style>
 </head>
@@ -395,6 +420,7 @@ details.grp .in1 { margin-left: 14px; }
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
   };
   C.specialists = {
+    lead:       { label: 'Shift lead', icon: '🧑‍🍳', wage: [2600, 3800], desc: 'Cheap first manager for a small shop: only reorders supplies each month (sometimes a bit too much or too little). Makes no other decisions.' },
     gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there.' },
     ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and stock decisions.' },
     hr:         { label: 'HR manager', icon: '🤝', wage: [3500, 9000], desc: 'Better hires, fewer conflicts, better morale; replaces staff who leave.' },
@@ -2145,7 +2171,9 @@ details.grp .in1 { margin-left: 14px; }
     for (const k in d.site) { s += d.site[k] * (f[k] == null ? 0.5 : f[k]); tot += d.site[k]; }
     s = s / tot;
     if (f.space < 0.15) s *= 0.5; // far too small is a deal-breaker
+    else if (f.space < 0.75) s *= 0.55 + 0.6 * f.space; // v8: well under the ideal size is a real minus (fewer customers fit)
     if (f.loc < 0.1) s *= 0.7;
+    { const v = d.space.unit === 'acres' ? p.acres : p.sqft; if (v > d.space.ideal * 2.5) s *= 0.82; } // v8: far bigger than needed = paying for empty space
     const noise = (hash(p.id + type) - 0.5) * 2 * TG.CONFIG.property.suitNoise;
     return U.clamp(s + noise, 0, 1);
   };
@@ -2165,7 +2193,7 @@ details.grp .in1 { margin-left: 14px; }
     if (f.space < 0.15) cons.push(`Far too small for a ${d.name.toLowerCase()} (${d.space.unit === 'acres' ? p.acres + ' acres' : p.sqft.toLocaleString() + ' sq ft'})`);
     else if (f.space < 0.6) cons.push('Smaller than ideal: caps how big this can get');
     else if (f.space > 0.95) pros.push('Good size for the business');
-    else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal * 4) cons.push('Much more space than needed: you pay tax on unused space');
+    else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal * 2.5) cons.push('Much bigger than needed: you pay rent or price and tax on space you won\'t use');
     else if ((d.space.unit === 'acres' ? p.acres : p.sqft) > d.space.ideal) pros.push('Room to expand later');
     if (f.loc >= 0.85) pros.push(`${C.locations[p.loc].label} location suits a ${d.name.toLowerCase()}`);
     else if (f.loc <= 0.3) cons.push(`${C.locations[p.loc].label} location is a poor fit for a ${d.name.toLowerCase()}`);
@@ -2214,7 +2242,7 @@ details.grp .in1 { margin-left: 14px; }
     if (mode === 'lease') {
       const rent = P.leaseRent(g, p), dep = rent * C.property.leaseDeposit;
       if (g.cash < dep + rent) return { ok: false, msg: `Need ${U.money(dep + rent)} for deposit and first month.` };
-      TG.F.spend(g, dep + rent, 'Lease deposits', null, true);
+      TG.F.spend(g, dep, 'Lease deposits', null, true); TG.F.spend(g, rent, 'Rent paid up front', null, true);
       p.leased = true; p.rent = rent; p.deposit = dep;
     } else if (mode === 'mortgage') {
       const down = Math.round(p.price * C.property.mortgageDown);
@@ -2526,7 +2554,7 @@ details.grp .in1 { margin-left: 14px; }
     if (spec) b.spec[spec] = null; else b.staff = b.staff.filter((x) => x.id !== e.id);
     const label = S.roleDef(b, e.role).label;
     const isKey = spec === 'gm' || spec === 'ops' || (TG.CONFIG.businesses[b.type].roles[e.role] || {}).licensed || e.skill >= 70;
-    TG.rep.event(g, b, isKey ? 'major' : 'bad', `${e.name} (${label}) quit`, `Why: ${why}. Morale ${Math.round(e.morale)}, loyalty ${Math.round(e.loyalty)}, ambition ${e.ambition > 60 ? 'high' : 'normal'}`, isKey ? { major: 'keyQuit' } : null);
+    TG.rep.event(g, b, isKey ? 'major' : 'bad', `${e.name} (${label}) quit`, `${why[0].toUpperCase() + why.slice(1)}. Morale ${Math.round(e.morale)}, loyalty ${Math.round(e.loyalty)}, ambition ${e.ambition > 60 ? 'high' : 'normal'}`, isKey ? { major: 'keyQuit' } : null);
     TG.rep.staff(g, b, `${e.name} (${label}) quit: ${why}`);
   };
 
@@ -3144,7 +3172,7 @@ details.grp .in1 { margin-left: 14px; }
     { const d = C.keepCash - g.cash; if (d > 0) F.earn(g, d, 'Debts wiped in bankruptcy', null, true); else if (d < 0) F.spend(g, -d, 'Cash taken in bankruptcy', null, true); }
     g.cash = C.keepCash; g.negMonths = 0;
     g.loc.limit = 0; g.player.bankruptcies++; TG.CREDIT.derog(g, 'bankruptcy'); g.player.noLoanUntil = g.month + C.noLoanMonths;
-    g.player.ownerBiz = null;
+    g.player.ownerBiz = null; g.player.lastBankrupt = { m: g.month, why };
     TG.rep.event(g, null, 'major', 'Full bankruptcy: you lost almost everything', `${why}. You keep ${U.money(C.keepCash)} and damaged credit. Rebuild from here: lease a cheap lot and start small.`, { major: 'cash' });
     TG.rep.news(g, 'You declared bankruptcy', 'bad');
   };
@@ -3248,17 +3276,19 @@ details.grp .in1 { margin-left: 14px; }
     const rate = CR.rate(g, type, sc); const pay = type === 'loc' ? Math.round(amount * TG.CONFIG.finance.loc.minPayPct) : Math.round(TG.F.payment(amount, rate, term));
     const fee = type === 'loc' ? Math.round(c.fee.loc * g.world.priceIdx) : Math.round(amount * (c.fee[type] || 0.015));
     const nw = TG.F.netWorth(g, true); const debt = TG.F.debt(g) + amount; const dv = nw.assets + (opts.asset || 0) > 0 ? debt / (nw.assets + (opts.asset || 0)) : 2;
-    const inc = CR.income(g); const dti = (TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay)) / Math.max(1500, inc + (opts.extraIncome || 0));
+    const inc = CR.income(g); const incEff = Math.max(c.minIncome || 1500, inc + (opts.extraIncome || 0)); const dti = (TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay)) / incEff;
+    const prof = Math.max(0, TG.F.avgProfit(g)), sav = Math.max(0, g.cash - TG.F.debt(g)) / 240;
     const inq = CR.ensure(g).inq.filter((m) => g.month - m < c.inqMonths).length;
     const recentLate = U.sum(CR.ensure(g).lates.filter((x) => g.month - x.m < 12), (x) => x.sev);
     const F = []; let z = c.base[type] || 0;
     const add = (label, val, mark, dz, why) => { F.push({ label, val, mark, why }); z += dz; };
     add('Credit score', String(sc), sc >= 720 ? 'good' : sc >= 640 ? 'ok' : 'bad', (sc - 680) / 45, `${CR.label(sc)}. Higher = better odds and a lower rate.`);
-    add('Payments vs income', U.pct(Math.min(dti, 9)), dti < 0.35 ? 'good' : dti < 0.55 ? 'ok' : 'bad', dti < 0.35 ? 0.4 : dti < 0.55 ? -0.3 : -1.6 - Math.min(2, dti - 0.55) * 1.5, `All loan payments would take ${U.pct(Math.min(dti, 9))} of the money you make (${U.money(inc + (opts.extraIncome || 0))}/mo, counting profit and some of your spare savings). Under 35% is comfortable.`);
+    add('Payments vs income', U.pct(Math.min(dti, 9)), dti < 0.35 ? 'good' : dti < 0.55 ? 'ok' : 'bad', dti < 0.35 ? 0.4 : dti < 0.55 ? -0.3 : -1.6 - Math.min(2, dti - 0.55) * 1.5, `All loan payments (${U.money(TG.F.totalPayments(g) + (type === 'loc' ? amount * 0.03 : pay))}/mo) would take ${U.pct(Math.min(dti, 9))} of what lenders count as your monthly income: ${U.money(incEff)}/mo = profit ${U.money(prof)}${opts.extraIncome ? ` + rent ${U.money(opts.extraIncome)}` : ''} + savings ${U.money(sav)} (spare cash spread over 20 years)${inc + (opts.extraIncome || 0) < incEff ? `; lenders assume at least ${U.money(incEff)}` : ''}. Under 35% is comfortable.`);
     add('Debt vs what you own', U.pct(Math.min(dv, 9)), dv < 0.45 ? 'good' : dv < 0.7 ? 'ok' : 'bad', dv < 0.45 ? 0.4 : dv < 0.7 ? -0.3 : -1.4 - Math.min(2, dv - 0.7) * 2, `After this loan you would owe ${U.money(debt)} against ${U.money(nw.assets + (opts.asset || 0))} of things you own.`);
     if (opts.ltv != null) add('Down payment', U.pct(1 - opts.ltv), opts.ltv <= 0.75 ? 'good' : opts.ltv <= 0.85 ? 'ok' : 'bad', opts.ltv <= 0.75 ? 0.5 : opts.ltv <= 0.85 ? 0 : -0.8, 'The property backs the loan. A bigger down payment makes lenders safer.');
     if (type === 'equipment') { const cap = CR.equipCap(g); add('Machines as security', U.money(cap), amount <= cap ? 'good' : 'bad', amount <= cap ? 0.4 : -2.5, `Lenders lend up to 70% of what your machines are worth, minus other equipment loans (${U.money(cap)}).`); }
     if (type === 'business') { const x = CR.indScore(g); const st = x > 0.04 ? 'good' : x > -0.04 ? 'ok' : 'bad'; add('Your industries', g.businesses.length ? (x > 0.04 ? 'doing well' : x > -0.04 ? 'steady' : 'struggling') : 'no business yet', g.businesses.length ? st : 'bad', g.businesses.length ? x * 6 : -0.8, 'Lenders check how your industries are doing right now (Industry Outlook).'); }
+    if (type === 'emergency') { const broke = nw.nw <= 0 || (g.cash < 0 && nw.assets * 0.5 < nw.liab); add('Can you pay it back?', broke ? 'unlikely' : 'yes', broke ? 'bad' : 'good', broke ? -2.6 : 0.2, broke ? 'You already owe more than you could raise by selling what you own. Lenders rarely give emergency money to someone who is already sinking.' : 'You own enough to cover your debts.'); }
     add('Recent applications', String(inq), inq <= 1 ? 'good' : inq <= 3 ? 'ok' : 'bad', -0.25 * Math.max(0, inq - 1), 'Lots of applications in a short time looks desperate.');
     add('Late payments (last year)', recentLate > 0 ? recentLate.toFixed(1) : 'none', recentLate <= 0 ? 'good' : recentLate < 2 ? 'ok' : 'bad', -0.7 * recentLate, 'Missed or late payments in the last 12 months.');
     let odds = U.clamp(1 / (1 + Math.exp(-z)), 0.02, 0.97);
@@ -3267,7 +3297,20 @@ details.grp .in1 { margin-left: 14px; }
     const max = CR.max(g, type); if (amount > max) block = block || `Lenders cap this at about ${U.money(max)} for you.`;
     if (!(amount > 0)) block = block || 'Enter an amount.';
     if (block) odds = 0;
-    return { type, amount, term, rate, pay, fee, odds, factors: F, score: sc, block, max };
+    // v8: what would raise the odds (plain words, from the weak spots)
+    const tips = [];
+    for (const f of F) if (f.mark !== 'good') {
+      if (f.label === 'Credit score') tips.push('Pay every loan on time for a few months and keep the credit line use under 30%: your score climbs.');
+      if (f.label === 'Payments vs income' && type === 'mortgage') tips.push('Pick a cheaper building or a longer length (smaller payment), or show steady monthly profit first.');
+      else if (f.label === 'Payments vs income') tips.push(`Borrow less (try about ${U.money(Math.max(1000, Math.round(amount * Math.min(0.9, 0.35 / Math.max(0.01, dti)) / 1000) * 1000))}), pick a longer length, or show steady monthly profit first.`);
+      if (f.label === 'Debt vs what you own') tips.push('Pay down other debt or own more (cash, buildings, machines) before applying.');
+      if (f.label === 'Down payment') tips.push('A bigger down payment helps.');
+      if (f.label === 'Your industries') tips.push(g.businesses.length ? 'Lenders like businesses in industries that are doing well (see Industry Outlook).' : 'Run a business for a while first: lenders want to see one.');
+      if (f.label === 'Recent applications') tips.push('Wait a few months between applications: each one counts against you.');
+      if (f.label === 'Late payments (last year)') tips.push('Late payments fade after 12 months of paying on time.');
+      if (f.label === 'Can you pay it back?') tips.push('Sell something or cut costs first: an emergency loan will not fix a business that keeps losing money.');
+    }
+    return { type, amount, term, rate, pay, fee, odds, factors: F, score: sc, block, max, tips, incEff };
   };
   CR.equipCap = (g) => Math.max(0, Math.round(U.sum(g.businesses, (b) => TG.E.value(g, b)) * 0.7 - U.sum(g.loans.filter((l) => l.type === 'equipment'), (l) => l.balance)));
   CR.max = (g, type) => {
@@ -3753,7 +3796,7 @@ details.grp .in1 { margin-left: 14px; }
       ctx.note = mgrTried ? `Closed: no supplies (${st.short === 'room' ? 'no storage room' : 'not enough cash'} for your manager to buy any)` : 'Closed: no supplies, no manager';
       ctx.served = 0; ctx.busy = 0;
       b.rep = U.clamp(b.rep - 1.5, 0, 100); // customers find the doors shut
-      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'cash' });
+      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'closed' });
     } else { b.shut = 0; ctx.closed = null; }
   };
   // idle staff while closed: each closed month the odds they walk out rise, more if unhappy; the rest stay (and get paid)
@@ -4406,7 +4449,7 @@ details.grp .in1 { margin-left: 14px; }
       if (t.phase === 'build') {
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
-        ctx.note = `Building the product: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done`;
+        ctx.note = `Building the app: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done after this month`;
         { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
         if (t.dev >= T.devPoints) { t.phase = 'live'; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;
@@ -4998,10 +5041,13 @@ details.grp .in1 { margin-left: 14px; }
   const blank = () => ({ calf: 0, heifer: 0, steer: 0, ready: 0, milker: 0, dry: 0, bull: 0 });
   const E = () => FD().enterprises.cows;
   M.herdSync = (a) => { if (!a.st) a.st = blank(); for (const k of ST) a.st[k] = Math.max(0, a.st[k] || 0); a.herd = U.sum(ST, (k) => a.st[k]); return a.herd; };
+  // v8: whole animals. Monthly growth is worked out in fractions; each stage shows whole head and the leftover
+  // part-animal carries over to next month (a.rem), so nothing is lost or invented over time and no luck is used.
+  M.herdRound = (a, fixed) => { if (!a.st) return; a.rem = a.rem || {}; for (const k of ST) { const x = Math.max(0, (a.st[k] || 0) + (fixed ? 0 : a.rem[k] || 0)); const i = fixed ? Math.round(x) : Math.floor(x + 1e-9); a.rem[k] = fixed ? 0 : Math.max(0, x - i); a.st[k] = i; } M.herdSync(a); };
   M.herdInit = (a, total) => { // a balanced starter herd
     total = Math.max(0, Math.round(total)); const bull = total > 0 ? Math.max(1, Math.round(total / 40)) : 0; const t = Math.max(0, total - bull);
     a.st = { calf: t * 0.16, heifer: t * 0.12, steer: t * 0.1, ready: t * 0.04, milker: t * 0.48, dry: t * 0.1, bull };
-    if (a.health == null) a.health = 0.9; M.herdSync(a);
+    if (a.health == null) a.health = 0.9; M.herdSync(a); M.herdRound(a, true);
   };
   M.pastureCap = (b, a) => Math.round((a || b.farm.areas.cows).acres * E().headPerAcre);
   M.farmHeadCap = (b) => M.pastureCap(b) + Math.round(TG.E.sumField(b, 'head'));
@@ -5064,7 +5110,9 @@ details.grp .in1 { margin-left: 14px; }
 
   M.models.farm.feedCost = (g, b) => M.herdForecast(g, b).feed;
   M.models.farm.herdMonth = function (g, b, ctx, cov, q) {
-    const f = b.farm, a = f.areas.cows, c = HC(), m = a.m; M.herdSync(a);
+    const f = b.farm, a = f.areas.cows, c = HC(), m = a.m;
+    if (a.rem && a.st) for (const k of ST) { a.st[k] = (a.st[k] || 0) + (a.rem[k] || 0); a.rem[k] = 0; } // v8: part-animals rejoin the math, whole head shown after
+    M.herdSync(a);
     if (a.health == null) a.health = 0.9;
     if (!a.herd) { m.feedEaten = 0; return; }
     const cap = M.farmHeadCap(b), room = a.herd / Math.max(1, cap);
@@ -5096,7 +5144,7 @@ details.grp .in1 { margin-left: 14px; }
     if (milk > 0) { const o = this.offer(g, b, 'cows', milk, 'Milk sales'); m.lost = (m.lost || 0) + o.unsold; TG.M.logVolX(g, f, o.sold); }
     // 6) manager orders: sell market-ready, cull dry cows, keep within room, keep feed topped up
     TG.D.farmCowOrders(g, b);
-    M.herdSync(a);
+    M.herdRound(a);
   };
   M.models.farm.inventoryHerd = (g, b) => { const a = b.farm.areas.cows; if (!a.st) return 0; return U.sum(ST, (k) => a.st[k] * M.cowValue(g, k)) * HC().inventoryValue + (b.farm.feed || 0) * M.feedPrice(g) * 0.8; };
 
@@ -5131,7 +5179,7 @@ details.grp .in1 { margin-left: 14px; }
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
     pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    stock: ['ops', 'gm', 'lead'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
   };
 
   D.add = (g, dec) => {
@@ -5509,7 +5557,8 @@ details.grp .in1 { margin-left: 14px; }
     const grade = R.weighted({ A: 1, B: 2, C: 1.5 });
     const distressed = opts.distressed != null ? opts.distressed : (kindId === 'house' || kindId === 'condo' || kindId === 'duplex') && R.chance(0.3);
     const units = Array.isArray(k.units) ? R.int(k.units[0], k.units[1]) : k.units;
-    let price = R.range(k.price[0], k.price[1]) * C.regions[region].price * (grade === 'A' ? 1.25 : grade === 'C' ? 0.78 : 1) * g.world.housing;
+    const pr = R.range(0, 1); const uf = Array.isArray(k.units) && k.units[1] > k.units[0] ? (units - k.units[0]) / (k.units[1] - k.units[0]) : pr; /* v8: more units = pricier building, so rent per unit stays sensible */
+    let price = (k.price[0] + (k.price[1] - k.price[0]) * (Array.isArray(k.units) ? 0.75 * uf + 0.25 * pr : pr)) * C.regions[region].price * (grade === 'A' ? 1.25 : grade === 'C' ? 0.78 : 1) * g.world.housing;
     const cond = distressed ? R.range(15, 40) : R.range(45, 95);
     const nb = R.range(0.9, 1.1);
     const trend = R.range(-1, 1);
@@ -5625,7 +5674,7 @@ details.grp .in1 { margin-left: 14px; }
     const ev = R.chance(Math.pow(1 - q, 2) * 1.1) ? 1 + (R.chance((1 - q) * 0.5) ? 1 : 0) : 0;
     const inc = U.clamp(1.6 + 3.2 * q + R.normal(0, 0.5), 0.8, 8);
     const cs = Math.round(U.clamp(470 + 360 * q + R.normal(0, 45), 350, 840));
-    return { name: k.commercial ? R.pick(BIZN) : `${R.pick(FIRST)} ${R.pick(LAST)}`, evictions: ev, income: Math.round(inc * 10) / 10, credit: cs, rel: U.clamp(q + R.normal(0, 0.12), 0.02, 0.98) };
+    return { name: ['strip', 'officebldg', 'warehouse'].indexOf(h.kind) >= 0 ? R.pick(BIZN) : `${R.pick(FIRST)} ${R.pick(LAST)}${R.chance(0.3) ? ' & family' : ''}`, evictions: ev, income: Math.round(inc * 10) / 10, credit: cs, rel: U.clamp(q + R.normal(0, 0.12), 0.02, 0.98) };
   };
   RE.applicantMarks = (a) => [ // good / okay / bad markers the player reads
     { label: 'Past evictions', val: String(a.evictions), mark: a.evictions === 0 ? 'good' : 'bad' },
@@ -5712,7 +5761,7 @@ details.grp .in1 { margin-left: 14px; }
     const ok = TG.CREDIT.apply(g, 'mortgage', newAmt, { collateral: { kind: 'property', id: h.id }, label: 'Refi mortgage: ' + h.name, noCash: true, ltv: C.refinanceLtv }); if (!ok.ok) return ok;
     if (old) g.loans = g.loans.filter((x) => x !== old);
     const loan = ok.loan;
-    h.mortgageId = loan.id; TG.F.earn(g, cashOut, 'Refinance cash-out', null, true); TG.F.spend(g, 0, 'Refinance fees', null, true);
+    h.mortgageId = loan.id; const fee = Math.round(newAmt * C.refinanceFee); TG.F.earn(g, cashOut + fee, 'Refinance cash-out', null, true); TG.F.spend(g, fee, 'Refinance fees', null, true); /* v8: the fee shows in the money report */
     return { ok: true, cashOut };
   };
   RE.develop = (g, hid, units) => {
@@ -6563,14 +6612,15 @@ details.grp .in1 { margin-left: 14px; }
   // ---------- categories (Thomas's layout: money in first, then expense groups with subtotals) ----------
   LG.IN = [
     ['sales', '🛒', 'Sales'], ['rent', '🔑', 'Rent from tenants'], ['inv', '📈', 'Investments'],
-    ['borrow', '🏦', 'Borrowed money (loans, credit line, investors)'], ['sold', '🏷️', 'Things you sold (machines, buildings, businesses)'], ['other', '✨', 'Other money in'],
+    ['borrow', '🏦', 'Borrowed money (loans, credit line, investors)'], ['sold', '🏷️', 'Things you sold (machines, buildings, businesses)'], ['back', '🔐', 'Deposits returned'], ['wiped', '🧽', 'Unpaid bills wiped by bankruptcy (not income)'], ['other', '✨', 'Other money in'],
   ];
   LG.OUT = [
     ['loans', '🏦', 'Loans'], ['property', '🏠', 'Property'], ['wages', '👥', 'Wages'], ['product', '📦', 'Cost of product'],
-    ['equip', '🛠️', 'Equipment'], ['buy', '🏗️', 'Buying property & businesses'], ['tax', '🧾', 'Taxes'], ['inv', '📈', 'Investing & bets'], ['other', '📎', 'Other'],
+    ['equip', '🛠️', 'Equipment'], ['buy', '🏗️', 'Buying property & businesses'], ['deposit', '🔐', 'Deposits (paid back when a lease ends)'], ['late', '⏰', 'Late fees (cash below zero)'], ['tax', '🧾', 'Taxes'], ['inv', '📈', 'Investing & bets'], ['other', '📎', 'Other'],
   ];
   const T = (re) => (l) => re.test(l);
   const IN_RULES = [
+    ['back', T(/Lease deposits returned/)], ['wiped', T(/Debts wiped/)],
     ['rent', T(/^Rent$/)],
     ['borrow', T(/Loan proceeds|Credit line draw|Refinance cash-out|Investor funding|IPO proceeds|Fund raise/)],
     ['inv', T(/Trading gains|Gambling winnings|Investments sold|Angel exits|Angel stakes sold/)],
@@ -6578,6 +6628,7 @@ details.grp .in1 { margin-left: 14px; }
     ['sales', T(/Revenue|sales|Subscriptions|Royalties|Franchise fees|Freight/i)],
   ];
   const OUT_RULES = [
+    ['deposit', T(/^Lease deposits$/)], ['late', T(/^Late fees$/)],
     ['loans', T(/Loan|Credit line|Margin|Refinance fees|Late fees/)],
     ['tax', T(/Income tax|Tax audit/)],
     ['property', T(/Real estate (property tax|upkeep|insurance|repairs)|Tenant|Disaster damage|Evictions|Property manager|Handyman|Unit turnover|^Rent|Property tax|Building upkeep|Code violation/)],
@@ -6623,7 +6674,7 @@ details.grp .in1 { margin-left: 14px; }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 7;
+  const VERSION = 8;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -6660,7 +6711,7 @@ details.grp .in1 { margin-left: 14px; }
       cash: 0, player: { name: opts.name || 'You', credit: 700, bankruptcies: 0, noLoanUntil: 0, ownerBiz: null, exp: {} },
       properties: [], listings: [], businesses: [], loans: [], loc: { balance: 0, rate: 0 }, lawsuits: [], decisions: [], log: [], history: [],
       acc: TG.F.newAcc(), taxLoss: 0, taxPaid: [], negMonths: 0, ceo: null, scenario: opts.scenario || 'classic', reports: [], newsFeed: [],
-      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
+      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: true, majorTypes: { closed: true, cash: true, crime: true, breakdown: true, keyQuit: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', ceoBigMoves: false, confirmPending: true, warnSupplies: true }, opts.settings || {}),
       achievements: {}, stats: { peakNW: 0, reached: {}, recessionProfitYears: 0 }, started: Date.now(),
     };
     TG.G = g;
@@ -6675,8 +6726,8 @@ details.grp .in1 { margin-left: 14px; }
     if (sc === 'rich') g.cash = 2000000;
     TG.CREDIT.ensure(g); TG.CREDIT.sync(g);
     if (sc === 'farm') {
-      const p = TG.P.gen(g, TG.P.idealFor('farm')); p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; g.properties.push(p);
-      g.cash = 1e9; const r = TG.B.start(g, 'farm', p.id, { name: 'Family Farm' }); const b = r.biz;
+      const p = TG.P.gen(g, TG.P.idealFor('farm')); if (p.acres > 320 || p.acres < 60) { const a2 = R.int(80, 300); p.price = Math.round(p.price * a2 / Math.max(1, p.acres)); p.acres = a2; } /* v8: a family farm, not a 3,000-acre ranch run by 2 farmhands */ p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; g.properties.push(p);
+      g.cash = 1e9; const r = TG.B.start(g, 'farm', p.id, { name: 'Family Farm' }); if (!r.biz) throw new Error('farm start: ' + r.msg); const b = r.biz;
       TG.B.quickSetup(g, b, true, 'used');
       for (const it of b.equip) { it.wear = R.range(55, 80); it.age = R.int(100, 200); it.warranty = 0; }
       b.rep = 18; for (const e of b.staff) { e.morale = R.range(30, 45); }
@@ -6794,6 +6845,7 @@ details.grp .in1 { margin-left: 14px; }
       if (stopOn && i < n - 1) {
         const hit = r.majors.find((x) => types[x.kind]);
         if (hit) { stopped = { date: r.date, text: hit.text, kind: hit.kind }; break; }
+        if (types.cash !== false && g.cash < 0) { stopped = { date: r.date, text: `Cash fell below zero (${U.money(g.cash)})`, kind: 'cash' }; break; }
       }
       if (opts.onProgress) opts.onProgress(i + 1, n);
     }
@@ -6887,6 +6939,14 @@ details.grp .in1 { margin-left: 14px; }
     for (const l of g.loans || []) { if (l.intPaid == null) { l.intPaid = 0; l.prinPaid = Math.max(0, (l.principal || l.balance) - l.balance); l.histUnknown = true; } }
     for (const b of g.businesses) if (b.shut == null) b.shut = 0;
     if ((g.v || 1) < 7) g.v = 7;
+    // v8: skips stop on trouble by default, whole animals, supplies 'Auto' only with a manager, save revisions (two tabs)
+    if (g.v < 8) {
+      g.settings.stopOnMajor = true; g.settings.warnSupplies = true;
+      g.settings.majorTypes = Object.assign({ closed: true, cash: true, crime: true }, g.settings.majorTypes, { closed: true, cash: true, crime: true });
+      for (const b of g.businesses) { if (b.farm && b.farm.areas && b.farm.areas.cows && b.farm.areas.cows.st && TG.M.herdRound) TG.M.herdRound(b.farm.areas.cows, true); }
+      g.v = 8;
+    }
+      if (g.settings.warnSupplies == null) g.settings.warnSupplies = true;
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };
@@ -6920,17 +6980,27 @@ details.grp .in1 { margin-left: 14px; }
       return IDB.put(k, null); }); },
   };
   TG.IDB = IDB;
-  E.save = (g) => {
+  // v8: two tabs on one save. Every save bumps a shared revision number; a tab that did not see the latest
+  // revision (another tab saved after it loaded) refuses to save and asks you to reload, so it cannot wipe that progress.
+  const META_KEY = 'tycoon_save_meta';
+  E.TAB = Math.random().toString(36).slice(2, 10);
+  E.meta = () => { try { return JSON.parse(store.get(META_KEY) || 'null') || {}; } catch (e) { return {}; } };
+  E.seenRev = null; E.stale = false;
+  E.markSeen = () => { E.seenRev = E.meta().rev || 0; E.stale = false; };
+  E.save = (g, force) => {
+    const mt = E.meta();
+    if (!force && E.seenRev != null && (mt.rev || 0) !== E.seenRev && mt.tab && mt.tab !== E.TAB) { E.stale = true; E.saveState = { ok: false, at: Date.now(), where: '', err: 'stale', stale: true }; if (E.onStale) E.onStale(); return false; }
+    const rev = (mt.rev || 0) + 1;
     let txt; try { g.savedAt = Date.now(); txt = E.serialize(g); } catch (e) { E.saveState = { ok: false, at: Date.now(), where: '', err: 'could not package the game' }; return false; }
-    const lsOk = E.saveText(txt); const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    const lsOk = E.saveText(txt); if (lsOk) { try { store.set(META_KEY, JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId })); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
     E.saveIdb(txt, st);
     if (E.onSaved) E.onSaved(st); return lsOk; };
   E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; return g; });
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; E.markSeen(); return g; });
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
-  E.load = () => { const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
+  E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
   E.clearSave = () => store.del(SAVE_KEY);
   const b64e = (s) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'));
   const b64d = (s) => (typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'));
@@ -6997,7 +7067,7 @@ details.grp .in1 { margin-left: 14px; }
   UI.tile = (key, icon, value, label, tone, tip) => `<div class="tile ${tone || ''}" data-act="tip" data-arg="${esc(key)}" data-nosave="1"><div class="ti">${icon}</div><div class="tv">${value}</div><div class="tl">${esc(label)}</div></div>${UI.S.tips[key] && tip ? `<div class="tip" style="grid-column:1/-1;margin:0">${esc(tip)}</div>` : ''}`;
   UI.dot = (c) => `<span class="dot ${c || ''}"></span>`;
   UI.fmtN = (v, u) => (u === '$' ? U.money(v) : u === '%' ? Math.round(v) + '%' : Math.round(v).toLocaleString() + (u ? (u[0] === '/' ? '' : ' ') + u : ''));
-  UI.num = (id, def) => { const el = document.getElementById(id); const v = el ? Number(String(el.value).replace(/[^0-9.\-]/g, '')) : NaN; return Number.isFinite(v) ? v : def; };
+  UI.num = (id, def) => { const el = document.getElementById(id); if (!el) return def; const t = String(el.value).trim().replace(/[$,\s]/g, ''); if (t === '') return def; const v = Number(t); return Number.isFinite(v) ? v : def; }; // v8: blank = default, "1e3" = 1000 (was 13)
   UI.val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
 
   UI.toast = (msg, bad) => {
@@ -7019,7 +7089,7 @@ details.grp .in1 { margin-left: 14px; }
 
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
-  const JAIL_OK = ['next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
+  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
   // v6 instant updates: derived numbers (capacity, work bars, limits, forecast) for a business as it is RIGHT NOW.
   // TG.B.live recomputes them whenever the business changed (it is cached otherwise), so every action shows its effect at once.
   const LV = (b) => (TG.G && b ? TG.B.live(TG.G, b) : null);
@@ -7033,7 +7103,7 @@ details.grp .in1 { margin-left: 14px; }
   UI.saveChip = () => {
     const st = TG.Game.saveState || {};
     if (st.ok === false) return `<span class="chip save no" id="saveInd" data-act="exportSave">⚠️ Not saved</span>`;
-    if (st.ok) { const d = new Date(st.at); return `<span class="chip save ok" id="saveInd" data-act="saveInfo" data-nosave="1">💾 Saved ✓ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</span>`; }
+    if (st.ok) { const d = new Date(st.at); return `<span class="chip save ok" id="saveInd" data-act="saveInfo" data-nosave="1">💾 ✓</span>`; }
     return `<span class="chip save" id="saveInd" data-act="saveInfo" data-nosave="1">💾</span>`;
   };
   UI.header = () => {
@@ -7042,11 +7112,11 @@ details.grp .in1 { margin-left: 14px; }
     return `<header class="top"><span class="chip">📅 ${U.dateStr(g.month)}</span>
       <span class="chip cash ${g.cash < 0 ? 'neg' : ''}">💵 ${UI.m(g.cash)}</span>
       <span class="chip">📈 ${UI.m(nw)}</span>
-      <span class="chip">${ph === 'boom' ? '☀️' : ph === 'recession' ? '🌧️' : '⛅'} ${TG.W.phaseLabel(g)}</span>
+      <span class="chip" data-act="econInfo" data-nosave="1" style="cursor:pointer">${ph === 'boom' ? '☀️' : ph === 'recession' ? '🌧️' : '⛅'} Economy: ${TG.W.phaseLabel(g)}</span>
       ${pend ? `<span class="chip dec" data-act="decisions">⚠️ ${pend}</span>` : ''}${UI.saveChip()}</header>
       ${TG.Game.saveState && TG.Game.saveState.ok === false ? `<div class="banner" style="margin:8px 10px 0">⚠️ This browser is not keeping your save (${esc(TG.Game.saveState.err || 'storage blocked')}). ${UI.btn('📤 Export save', 'exportSave', null, 'sm pri')}</div>` : ''}`;
   };
-  UI.A.saveInfo = () => { const st = TG.Game.saveState || {}; UI.toast(st.ok ? `Saved on this ${st.where || 'device'} after every month and every tap.` : 'Not saved yet.'); };
+  UI.A.saveInfo = () => { const st = TG.Game.saveState || {}; const d = new Date(st.at || Date.now()); UI.toast(st.ok ? `💾 Saved at ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} on this ${st.where || 'device'}. The game saves after every month and every tap.` : 'Not saved yet.'); };
   TG.Game.onSaved = () => { const el = document.getElementById('saveInd'); if (el) el.outerHTML = UI.saveChip(); };
   UI.footer = () => {
     const v = UI.S.skipVal || '';
@@ -7145,11 +7215,14 @@ details.grp .in1 { margin-left: 14px; }
     if (!g.businesses.length && !g.re.holdings.length) {
       out += `<div class="card hi"><h3>👋 Let's start!</h3>
         <div class="irow"><span class="ic">1️⃣</span><span class="lb">Pick a business and a place in 🗺️ Shop</span></div>
-        <div class="irow"><span class="ic">2️⃣</span><span class="lb">Press ▶ Next Month</span></div>
-        <div class="irow"><span class="ic">3️⃣</span><span class="lb">See what happened, fix the red things, grow</span></div>
+        <div class="irow"><span class="ic">2️⃣</span><span class="lb">📦 Buy supplies on its Now tab. Nobody reorders for you until you hire a manager!</span></div>
+        <div class="irow"><span class="ic">3️⃣</span><span class="lb">Press ▶ Next Month</span></div>
+        <div class="irow"><span class="ic">4️⃣</span><span class="lb">See what happened, fix the red things, grow. Stuck? Tap ❓ Help at the top.</span></div>
         <div class="btns">${UI.btn('🗺️ Go shopping', 'go', 'market', 'pri')}${UI.btn('🏘️ Houses to rent out', 'goMoneyTab', 're')}</div>
         ${g.player.noLoanUntil > g.month ? `<div class="mute">🏦 Banks won't lend for ${g.player.noLoanUntil - g.month} more months.</div>` : ''}</div>`;
     }
+    { const lb = g.player.lastBankrupt; if (lb && g.month - lb.m <= 3) out += `<div class="ev bad"><b>💥 You went bankrupt (${esc(U.dateStr(lb.m))})</b><div class="small">${esc(lb.why)}. Your businesses and buildings were taken; you kept ${m(TG.CONFIG.finance.bankruptcy.keepCash)}. Banks won't lend for ${Math.max(0, g.player.noLoanUntil - g.month)} more months. Start small: lease a cheap spot in 🗺️ Shop.</div></div>`; }
+    if (g.cash < 0) { const left = TG.CONFIG.finance.bankruptcyMonths - (g.negMonths || 0); out += `<div class="ev bad"><b>⚠️ Cash is below zero (${m(g.cash)})</b><div class="small">You pay late fees every month, and after ${Math.max(0, left)} more month${left === 1 ? '' : 's'} like this creditors sell your things. Fix it: sell something, cut staff, or borrow (Money tab).</div></div>`; }
     out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
       ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
       ${(() => { const lr = g.lastReport && g.lastReport.money; const v = lr ? lr.net : last ? last.profit : null; return UI.tile('h_pf', '💰', v != null ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Left with last month', v == null ? '' : v >= 0 ? 'g' : 'r', 'Cash change last month: everything in minus everything out (sales, rent, wages, machines, loan payments, tax...). Tap 📄 Last month for the full report.'); })()}
@@ -7184,7 +7257,7 @@ details.grp .in1 { margin-left: 14px; }
     const tone = !h ? '' : res < 0 || bad || shut ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
     return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(Math.round(res)) : '<span class="mute">new</span>'}</span></div>${shut ? `<div class="closed small">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}</div>` : ''}
-      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you' : b.spec.gm ? ' · 👔 boss' : ' · ⚠️ no boss'}${lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}%` : ''}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
+      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you run it' : b.spec.gm ? ' · 👔 GM runs it' : g.ceo ? ' · 👔 CEO oversees' : b.spec.ops ? ' · 🧑‍💼 ops mgr (no GM)' : b.spec.lead ? ' · 🧑‍🍳 shift lead (supplies only)' : ' · ⚠️ no manager: you do it all'}${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}% busy` : ''; const t = W.slice().sort((x, y) => y.util - x.util)[0]; return ` · ${t.util > 1 ? '🔴' : '📊'} busiest: ${esc(t.t.toLowerCase())} ${t.util >= 9 ? 'none working' : Math.round(t.util * 100) + '%'}`; })()}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };
   UI.A.goMoreTab = (t) => { UI.tab.more = t; UI.go('more'); };
@@ -7262,16 +7335,19 @@ details.grp .in1 { margin-left: 14px; }
       <div class="kv"><span>Your name</span><span><input type="text" id="ngName" value="${esc((TG.G && TG.G.player.name) || 'You')}" maxlength="24"></span>
       <span>Starting money</span><span><select id="ngMoney"><option value="random">Random ($90k-$260k)</option><option value="low">Low</option><option value="high">High</option></select></span>
       <span>Event frequency</span><span><select id="ngFreq"><option value="normal">Normal</option><option value="calm">Calm (fewer bad events)</option></select></span>
-      <span>Gambling & high-risk investing</span><span><select id="ngGamble"><option value="1">On</option><option value="0">Off (hidden)</option></select></span>
-      <span>Seed (optional)</span><span><input type="number" id="ngSeed" placeholder="random"></span></div></div>
+      <span>Gambling & high-risk investing</span><span><select id="ngGamble"><option value="0">Off (hidden)</option><option value="1">On</option></select></span>
+      <span>Crime options</span><span><select id="ngCrime"><option value="0">Off (hidden)</option><option value="1">On</option></select></span>
+      <span>Game code (optional)</span><span><input type="number" id="ngSeed" placeholder="random"></span></div>
+      <div class="mute">Crime options add illegal side hustles (risky: fines, jail). You can change this later in Settings.</div>
+      <div class="mute">Game code: leave blank for a new random world. Type the same code twice to get the same world (to replay or compare with a friend).</div></div>
       <h3>Choose a start</h3>${Object.entries(sc).map(([id, s]) => `<div class="card"><div class="row sp"><div class="grow"><b>${esc(s.label)}</b><div class="mute">${esc(s.desc)}</div></div>${UI.btn('Start', 'newGame', id, 'pri')}</div></div>`).join('')}
       ${first ? '' : '<div class="mute">Starting a new game replaces the current autosave (export it first in Settings if you want to keep it).</div>'}`;
     if (first) { document.querySelector('#app').innerHTML = `<header class="top"><span class="date">🏢 Tycoon</span></header><main><h2>New game</h2>${o}</main>`; }
     else UI.modal('New game', o);
   };
   UI.A.newGame = (scenario) => {
-    const seedV = UI.num('ngSeed', NaN);
-    const g = TG.Game.newGame({ scenario, name: UI.val('ngName') || 'You', money: UI.val('ngMoney'), seed: Number.isFinite(seedV) ? seedV : undefined, settings: { eventFreq: UI.val('ngFreq') || 'normal', gambling: UI.val('ngGamble') !== '0' } });
+    const raw = String(UI.val('ngSeed') || '').trim(); const seedV = /^\d+$/.test(raw) ? Number(raw) : NaN; // v8: blank = truly random
+    const g = TG.Game.newGame({ scenario, name: UI.val('ngName') || 'You', money: UI.val('ngMoney'), seed: Number.isFinite(seedV) ? seedV : undefined, settings: { eventFreq: UI.val('ngFreq') || 'normal', gambling: UI.val('ngGamble') !== '0', crime: UI.val('ngCrime') === '1' } });
     TG.G = g; UI.closeModal(); UI.save(); UI.go(scenario === 'farm' ? 'biz' : 'home');
     UI.toast('New game started. Good luck!');
   };
@@ -7289,7 +7365,7 @@ details.grp .in1 { margin-left: 14px; }
     const C = TG.CONFIG.businesses; let o = '';
     for (const t of ['small', 'between', 'corp']) {
       o += `<optgroup label="${tierLbl[t]}">`;
-      for (const [id, d] of Object.entries(C)) if (d.tier === t) o += `<option value="${id}"${id === sel ? ' selected' : ''}>${d.icon} ${esc(d.name)} (setup ~${m(d.setupCost)})</option>`;
+      for (const [id, d] of Object.entries(C)) if (d.tier === t) o += `<option value="${id}"${id === sel ? ' selected' : ''}>${d.icon} ${esc(d.name.split(' / ')[0])} ~${m(d.setupCost)}</option>`;
       o += '</optgroup>';
     }
     return o;
@@ -7297,10 +7373,10 @@ details.grp .in1 { margin-left: 14px; }
 
   UI.screens.market = () => {
     const g = TG.G, C = TG.CONFIG; const type = UI.S.mkType, d = C.businesses[type];
-    let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn ${k === type ? 'pri' : ''}" style="font-size:26px;min-width:56px" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}</button>`).join('')}</div></div>`;
+    let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn mkic ${k === type ? 'pri' : ''}" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}<small>${esc(x.name.split(' / ')[0])}</small></button>`).join('')}</div></div>`;
     o += `<div class="card"><div class="row"><span class="small">I want to start a</span><select data-change="mkType">${UI.typeOptions(type)}</select></div>
       <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}</div>
-      <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
+      <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : type === 'foodtruck' ? `a small spot to park and prep (${d.space.min.toLocaleString()}-${d.space.ideal.toLocaleString()} sq ft: a cheap lot or tiny storefront is fine)` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
       <div class="row" style="margin-top:6px"><span class="small">Sort</span><select data-change="mkSort">${[['suit', 'Best fit'], ['price', 'Cheapest'], ['priceD', 'Most expensive'], ['size', 'Biggest'], ['loc', 'Location']].map(([v, l]) => `<option value="${v}"${UI.S.mkSort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <span class="small">Max price</span><input type="number" id="mkMax" value="${esc(UI.S.mkMax)}" placeholder="any" data-change="mkMax"></div></div>`;
     // owned/leased empty properties first
@@ -7310,8 +7386,9 @@ details.grp .in1 { margin-left: 14px; }
       for (const p of free) o += propCard(p, type, true);
     }
     let L = g.listings.map((p) => ({ p, s: TG.P.suit(p, type) }));
+    const canAfford = (p) => g.cash >= p.price * (1 + C.property.buyCostPct) || g.cash >= TG.P.leaseRent(g, p) * (1 + C.property.leaseDeposit) * 3; // v8: Best fit prefers places you can actually get
     const mx = Number(UI.S.mkMax); if (mx > 0) L = L.filter((x) => x.p.price <= mx);
-    const sorters = { suit: (a, b) => b.s - a.s, price: (a, b) => a.p.price - b.p.price, priceD: (a, b) => b.p.price - a.p.price, size: (a, b) => (b.p.sqft + b.p.acres * 40000) - (a.p.sqft + a.p.acres * 40000), loc: (a, b) => (a.p.loc + a.p.region).localeCompare(b.p.loc + b.p.region) };
+    const sorters = { suit: (a, b) => b.s * (canAfford(b.p) ? 1 : 0.6) - a.s * (canAfford(a.p) ? 1 : 0.6), price: (a, b) => a.p.price - b.p.price, priceD: (a, b) => b.p.price - a.p.price, size: (a, b) => (b.p.sqft + b.p.acres * 40000) - (a.p.sqft + a.p.acres * 40000), loc: (a, b) => (a.p.loc + a.p.region).localeCompare(b.p.loc + b.p.region) };
     L.sort(sorters[UI.S.mkSort] || sorters.suit);
     o += `<h3>For sale (${L.length})</h3><div class="mute" style="margin:-4px 0 6px">New listings appear every month. Lease = no big purchase, but monthly rent and nothing to sell later.</div>`;
     for (const x of L) o += propCard(x.p, type, false, x.s);
@@ -7329,7 +7406,12 @@ details.grp .in1 { margin-left: 14px; }
     const mort = TG.F.payment(p.price - down, TG.F.rateFor(g, 'mortgage'), C.finance.loans.mortgage.term);
     let btns = '';
     if (mine) btns = UI.btn(`Start ${esc(C.businesses[type].name)} here`, 'startHere', p.id, 'pri') + UI.btn('Start another type…', 'startPick', p.id) + UI.btn(p.leased ? 'End lease' : `Sell (~${m(TG.P.value(g, p) * (1 - C.property.sellCostPct))})`, 'sellProp', p.id, 'badb');
-    else btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`🏦 Mortgage (${m(down + fees)} down, ~${m(mort)}/mo)…`, 'propFin', p.id, '', g.cash < down + fees) + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < rent * (1 + C.property.leaseDeposit));
+    else {
+      const fp = UI.finPreview(g, p.price, 1 - C.property.mortgageDown, { taxPct: 0.012, insPct: C.finance.insurance.property.val }, UI.S.finTerm || C.finance.loans.mortgage.term); void mort;
+      const leaseNow = Math.round(rent * (1 + C.property.leaseDeposit));
+      btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`🏦 Mortgage: ${m(fp.cash)} now · ${fp.q.block ? 'no chance' : Math.round(fp.q.odds * 100) + '% odds'}…`, 'propFin', p.id, '') + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < leaseNow);
+      btns = `<div class="mute" style="width:100%">Buy = price ${m(p.price)} + closing ${m(fees)}. Lease = ${m(leaseNow)} today (first month + deposit you get back when the lease ends).${g.cash < p.price + fees ? ` <span class="bad">Need ${m(p.price + fees - g.cash)} more to buy.</span>` : ''}</div>` + btns;
+    }
     return `<div class="card"><div class="row sp"><b>${kind.icon || '🏠'} ${esc(kind.label)} · ${esc(p.name)}</b>${UI.pill(`${sl.label} fit ${Math.round(s * 100)}%`, sl.tone)}</div>
       <div class="mute">${esc(TG.P.locLabel(p))} · ${esc(TG.P.sizeLabel(p))}${mine ? ` · ${p.leased ? `leased ${m(p.rent)}/mo` : `owned, worth ~${m(TG.P.value(g, p))}`}` : ` · <b>${m(p.price)}</b>`}</div>
       <div class="grid2 small" style="margin-top:4px"><div>${pc.pros.map((x) => `<div class="good">+ ${esc(x)}</div>`).join('') || '<div class="mute">No standout pros</div>'}</div><div>${pc.cons.map((x) => `<div class="bad">− ${esc(x)}</div>`).join('') || '<div class="mute">No obvious cons</div>'}</div></div>
@@ -7337,7 +7419,9 @@ details.grp .in1 { margin-left: 14px; }
   }
 
   UI.A.acq = (arg) => {
-    const [id, mode] = arg.split('|'); const g = TG.G;
+    const [id, mode, ok] = arg.split('|'); const g = TG.G;
+    { const p0 = g.listings.find((x) => x.id === id); if (p0 && mode === 'cash' && ok !== 'y') { const c = Math.round(p0.price * (1 + TG.CONFIG.property.buyCostPct)); if (c > g.cash * 0.4) return UI.confirm(`Pay ${m(c)} cash for ${p0.name || 'this property'}? That is ${Math.round(c / Math.max(1, g.cash) * 100)}% of your cash, leaving ${m(g.cash - c)} for gear, staff and supplies.`, 'acq', `${id}|cash|y`); } }
+    UI.closeModal();
     const r = TG.P.acquire(g, id, mode); if (!UI.res(r)) return;
     UI.toast(mode === 'lease' ? 'Lease signed.' : 'Property bought.'); UI.refresh();
     UI.startDialog(r.prop.id, UI.S.mkType);
@@ -7418,13 +7502,13 @@ details.grp .in1 { margin-left: 14px; }
   function overview(g, b) {
     const d = TG.B.def(b), lc = UI.lc(b); const h = b.hist; const last = h[h.length - 1];
     let o = `<div class="tiles">
-      ${(() => { const v = last ? (last.cash != null ? last.cash : last.profit) : null; return UI.tile('t_profit', '💰', last ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'True result last month', last ? (v >= 0 ? 'g' : 'r') : '', last ? `Everything this business really cost and made last month, including machines bought, repairs, damage and its loan payments. Profit on paper (without buying machines or paying down loans): ${UI.signed(last.profit).replace(/<[^>]+>/g, '')}.` : 'Not open a full month yet.'); })()}
+      ${(() => { const v = last ? (last.cash != null ? last.cash : last.profit) : null; return UI.tile('t_profit', '💰', last ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Cash made last month (all in)', last ? (v >= 0 ? 'g' : 'r') : '', last ? `Everything this business really cost and made last month, including machines bought, repairs, damage and its loan payments. Profit on paper (without buying machines or paying down loans): ${UI.signed(last.profit).replace(/<[^>]+>/g, '')}.` : 'Not open a full month yet.'); })()}
       ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
       ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
-      ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
+      ${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return ''; const top = W.slice().sort((x, y) => y.util - x.util)[0]; const u = top.util >= 9 ? 'none working' : Math.round(top.util * 100) + '%'; return UI.tile('t_cap', top.i || '📊', u, 'Busiest: ' + top.t, top.util > 1 ? 'r' : top.util > 0.9 ? 'y' : 'g', `The busiest part of the business next month: ${top.t} at ${u} of what it can handle. Over 100% = lost sales, unhappy staff and fast wear. See every part under 💪 Work.`); })() || UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
     const cb = UI.closedBanner(g, b); o += cb;
-    if (lc.note && !cb) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
+    if (lc.note && !cb) o += `<div class="ev info">💡 <b>Next month:</b> ${esc(lc.note.replace(/^Ran out of stock/, "will run out of stock"))}</div>`;
     o += UI.todoCard(g, b); // v6: jobs nobody does for you (no manager)
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
@@ -7502,7 +7586,7 @@ details.grp .in1 { margin-left: 14px; }
     const risk = (C.unfinishedRisk && C.unfinishedRisk[b.type]) || 'accidents, unhappy customers and failed inspections';
     let o = `<div class="card"><h3>🧯 Work vs your team ${UI.tipBtn('uw' + b.id)}</h3>${UI.tipLine('uw' + b.id, `Every month some people call out sick or slack off (about ${U.pct(C.staff.calloutBase)} each; more if unreliable or unhappy). Spare people cover for them. With no spare, work is left undone and the odds of ${risk} go up until it is caught up.`)}
       <div class="tiles">${UI.tile('uwu' + b.id, '🧺', b.hist.length ? U.pct(unf) : '–', 'Left undone', unf > 0.05 ? 'r' : unf > 0 ? 'y' : 'g', 'Share of last month\'s work nobody got to.')}
-      ${UI.tile('uwb' + b.id, '⚠️', 'x' + bl.toFixed(2), 'Disaster odds', bl > 1.3 ? 'r' : bl > 1.01 ? 'y' : 'g', `Undone work raises the odds of ${risk}. It fades when the team catches up (no undone work for a month or two).`)}</div>`;
+      ${UI.tile('uwb' + b.id, '⚠️', bl > 1.01 ? '+' + Math.round((bl - 1) * 100) + '%' : 'normal', 'Extra risk from undone work', bl > 1.3 ? 'r' : bl > 1.01 ? 'y' : 'g', `Undone work raises the odds of ${risk}. It fades when the team catches up (no undone work for a month or two).`)}</div>`;
     if (!W.length) o += `<div class="mute">Press ▶ Next Month to see how much work there is.</div>`;
     for (const w of W) {
       const rd = TG.S.roleDef(b, w.role) || {}; const n = b.staff.filter((e) => e.role === w.role).length;
@@ -7548,9 +7632,9 @@ details.grp .in1 { margin-left: 14px; }
     let o = `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
       ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
-      ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out.', null, stockH ? esc(stockH.label) : NOM) : ''}
+      ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Shift lead, Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out.', null, stockH ? esc(stockH.label) : NOM) : ''}
       ${b.farm ? UI.irow('mwf' + b.id, '🚜', 'Farm work', fh ? U.pct(fh.p) : '<span class="bad">nobody</span>', fh ? `${fh.label} sprays, buys seed and feed, and sells cattle by your orders below. Gets it right about ${U.pct(fh.p)} of the time.` : 'No GM or ops manager: nobody sprays, buys seed or feed, or sells cattle. You must do it yourself.', null, fh ? esc(fh.label) : NOM) : ''}
-      ${!hire ? `<div class="btns">${UI.btn('➕ Hire a manager', 'hireRole', 'gm', 'sm pri')}</div>` : ''}</div>`;
+      ${!hire || (TG.ST.def(b) && !stockH) ? `<div class="btns">${!hire ? UI.btn('➕ Hire a general manager (does everything)', 'hireRole', 'gm', 'sm pri') : ''}${TG.ST.def(b) && !stockH ? UI.btn('➕ Hire a Shift lead (supplies only, cheaper)', 'hireRole', 'lead', 'sm') : ''}</div>` : ''}</div>`;
     // staffing numbers
     o += `<div class="card"><h3>👥 How many to keep</h3><div class="mute">Your manager hires replacements to keep these numbers.</div>`;
     for (const r of Object.keys(d.roles)) {
@@ -7563,7 +7647,7 @@ details.grp .in1 { margin-left: 14px; }
     o += `</div>`;
     // supplies
     const st = TG.ST.def(b) ? TG.ST.ensure(b) : null;
-    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Manager reorders supplies each month', stockH ? null : '<span class="bad">no manager</span>', stockH ? 'Your manager tops up supplies before they run out.' : 'Only works with an ops manager, GM or CEO. Without one, nothing is bought for you.', onOff(st.auto, 'stAuto'))}</div>`;
+    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Manager reorders supplies each month', stockH ? null : '<span class="bad">no manager</span>', stockH ? 'Your manager tops up supplies before they run out.' : 'Only works with a Shift lead, Ops manager, GM or CEO. Without one, nothing is bought for you: buy supplies yourself on the Now tab.', stockH ? onOff(st.auto, 'stAuto') : UI.btn('🤖 needs a manager', 'stAutoNo', null, 'xs'))}</div>`;
     // farm orders
     if (b.farm) {
       const f = TG.M.farmEnsure(b);
@@ -7600,7 +7684,7 @@ details.grp .in1 { margin-left: 14px; }
     const rel = c.revealed.reliability ? U.pct(1 - C.staff.noShowBase * (1.6 - c.reliability / 100)) : '?';
     if (C.specialists[c.role]) {
       const P = (C.perks[c.role] || []).filter(([lvl]) => sk >= lvl).map((x) => x[3]);
-      return `<div class="small">🎯 Good calls ~${U.pct(TG.D.pGood(g, est))} · 🕒 shows up ${rel}${P.length ? ' · 🏅 ' + esc(P.join(', ')) : ' · 🏅 no perks yet (skill 40+)'}</div>`;
+      return `<div class="small">🎯 Makes the right call ~${U.pct(TG.D.pGood(g, est))} of the time · 🕒 shows up ${rel}${P.length ? ' · 🏅 ' + esc(P.join(', ')) : ' · 🏅 no perks yet (skill 40+)'}</div>`;
     }
     const rd = TG.S.roleDef(b, c.role) || {}; const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
     let each, team = '';
@@ -7637,7 +7721,7 @@ details.grp .in1 { margin-left: 14px; }
     const at = (s) => Object.assign({}, e, { skill: s });
     const rows = [];
     if (C.specialists[e.role]) {
-      rows.push(['🎯', 'Good calls on decisions', U.pct(TG.D.pGood(g, at(sk))), U.pct(TG.D.pGood(g, at(up)))]);
+      rows.push(['🎯', 'Right calls on decisions', U.pct(TG.D.pGood(g, at(sk))), U.pct(TG.D.pGood(g, at(up)))]);
       const P = C.perks[e.role] || [];
       let o = `<div class="card"><h3 style="margin-top:0">🧠 What skill ${Math.round(sk)} does</h3>` + rows.map(([i, t, a, z]) => UI.irow('sk' + e.id + t, i, t, `${a} → ${z}`, `Now ${a}. At skill ${up}: ${z}.`)).join('');
       if (P.length) o += '<h4>🏅 Perks</h4>' + P.map(([lvl, , , txt]) => `<div class="irow"><span class="ic">${sk >= lvl ? '✅' : '🔒'}</span><span class="lb">${esc(txt)}<small>skill ${lvl}+</small></span></div>`).join('');
@@ -7857,6 +7941,13 @@ details.grp .in1 { margin-left: 14px; }
   const qty = (id, def) => `<input type="number" id="${id}" min="1" value="${Math.max(1, Math.round(def || 1))}" aria-label="how many">`;
   const FD = () => TG.CONFIG.businesses.farm.farm;
 
+  // v8: Auto reorder only exists with a manager who handles supplies; otherwise say so plainly + offer a one-tap "fill for next month"
+  UI.autoBtn = (g, b, st) => {
+    const h = TG.D.handler(g, b, 'stock'); const q = TG.ST.suggest(b, g); const fill = q > 0 ? UI.btn(`📦 Fill for next month: ${N(q)} (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'xs pri') : '';
+    if (!h) return fill + UI.btn('🤖 Auto: needs a manager', 'stAutoNo', null, 'xs');
+    return fill + UI.btn(st.auto ? `🤖 Auto ✓ (${esc((TG.CONFIG.specialists[h.role] || { label: 'CEO' }).label)})` : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : ''));
+  };
+  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire a Shift lead, Ops manager or GM in Staff to do it.', true);
   // ================= STOCK CARD (every business) =================
   UI.stockCard = (g, b) => {
     const d = TG.B.def(b); let rows = ''; let title = '📦 What you have';
@@ -7879,7 +7970,7 @@ details.grp .in1 { margin-left: 14px; }
       const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const uc = TG.ST.unitCost(g, b);
       const per = Math.max(1, Math.round(lc.served || cap / 3));
       o += UI.irow('sup' + b.id, s.icon, s.label, `${N(st.qty)}/${N(cap)}`, `${s.desc || 'Used up by every sale.'} ${m(uc)} each. ${U.pct(s.spoil, 0)} of leftovers spoil each month. Run out = customers turned away.`,
-        qty('qSup', per) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')),
+        qty('qSup', per) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st),
         `last month: +${N(st.inM)} in · −${N(st.usedM)} used${st.spoilM ? ' · −' + N(st.spoilM) + ' spoiled' : ''}${st.lastBy ? ' · ordered by ' + esc(st.lastBy) : ''}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(cap, 1))}</div>`;
     }
@@ -7896,7 +7987,7 @@ details.grp .in1 { margin-left: 14px; }
   }
   UI.A.stBuy = () => { const g = TG.G, b = biz(); const n = TG.ST.buy(g, b, UI.num('qSup', 0), 0); after(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)}.`); };
   UI.A.stSell = () => { const g = TG.G, b = biz(); const v = TG.ST.sell(g, b, UI.num('qSup', 0)); after(v > 0 ? { ok: true } : { ok: false, msg: 'Nothing to sell.' }, `Sold back for ${m(v)} (half price).`); };
-  UI.A.stAuto = () => { const b = biz(); const st = TG.ST.ensure(b); st.auto = !st.auto; UI.toast(st.auto ? 'Staff/manager will reorder each month.' : 'Only you order now. Watch the count!'); UI.refresh(); };
+  UI.A.stAuto = () => { const b = biz(); const st = TG.ST.ensure(b); st.auto = !st.auto; UI.toast(st.auto ? 'Your manager will reorder each month.' : 'Only you order now. Watch the count!'); UI.refresh(); };
 
   // ---- farm: a short summary per area (details live on the 🌄 Land tab) ----
   function farmRows(g, b) {
@@ -7906,11 +7997,11 @@ details.grp .in1 { margin-left: 14px; }
       const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
       o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(a.herd, cap, true)}</div>`;
-      o += `<div class="small" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `${HC.stages[k].icon} ${N(a.st[k])}`).join(' · ')}</div>`;
+      o += `<div class="small herdchips" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `<span title="${esc(HC.stages[k].what || '')}">${HC.stages[k].icon} ${N(Math.floor(a.st[k] || 0))} ${esc(HC.stages[k].label.toLowerCase())}</span>`).join('')}</div>`;
       const fm = TG.M.feedMonths(g, b);
       o += UI.irow('fd' + b.id, '🌽', 'Feed in storage', `${N(f.feed || 0)} t`, `Cows eat grass first, then feed from storage (winter and dry months need lots). Next month they need about ${N(fc.buy)} t of feed. Feed costs ${m(TG.M.feedPrice(g))}/t. No feed = hungry cows: less milk, more sickness and deaths.${mgr ? ' Your manager keeps it topped up (Manager tab).' : ' No manager: you must buy it yourself.'}`,
-        qty('qFeed', Math.max(1, fc.buy * 2 - (f.feed || 0))) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
-      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(a.st.ready), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', a.st.ready || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
+        qty('qFeed', Math.max(Math.round(fc.buy * 2 - (f.feed || 0)), Math.round(TG.M.feedNeed(a) || 1), 1)) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
+      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(Math.floor(a.st.ready || 0)), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', Math.floor(a.st.ready || 0) || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
       const pc = TG.M.farmParlorCap(b); o += UI.irow('mlk' + b.id, '🥛', 'Cows milked', `${N(Math.min(a.st.milker, pc))}/${N(a.st.milker)}`, `A milking parlor milks ${N(160)} cows. The dairy truck collects milk every day and sells it at your milk price. Unmilked cows make nothing.`, UI.btn('+ Parlor', 'tab', 'biz:equip', 'xs'), `about ${N(Math.min(a.st.milker, pc) * TG.M.areaE(b, 'cows').milkPerCow)} t milk / month`);
     }
     const cap = TG.M.farmStoreCap(b), used = TG.M.farmStoreUsed(b);
@@ -7926,10 +8017,10 @@ details.grp .in1 { margin-left: 14px; }
     return { title: '🚜 Farm', rows: o };
   }
   UI.A.cowBuy = (k) => after(TG.M.farmBuyCattle(TG.G, biz(), UI.num('qc_' + (k || 'milker'), 0), k || 'milker'), 'Bought.');
-  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${r.head} for ${m(r.rev)}.` : null); };
-  UI.A.feedBuy = () => { const r = TG.M.farmBuyFeed(TG.G, biz(), UI.num('qFeed', 0), 'You'); after(r, r.ok ? `Bought ${N(r.tons)} t of feed for ${m(r.cost)}.` : null); };
+  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${N(r.head)} for ${m(r.rev)}.` : null); };
+  UI.A.feedBuy = () => { const want = Math.round(UI.num('qFeed', 0)); const r = TG.M.farmBuyFeed(TG.G, biz(), want, 'You'); after(r, r.ok ? `Bought ${N(r.tons)}${r.tons < want - 0.5 ? ` of ${N(want)}` : ''} t of feed for ${m(r.cost)}${r.tons < want - 0.5 ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
   UI.A.cropSell = (good) => { const g = TG.G, b = biz(); good = good || 'grain'; const t = Math.min(UI.num('q' + good, 0), b.farm.stored[good] || 0); if (!(t > 0)) return UI.toast('Nothing stored.', true); const v = TG.M.models.farm.sellStored(g, b, good, t); UI.toast(v > 0 ? `Sold for ${m(v)}.` : 'Buyers said no at your price.', !(v > 0)); UI.refresh(); };
-  UI.A.seedBuy = () => after(TG.M.farmBuySeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed bought.');
+  UI.A.seedBuy = () => { const g = TG.G, want = Math.round(UI.num('qSeed', 0)); const c0 = g.cash; const r = TG.M.farmBuySeeds(g, biz(), want); after(r, r.ok ? `Bought seed for ${N(r.acres)}${r.acres < want ? ` of ${N(want)}` : ''} acres for ${m(c0 - g.cash)}${r.acres < want ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
   UI.A.seedSell = () => after(TG.M.farmSellSeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed sold (half price).');
 
   // ---- brand ----
@@ -7951,7 +8042,7 @@ details.grp .in1 { margin-left: 14px; }
   function factoryRows(g, b) {
     const f = b.factory, fd = TG.CONFIG.businesses.factory.factory, M = TG.M.models.factory; const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const lc = UI.lc(b);
     let o = UI.irow('fraw' + b.id, '🪨', 'Raw materials', `${N(st.qty)}/${N(cap)}`, `Every unit made uses one. ${m(TG.ST.unitCost(g, b))} each. Space depends on your building and silos.`,
-      qty('qSup', Math.max(1, lc.served || 1000)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')));
+      qty('qSup', Math.max(1, lc.served || 1000)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st));
     o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`;
     o += UI.irow('fln' + b.id, '🏭', 'Production lines', `${M.lines(b).length}/${M.maxLines(b)}`, 'More lines need more space and more workers.', UI.btn('+ Line', 'tab', 'biz:equip', 'xs'), `made ${N(lc.served)} of ${N(lc.cap)} last month`);
     o += UI.irow('ffin' + b.id, '📦', 'Finished goods', N(f.stock), `Waiting to be sold. Storage costs ${m(fd.storagePerUnit * g.world.priceIdx)} each a month.`, ['hold', 'sell'].map((p) => UI.btn(p === 'hold' ? '⏸️ Hold if cheap' : '💵 Sell all', 'facPol', p, 'xs' + ((f.policy === 'hold') === (p === 'hold') ? ' pri' : ''))).join(''));
@@ -7962,7 +8053,7 @@ details.grp .in1 { margin-left: 14px; }
   // ---- tech ----
   function techRows(g, b) {
     const t = b.tech, T = TG.CONFIG.businesses.tech.tech; const sc = TG.E.capacity(b, 'server'); const eng = b.staff.filter((e) => e.role === TG.M.keyRole(TG.B.def(b))).length;
-    let o = t.phase === 'build' ? UI.irow('tdev' + b.id, '🧱', 'App being built', `${Math.min(100, Math.round(t.dev / T.devPoints * 100))}%`, 'Engineers build the app. No users until it launches.') + `<div style="margin:0 0 6px 48px">${UI.bar(t.dev, T.devPoints)}</div>` : '';
+    let o = t.phase === 'build' ? UI.irow('tdev' + b.id, '🧱', 'App being built', `${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% now`, 'Engineers build the app each month. No users until it reaches 100% and launches.') + `<div style="margin:0 0 6px 48px">${UI.bar(t.dev, T.devPoints)}</div>` : '';
     o += UI.irow('tus' + b.id, '📱', 'Users', `${N(t.users)}/${N(sc)}`, 'Each user pays every month. More users than servers can handle = outages and people leave.', UI.btn('+ Server', 'tab', 'biz:equip', 'xs'), `best ever ${N(t.peak)}`);
     o += UI.irow('tfit' + b.id, '🎯', 'Do people love it?', t.pmfEst != null ? '~' + U.pct(t.pmfEst) : '?', 'Product fit. Most apps never find it. Research gives a rough guess.', t.researched ? '' : UI.btn(`🔍 ${m(T.researchCost * g.world.priceIdx)}`, 'fix', 'research|1', 'xs'));
     o += UI.irow('teng' + b.id, '🧑‍💻', 'Engineers', N(eng), 'Build faster and keep users happy.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
@@ -7994,7 +8085,7 @@ details.grp .in1 { margin-left: 14px; }
     let o = UI.irow('ftr' + b.id, '🚛', 'Trucks working', `${tr.filter((x) => !x.broken).length}/${tr.length}`, 'Each truck can do a set number of loads a month if it has a driver.', UI.btn('+ Truck', 'tab', 'biz:equip', 'xs'), `average wear ${Math.round(TG.E.avgWear(b, (x) => x.type === 'truck'))}%`);
     { const st = TG.ST.ensure(b); const cap = TG.ST.cap(b);
       o += UI.irow('fdz' + b.id, '⛽', 'Diesel', `${N(st.qty)}/${N(cap)}`, `${TG.ST.def(b).desc} ${m(TG.ST.unitCost(g, b))} a tank now. Room grows with trucks and yard tanks.`,
-        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')), 'tanks (1 tank ≈ 1 load)');
+        qty('qSup', Math.max(1, lc.served || 14)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.autoBtn(g, b, st), 'tanks (1 tank ≈ 1 load)');
       o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`; }
     o += UI.irow('fdr' + b.id, '🧑‍✈️', 'Drivers', `${dr}/${tr.length}`, 'About one driver per truck.', UI.btn('Hire', 'tab', 'biz:staff', 'xs'));
     o += UI.irow('fld' + b.id, '📦', 'Loads', `${N(lc.served)}/${N(lc.cap)}`, 'Loads hauled / loads you could haul last month.');
@@ -8142,7 +8233,7 @@ details.grp .in1 { margin-left: 14px; }
 
   // ---------- 🛒 sales vs sales capacity ----------
   UI.salesCard = (g, b) => {
-    const lc = UI.lc(b); if (lc.cap == null || b.proj || b.fr) return '';
+    const done = !!(b.hist && b.hist.length && b.lastCtx && b.lastCtx.cap != null); const lc = done ? b.lastCtx : UI.lc(b); if (lc.cap == null || b.proj || b.fr) return ''; // v8: the finished month (matches the report)
     const d = TG.B.def(b); const gd = TG.PR.good(b) || {}; const unit = gd.unit || 'sale';
     if (b.farm || b.tech || b.factory) return ''; // these show their own sales rows (harvest, users, production)
     const r = lc.priceR || 1; const pf = TG.PR.demandF(r);
@@ -8152,8 +8243,8 @@ details.grp .in1 { margin-left: 14px; }
       staff: ['👥', 'Not enough staff', 'Your workers were full. Hire or train more.'], equipment: ['🛠️', 'Not enough equipment', 'A machine group was full. Buy more of the red one in Gear.'],
       space: ['📐', 'Not enough space', 'Your building is full. A bigger place is needed.'], support: ['🧹', 'Not enough helpers', 'Support staff were full.'], stock: ['📦', 'Ran out of stock', 'Supplies ran out. Buy more yourself (a manager can reorder for you) or add storage.'] }[lim] || ['❓', lim, ''];
     const k = 'sl' + b.id;
-    return `<div class="card"><h3>🛒 Sales ${UI.tipBtn(k)}</h3>${UI.tipLine(k, 'Sales = the smallest of: customers who want to buy, and how much you can serve (staff, machines, space, stock).')}
-      <div class="tiles">${UI.tile(k + 's', '🛒', N(sold), 'Sold', sold >= cap * 0.95 ? 'y' : 'g', `You sold ${N(sold)} ${unit}s last month.`)}${UI.tile(k + 'c', '🧱', N(cap), 'Could sell', '', 'The most your staff, machines and space could handle.')}${UI.tile(k + 'd', '🧲', N(dem), 'Wanted', dem > cap ? 'y' : 'g', 'Customers who wanted to buy at your price. Reputation, ads, the economy and price change it.')}${UI.tile(k + 'p', '🏷️', Math.round(pf * 100) + '%', 'Price effect', r > 1.05 ? 'r' : r < 0.95 ? 'y' : 'g', `Your price is ${Math.round(r * 100)}% of market, so you get about ${Math.round(pf * 100)}% of the normal number of customers.`)}</div>
+    return `<div class="card"><h3>🛒 Sales ${done ? 'last month' : '(expected next month)'} ${UI.tipBtn(k)}</h3>${UI.tipLine(k, 'Sales = the smallest of: customers who want to buy, and how much you can serve (staff, machines, space, stock).')}
+      <div class="tiles">${UI.tile(k + 's', '🛒', N(sold), 'Sold', sold >= cap * 0.95 ? 'y' : 'g', done ? `You sold ${N(sold)} ${unit}s last month.` : `Expected to sell about ${N(sold)} ${unit}s next month.`)}${UI.tile(k + 'c', '🧱', N(cap), 'Could sell', '', 'The most your staff, machines and space could handle.')}${UI.tile(k + 'd', '🧲', N(dem), 'Wanted', dem > cap ? 'y' : 'g', 'Customers who wanted to buy at your price. Reputation, ads, the economy and price change it.')}${UI.tile(k + 'p', '🏷️', Math.round(pf * 100) + '%', 'Price effect', r > 1.05 ? 'r' : r < 0.95 ? 'y' : 'g', `Your price is ${Math.round(r * 100)}% of market, so you get about ${Math.round(pf * 100)}% of the normal number of customers.`)}</div>
       ${UI.irow(k + 'l', L[0], 'Held back by: ' + L[1], null, L[2])}</div>`;
   };
 
@@ -8268,7 +8359,7 @@ details.grp .in1 { margin-left: 14px; }
     let o = `<div class="card"><div class="kv"><span>Cash</span><span class="${g.cash < 0 ? 'bad' : ''}">${m(g.cash)}</span><span>Total assets</span><span>${m(nwd.assets)}</span><span>Total debt</span><span>${m(nwd.liab)}</span><span>Net worth</span><span>${m(nwd.nw)}</span>
       <span>Credit score</span><span>${TG.CREDIT.score(g).score} ${UI.pill(TG.CREDIT.label(TG.CREDIT.score(g).score).toLowerCase(), TG.CREDIT.tone(TG.CREDIT.score(g).score))}</span>
       <span>Debt payments</span><span>${m(F.totalPayments(g))}/mo</span><span>Income tax rate</span><span>${U.pct(C.incomeTax)}${g.businesses.some((b) => b.spec && b.spec.accountant) || g.ceo ? ` (−${U.pct(C.accountantTaxCut)} with accountant)` : ''}</span>
-      <span>Tax losses carried forward</span><span>${m(g.taxLoss)}</span><span>Tax paid last 12 months</span><span>${m(U.sum(g.taxPaid))}</span></div>
+      <span>Past losses that lower future tax <div class="mute">(losses carried forward: next profits are tax-free until used up)</div></span><span>${m(g.taxLoss)}</span><span>Tax paid last 12 months</span><span>${m(U.sum(g.taxPaid))}</span></div>
       ${g.player.noLoanUntil > g.month ? `<div class="ev bad">Lenders refuse new loans for ${g.player.noLoanUntil - g.month} more months (bankruptcy).</div>` : ''}
       ${g.cash < 0 ? `<div class="ev bad">Cash is negative: ${C.bankruptcyMonths - g.negMonths} month(s) until creditors force a fire sale. Interest and fees pile up.</div>` : ''}
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
@@ -8317,15 +8408,21 @@ details.grp .in1 { margin-left: 14px; }
     o += `<h3>For sale (${r.listings.length})</h3><div class="mute" style="margin:-4px 0 6px">Distressed homes are cheap flip candidates but may hide problems: an inspection (${m(RC.flip.inspectionCost)}) finds most of them.</div>`;
     for (const l of r.listings.slice().sort((a, b) => a.price - b.price)) {
       const k = RC.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const down = Math.round(l.price * (1 - ltv) + l.price * TG.CONFIG.property.buyCostPct);
-      const rent = l.units ? Math.round(l.price * k.rentPct * l.units / Math.max(1, l.units)) : 0;
+      const rent = l.units ? TG.RE.marketRent(g, l) : 0; const fees = Math.round(l.price * TG.CONFIG.property.buyCostPct); const cashAll = l.price + fees; const rc0 = TG.CONFIG.realEstate; const fp = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc0.propertyTax, insPct: rc0.insurancePct }, UI.S.finTerm || 300); const nowM = fp.cash; const oddsM = fp.q.block ? 'no chance' : Math.round(fp.q.odds * 100) + '% odds';
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)}</b><b>${m(l.price)}</b></div><div class="small">${esc(l.name)} · ${esc(TG.CONFIG.locations[l.loc].label)}, ${esc(TG.CONFIG.regions[l.region].label)} · grade ${l.grade} · condition ${Math.round(l.cond)}/100 · ${l.units ? `${l.units} unit(s)` : `${l.acres} acres`}${l.distressed ? ' · ' + UI.pill('distressed', 'warn') : ''}</div>
-        ${l.units ? `<div class="mute">Rent roughly ${m(rent * l.units)}/mo if fully rented, before costs (tax, upkeep, insurance, vacancies).</div>` : '<div class="mute">No income: land is for developing.</div>'}
+        ${l.units ? `<div class="mute">Rent about <b>${m(rent)}/unit</b>${l.units > 1 ? ` × ${l.units} units = <b>${m(rent * l.units)}/mo when full</b>` : '/mo when rented'}, before costs (tax, upkeep, insurance, empty months).</div>` : '<div class="mute">No income: land is for developing.</div>'}
         ${l.inspected ? `<div class="ev ${l.found ? 'bad' : 'good'}">${l.found ? `Inspection found hidden problems (~${m(l.hidden * l.price)})` : 'Inspection found nothing major'}</div>` : ''}
-        <div class="btns">${UI.btn('Buy cash', 'reBuy', `${l.id}|0`, 'sm pri', g.cash < l.price * 1.02)}${UI.btn(`🏦 Mortgage (${m(down)} down)…`, 'reFin', l.id, 'sm', g.cash < down)}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
+        <div class="mute">Cash price ${m(l.price)} + closing ${m(fees)} = ${m(cashAll)}. With a mortgage you pay ${m(nowM)} now (down payment + closing + loan fee), then ${m(fp.total)}/mo.</div>
+        ${g.cash < nowM ? `<div class="small bad">Need ${m(nowM - g.cash)} more cash for the mortgage.</div>` : g.cash < cashAll ? `<div class="small mute">Need ${m(cashAll - g.cash)} more to pay all cash.</div>` : ''}
+        <div class="btns">${UI.btn(`Buy cash (${m(cashAll)})`, 'reBuy', `${l.id}|0`, 'sm pri', g.cash < cashAll)}${UI.btn(`🏦 Mortgage (${m(nowM)} now · ${oddsM})…`, 'reFin', l.id, 'sm')}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
     }
     return o;
   }
-  UI.A.reBuy = (arg) => { const [id, mo] = arg.split('|'); after(TG.RE.buy(TG.G, id, mo === '1'), 'Bought.'); };
+  UI.A.reBuy = (arg) => {
+    const [id, mo, ok] = arg.split('|'); const g = TG.G; const l = g.re.listings.find((x) => x.id === id);
+    if (l && mo === '0' && ok !== 'y') { const c = Math.round(l.price * (1 + TG.CONFIG.property.buyCostPct)); if (c > g.cash * 0.4) return UI.confirm(`Pay ${m(c)} cash for ${l.name}? That is ${Math.round(c / Math.max(1, g.cash) * 100)}% of your cash, leaving ${m(g.cash - c)}.`, 'reBuy', `${id}|0|y`); }
+    UI.closeModal(); after(TG.RE.buy(g, id, mo === '1'), 'Bought.');
+  };
   UI.A.reInspect = (id) => { const t = TG.RE.inspect(TG.G, id); if (t) UI.toast(t); UI.refresh(); };
   UI.A.reSet = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (!h) return; const k = el.dataset.k; h[k] = k === 'upkeep' ? v : v === '1'; UI.refresh(); };
   UI.A.reDo = (arg) => {
@@ -8472,10 +8569,11 @@ details.grp .in1 { margin-left: 14px; }
 
   // ---------- settings ----------
   function set(g) {
-    const s = g.settings, MT = { breakdown: 'Equipment breakdowns', keyQuit: 'Key staff quitting', cash: 'Cash crunch / bankruptcy', lawsuit: 'Lawsuits', strike: 'Strikes & walkouts', harvest: 'Harvests', weather: 'Weather disasters' };
+    const s = g.settings, MT = { closed: 'A shop closes (no supplies)', crime: 'Arrests & jail (crime side)', breakdown: 'Equipment breakdowns', keyQuit: 'Key staff quitting', cash: 'Cash crunch / bankruptcy', lawsuit: 'Lawsuits', strike: 'Strikes & walkouts', harvest: 'Harvests', weather: 'Weather disasters' };
     const tg = (k, label, note) => `<span>${label}${note ? `<div class="mute">${note}</div>` : ''}</span><span>${UI.btn(s[k] ? 'On' : 'Off', 'setToggle', k, 'sm' + (s[k] ? ' goodb' : ''))}</span>`;
     let o = `<div class="card"><h3 style="margin-top:0">Gameplay</h3><div class="kv">
-      ${tg('stopOnMajor', 'Stop a skip early on major events', 'Off by default. Choose the event types below.')}
+      ${tg('stopOnMajor', 'Stop a skip early on serious trouble', 'On by default: a skip stops when a shop closes, cash goes below zero, bills go to collections, or you are arrested. Choose the types below.')}
+      ${tg('warnSupplies', 'Warn before Next Month if a shop will run out of supplies')}
       ${tg('confirmPending', 'Warn before Next Month if decisions are waiting')}
       ${tg('gambling', 'Gambling & high-risk investing', 'Casino, betting, penny stocks, coins, margin, angel deals')}
       ${tg('crime', '🕶️ Crime side', 'Street deals, bank jobs, sabotage. Off hides it and freezes everything there.')}
@@ -8532,7 +8630,7 @@ details.grp .in1 { margin-left: 14px; }
   };
   function help(g) {
     const C = TG.CONFIG; const t0 = UI.tab.helpb || 'how';
-    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
+    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖 How to play', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon + ' ' + esc(d.name.split(' / ')[0]), 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️ Crime', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
     if (t0 === 'crime') return `<div class="card">${pick}</div>${crimeHelp(g, C)}`;
     if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
     const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
@@ -8562,10 +8660,16 @@ details.grp .in1 { margin-left: 14px; }
       <ul class="plain small"><li>Crime can pay big, and it ruins people often. Careful play earns about as much as a good legit business, with far bigger swings.</li><li>Nothing is guaranteed.</li></ul></div>`;
   }
   function howTo(C) {
-    const rows = [['🏪', 'Start', 'Pick a business and a place in Market. The place decides how many customers come.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
-      ['📦', 'Stock', 'Buy supplies ahead. Storage limits how much. Old stock goes bad.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
-      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
-    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, t)).join('')}</div>
+    const rows = [['🏪', 'Start', 'Pick a business and a place in 🗺️ Shop (bottom bar). The place decides how many customers come. Quick setup buys the basics for you and shows the full cost first.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
+      ['📦', 'Supplies', 'Most shops sell from supplies (ingredients, parts, fuel). Buy them yourself on the business Now tab before every month (📦 Fill buys about one month). No supplies = shop closed, but wages still get paid. A manager (Shift lead, Ops manager, GM or CEO) can reorder for you: then 🤖 Auto works.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
+      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⏩', 'Skip', 'Type a number of months and press Skip to play many months at once. By default it stops early on serious trouble (shop closed, cash below zero, arrests): change it next to the Skip button or in Settings.'],
+      ['👔', 'Managers', 'Without managers you do everything: buy supplies, fix machines, answer decision cards. Hire them in a business Staff tab (Shift lead = supplies only; Ops manager = supplies + machines; General manager = everything). A CEO (More → Managers) covers all businesses.'],
+      ['💰', 'Money tab', 'Report shows where every dollar came from and went. Loans: apply and see your approval odds and why. 🏘️ Real estate: buy homes or buildings and rent them out (rent is shown per unit, then the total when every unit is rented). 📈 Investing: stocks and more.'],
+      ['🏦', 'Loans & credit', 'Your credit score (Home) sets loan odds and rates. It rises when you pay on time and falls with late payments, cash below zero and lots of applications. Each loan screen lists what helps and what would raise your odds.'],
+      ['🌾', 'Farm', 'Fields (plant in spring, harvest in fall), cows (calves grow up, cows give milk, sell cattle when market-ready) and an orchard. Seed and feed are bought on the farm Now tab and share storage.'],
+      ['🕶️', 'Crime side', 'Optional (off unless you chose it at the start; switch in Settings). Big money, big risks: raids, fines and jail.'],
+      ['📉', 'Cash below zero', 'You pay late fees and your credit drops. After 3 months in a row creditors sell your things, and if that is not enough you go bankrupt. Watch the 💵 chip at the top.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
+    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, null, null, esc(t))).join('')}</div>
       <div class="card"><h3 style="margin-top:0">🎨 Colors</h3><div>${UI.pill('green', 'good')} ${UI.pill('yellow', 'watch')} ${UI.pill('red', 'problem')}</div><div class="mute">Tap any ⓘ or label to see what it means.</div></div>
       <div class="card"><h3 style="margin-top:0">🏢 Business sizes</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b> ${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => d.icon).join(' ')}</p>`).join('')}<div class="mute">Tap a business icon above for its guide.</div></div>`;
   }
@@ -8827,6 +8931,8 @@ details.grp .in1 { margin-left: 14px; }
     o += `<div class="ev ${q.block ? 'bad' : q.odds >= 0.7 ? 'good' : q.odds >= 0.4 ? 'warn' : 'bad'}"><b>Approval odds: ${q.block ? 'no chance' : U.pct(q.odds)}</b>${q.block ? `<div class="small">${esc(q.block)}</div>` : ''}
       <div class="small">Rate ${U.pct(q.rate, 1)} · ${S.type === 'loc' ? `minimum payment ${m(q.pay)}/mo when fully used` : `${m(q.pay)}/mo for ${S.term} months`} · fee ${m(q.fee)}</div></div>
       <table>${q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}<div class="mute">${esc(f.why)}</div></td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      ${q.tips && q.tips.length ? `<div class="small"><b>What would raise your odds:</b><ul style="margin:4px 0 0 18px;padding:0">${q.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      <div class="mute">A "no" still counts as an application (a small, temporary hit to your score).</div>
       <div class="btns">${UI.btn(`📝 Apply (${q.block ? 'blocked' : U.pct(q.odds) + ' odds'})`, 'lnApply', null, 'sm pri', !!q.block)}</div></div>`;
     // credit line
     const lim = F.locLimit(g);
@@ -8864,7 +8970,9 @@ details.grp .in1 { margin-left: 14px; }
       ${row('<b>Total each month</b>', `<b>${m(p.total)}/mo</b>`)}${row('<b>Cash today</b>', `<b>${m(p.cash)}</b>`)}</table>
       <div class="mute">Cash today = down payment + closing ${m(p.fees)} + loan fee ${m(p.q.fee)}. Tax and insurance are estimates.</div>
       <div class="ev ${p.q.block ? 'bad' : p.q.odds >= 0.7 ? 'good' : p.q.odds >= 0.4 ? 'warn' : 'bad'}"><b>Approval odds: ${p.q.block ? 'no chance' : U.pct(p.q.odds)}</b>${p.q.block ? ` · ${esc(p.q.block)}` : ''}</div>
-      <table>${p.q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}</td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      <table>${p.q.factors.map((f) => `<tr><td>${mark(f.mark)} ${esc(f.label)}${f.why ? `<div class="mute">${esc(f.why)}</div>` : ''}</td><td class="n">${esc(f.val)}</td></tr>`).join('')}</table>
+      ${p.q.tips && p.q.tips.length ? `<div class="small"><b>What would raise your odds:</b><ul style="margin:4px 0 0 18px;padding:0">${p.q.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      ${g.cash < p.cash ? `<div class="ev bad">You need ${m(p.cash - g.cash)} more cash today to apply (you have ${m(g.cash)}).</div>` : ''}
       <div class="mute">Applying counts as a loan application even if the bank says no.</div></div>`;
   };
   UI.A.finTerm = (v, el) => { UI.S.finTerm = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
@@ -8873,8 +8981,8 @@ details.grp .in1 { margin-left: 14px; }
     const g = TG.G; const l = g.re.listings.find((x) => x.id === id); if (!l) return;
     const k = TG.CONFIG.realEstate.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const rc = TG.CONFIG.realEstate;
     const p = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc.propertyTax, insPct: rc.insurancePct }, UI.S.finTerm || 300);
-    const rent = TG.RE.estRent(g, l);
-    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + `<div class="card"><div class="kv kvl"><span>Rent if ${l.units ? 'rented (est.)' : '—'}</span><span>${l.units ? m(rent) + '/mo' : 'no rent (land)'}</span></div></div>
+    const pu = TG.RE.marketRent(g, l);
+    UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
       <div class="btns">${UI.btn('📝 Apply & buy', 'reFinGo', id, 'sm pri', !!p.q.block || g.cash < p.cash)}${UI.btn('Cancel', 'closeModal', null, 'sm')}</div>`);
   };
   UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, 'Approved and bought.'); };
@@ -8891,8 +8999,9 @@ details.grp .in1 { margin-left: 14px; }
     const RE = TG.RE, T = TG.CONFIG.tenants; if (!h.units || h.kind === 'land') return '';
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
     let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
+    if (h.units > 1) o += `<div class="small">Your rent ${m(ask)}/unit × ${h.units} units = <b>${m(ask * h.units)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
-    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect about ${Math.max(0, Math.round(pv.n))} applicant(s) per search, mostly ${pv.label}.</div>`;
+    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect roughly ${Math.max(1, Math.round(pv.n) - 2)}-${Math.round(pv.n) + 2} applicants per search (it varies), mostly ${pv.label}.</div>`;
     void cur;
     return o;
   };
@@ -8942,8 +9051,8 @@ details.grp .in1 { margin-left: 14px; }
 
   // ================= 📊 REPORTS TAB (results and forecasts live here; the Now tab is for doing) =================
   UI.salesSummary = (g, b) => {
-    const lc = UI.lc(b); if (lc.cap == null || b.proj || b.fr || b.farm || b.tech || b.factory) return '';
-    return UI.irow('ss' + b.id, '🛒', 'Sold last month', `${N(lc.served)}/${N(lc.cap)}`, `Customers wanted ${N(lc.demand)}. Full sales detail is in 📊 Reports.`, UI.btn('📊', 'tab', 'biz:rep', 'xs'), `wanted ${N(lc.demand)}`);
+    const done = !!(b.hist && b.hist.length && b.lastCtx && b.lastCtx.cap != null); const lc = done ? b.lastCtx : UI.lc(b); if (lc.cap == null || b.proj || b.fr || b.farm || b.tech || b.factory) return '';
+    return UI.irow('ss' + b.id, '🛒', done ? 'Sold last month' : 'Expected sales next month', `${N(lc.served)}/${N(lc.cap)}`, `Customers wanted ${N(lc.demand)}. Full sales detail is in 📊 Reports.`, UI.btn('📊', 'tab', 'biz:rep', 'xs'), `wanted ${N(lc.demand)}`);
   };
   UI.reportsTab = (g, b) => {
     const h = b.hist, last = h[h.length - 1];
@@ -9010,10 +9119,10 @@ details.grp .in1 { margin-left: 14px; }
     let o = '';
     if (r.money) o += UI.moneyHtml(r.money, { span: r.date });
     else o += `<div class="card"><div class="row sp"><div><div class="mute">Profit (after tax)</div><div class="big">${UI.signed(r.profit)}</div></div><div><div class="mute">Cash</div><div class="big">${m(r.cashEnd)}</div></div></div></div>`;
-    o += `<div class="card"><div class="row sp"><div><div class="mute">Profit on paper (after tax)</div><div class="big">${UI.signed(r.profit)}</div></div><div><div class="mute">Net worth</div><div class="big">${m(r.nw)}</div><div class="mute">${UI.signed(r.nw - r.nwStart)}</div></div></div>
-      <div class="mute" style="margin-top:4px">Profit on paper leaves out buying machines and buildings and paying down loans; "left with" above counts everything. Economy: ${esc(r.world.phase)} · interest ${U.pct(r.world.rate, 1)}${r.tax ? ` · income tax ${m(r.tax)}` : ''}</div></div>`;
+    o += `<div class="card"><div class="row sp"><div><div class="mute">Profit (after tax, before loans & purchases)</div><div class="big">${UI.signed(r.profit)}</div></div><div><div class="mute">Net worth</div><div class="big">${m(r.nw)}</div><div class="mute">${UI.signed(r.nw - r.nwStart)}</div></div></div>
+      <div class="mute" style="margin-top:4px">Profit leaves out buying machines and buildings and paying down loans; "left with" above counts everything. Economy: ${esc(r.world.phase)} · interest ${U.pct(r.world.rate, 1)}${r.tax ? ` · income tax ${m(r.tax)}` : ''}</div></div>`;
     if (r.ach && r.ach.length) o += `<div class="card" style="border-color:#15803d">🏆 Achievement${r.ach.length > 1 ? 's' : ''}: ${r.ach.map((a) => esc(TG.CONFIG.achievements[a])).join(', ')}</div>`;
-    if (r.biz.length) o += `<div class="card"><h3>🏪 Why each business did what it did</h3>${r.biz.map((b) => grp('🏪', b.name, sg(b.cash != null ? b.cash : b.profit), `<div class="mute">True result ${UI.signed(Math.round(b.cash != null ? b.cash : b.profit))} · profit on paper ${UI.signed(b.profit)} · sales ${m(b.rev)}</div><ul class="plain small">${b.why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`)).join('')}</div>`;
+    if (r.biz.length) o += `<div class="card"><h3>🏪 Why each business did what it did</h3>${r.biz.map((b) => grp('🏪', b.name, sg(b.cash != null ? b.cash : b.profit), `<div class="mute">Cash made (all in) ${UI.signed(Math.round(b.cash != null ? b.cash : b.profit))} · profit on paper ${UI.signed(b.profit)} · sales ${m(b.rev)}</div><ul class="plain small">${b.why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`)).join('')}</div>`;
     const evs = r.events.filter((e) => e.type !== 'news');
     if (evs.length) o += `<div class="card"><h3 style="margin-top:0">What happened (${evs.length})</h3>${evs.slice(0, 60).map(UI.ev).join('')}</div>`;
     if (r.decisions.length) o += `<div class="card"><h3 style="margin-top:0">Decisions made</h3>${r.decisions.map((d) => `<div class="ev ${d.outcome === 'bad' ? 'bad' : d.outcome === 'good' ? 'good' : 'info'}"><b>${esc(d.by)}</b>${d.biz ? ` (${esc(d.biz)})` : ''}: ${esc(d.text)}</div>`).join('')}</div>`;
@@ -9026,14 +9135,15 @@ details.grp .in1 { margin-left: 14px; }
   // skip: totals for the whole stretch, then month by month (tap a month for who made or lost money)
   UI.showSkip = (s) => {
     UI.S.lastSkip = s;
-    let o = `<div class="card"><div class="mute">${esc(s.from)} to ${esc(s.to)}: ${s.months} months (${U.yrsMo(s.months)}) simulated one by one${s.months < s.asked ? `, stopped early of ${s.asked}` : ''}</div>
+    let o = `<div class="card"><div class="mute">${esc(s.from)} to ${esc(s.to)}: ${s.months} month${s.months === 1 ? '' : 's'}${s.months >= 12 ? ` (${U.yrsMo(s.months)})` : ''} simulated one by one${s.months < s.asked ? `, stopped early of ${s.asked}` : ''}</div>
       ${s.stopped ? `<div class="ev bad"><b>Stopped early (${esc(s.stopped.date)}):</b> ${esc(s.stopped.text)}</div>` : ''}
-      <div class="row sp" style="margin-top:6px"><div><div class="mute">Net worth</div><div class="big">${m(s.nw1)}</div><div class="mute">from ${m(s.nw0)}</div></div><div><div class="mute">Profit on paper</div><div class="big">${UI.signed(s.profit)}</div></div></div></div>`;
-    o += UI.moneyHtml(s.money, { span: `All ${s.months} months together`, openRE: true });
+      <div class="row sp" style="margin-top:6px"><div><div class="mute">Net worth</div><div class="big">${m(s.nw1)}</div><div class="mute">from ${m(s.nw0)}</div></div><div><div class="mute">Profit (before loans & purchases)</div><div class="big">${UI.signed(s.profit)}</div></div></div></div>`;
+    { const g = TG.G, r = g.re; if (r && r.holdings.length && !r.manager) { const open = U.sum(r.holdings, (h) => (h.issues || []).length); const empty = U.sum(r.holdings, (h) => TG.RE.vacant(h)); if (open || empty) o += `<div class="ev warn">🏘️ <b>Your buildings need you:</b> ${open ? `${open} repair${open > 1 ? 's' : ''} waiting (unfixed repairs annoy tenants and can bring city fines)` : ''}${open && empty ? ' · ' : ''}${empty ? `${empty} empty unit${empty > 1 ? 's' : ''} earning nothing` : ''}. Fix them in Money → 🏘️ Real estate, or hire a property manager to handle it during skips.</div>`; } }
+    o += UI.moneyHtml(s.money, { span: s.months === 1 ? 'The whole month' : `All ${s.months} months together`, openRE: true });
     const PM = s.perMonth || []; const show = PM.slice(-600);
     o += `<div class="card"><details class="grp"><summary><span class="gl"><span class="car"></span>📅 Month by month (${PM.length})</span><span class="gv"></span></summary>
       ${PM.length > show.length ? `<div class="mute">Showing the last ${show.length} months.</div>` : ''}<div class="mute">Tap a month to see who made or lost money.</div>
-      ${show.map((x) => grp('', x.date, `${sg(x.net)} <span class="mute small">→ ${m(x.cash)}</span>`, `<table class="mtab"><tr><td>💰 In</td><td class="n">${plus(x.in)}</td></tr><tr><td>💸 Out</td><td class="n">${minus(x.out)}</td></tr>${Object.entries(x.own).sort((a, b) => a[1] - b[1]).map(([k, v]) => { const nm = (s.names && s.names[k]) || LG().nameOf(TG.G, k) || { n: 'Closed / sold', i: '•' }; return `<tr><td>${nm.i} ${esc(nm.n)}</td><td class="n">${sg(v)}</td></tr>`; }).join('')}</table>`)).join('')}</details></div>`;
+      ${show.map((x) => grp('', x.date, `<span class="mute small">net</span> ${sg(x.net)} <span class="mute small">· cash ${m(x.cash)}</span>`, `<table class="mtab"><tr><td>💰 In</td><td class="n">${plus(x.in)}</td></tr><tr><td>💸 Out</td><td class="n">${minus(x.out)}</td></tr>${Object.entries(x.own).sort((a, b) => a[1] - b[1]).map(([k, v]) => { const nm = (s.names && s.names[k]) || LG().nameOf(TG.G, k) || { n: 'Closed / sold', i: '•' }; return `<tr><td>${nm.i} ${esc(nm.n)}</td><td class="n">${sg(v)}</td></tr>`; }).join('')}</table>`)).join('')}</details></div>`;
     o += `<div class="card"><h3 style="margin-top:0">Major events (${s.majorCount})</h3>${s.majors.length ? s.majors.slice(-40).reverse().map((e) => `<div class="ev bad"><b>${esc(e.date)}</b> ${e.biz ? esc(e.biz) + ': ' : ''}${esc(e.text)}<div class="why">${esc(e.why || '')}</div></div>`).join('') : '<div class="mute">None. Quiet stretch.</div>'}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Manager decisions (${s.decisionCount})</h3>${s.decisions.length ? s.decisions.slice(-30).reverse().map((d) => `<div class="ev ${d.outcome === 'bad' ? 'bad' : d.outcome === 'good' ? 'good' : 'info'}"><b>${esc(d.date)}</b> ${esc(d.by)}: ${esc(d.text)}</div>`).join('') : '<div class="mute">No manager decisions. Without managers, problems sat unhandled.</div>'}</div>`;
     UI.modal('⏩ Skip summary', o + `<div class="btns">${s.pending ? UI.btn(`⚠️ ${s.pending} decision(s) waiting`, 'decisions', null, 'pri') : ''}${UI.btn('Close', 'closeModal')}</div>`);
@@ -9120,10 +9230,10 @@ details.grp .in1 { margin-left: 14px; }
     const shut = Math.max(b.shut || 0, 1); const st = b.stock; const q = TG.ST.suggest(b, g);
     const pq = U.avg(b.staff, (e) => TG.B.shutQuitP(Object.assign({}, b, { shut: shut + 1 }), e), 0);
     return `<div class="closed">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}<div class="small" style="font-weight:600;margin-top:4px">No sales while closed. Wages (${m(TG.S.payroll(b))}/mo), rent and bills keep coming. Idle staff may quit: about ${U.pct(pq)} each next month (more each closed month and when unhappy). ${st ? `You have ${N(st.qty)} supplies.` : ''}</div>
-      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire a manager', 'hireRole', 'ops', 'sm')}</div></div>`;
+      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire a Shift lead to reorder', 'hireRole', 'lead', 'sm')}</div></div>`;
   };
 
-  UI.A.stBuyN = (arg) => { const [id, q] = String(arg).split('|'); const g = TG.G, b = TG.B.get(g, id); if (!b) return; const n = TG.ST.buy(g, b, Number(q), 0); UI.res(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)}. The shop can open.`); UI.refresh(); };
+  UI.A.stBuyN = (arg) => { const [id, q] = String(arg).split('|'); const g = TG.G, b = TG.B.get(g, id); if (!b) return; const c0 = g.cash; const n = TG.ST.buy(g, b, Number(q), 0); UI.res(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)} supplies for ${m(c0 - g.cash)}${n < Number(q) - 0.5 ? ` (wanted ${N(q)}: not enough cash or room)` : ''}.`); UI.refresh(); };
   // ================= 🤝 HR IN HIRING =================
   UI.hrHiring = (g, b, role) => {
     const C = TG.CONFIG, S = TG.S; if (C.specialists[role] || role === 'ceo') return '';
@@ -9137,6 +9247,209 @@ details.grp .in1 { margin-left: 14px; }
     return `<div class="ev">🤝 <b>No HR manager</b>: you pay full wages and see every applicant. An HR manager (about ${m(mid)}/mo) would get ~${U.pct(S.hrDisc({ skill: 40 }))}–${U.pct(S.hrDisc({ skill: 85 }))} lower wages and screen out ${U.pct(S.hrScreen({ skill: 40 }))}–${U.pct(S.hrScreen({ skill: 85 }))} of bad fits. Worth it when you hire many people (your payroll: ${m(S.payroll(b))}/mo). ${UI.btn('See HR managers', 'hireRole', 'hr', 'xs')}</div>`;
   };
   UI.hrCand = (c) => (c.hrDisc != null ? `<div class="small">🤝 HR deal: ${m(c.wage)} instead of ${m(c.listWage)} (−${U.pct(c.hrDisc)})${c.screened ? ' · ✔ screened' : ''}</div>` : '');
+})();
+
+</script>
+<script>/* js/ui/ui-v8.js */
+/* ui-v8.js - v8 player-feedback fixes: Help chip, skip "stop on trouble" toggle, supplies warning before Next Month,
+   full Quick setup cost preview, phone Back button, two-tab save guard, whole-number skip box. */
+(function () {
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const N = (x) => Math.round(x || 0).toLocaleString();
+
+  // ================= ❓ HELP CHIP + ECONOMY INFO + STALE-TAB BANNER =================
+  const header0 = UI.header;
+  UI.header = () => {
+    let h = header0();
+    h = h.replace('</header>', '<span class="chip help" data-act="help" data-nosave="1">❓ Help</span></header>');
+    if (TG.Game.stale) h = `<div class="stale">⚠️ This game was played in another tab or window. This copy is out of date, so nothing here is saved. ${UI.btn('🔄 Reload to continue', 'reloadTab', null, 'sm pri')}</div>` + h;
+    return h;
+  };
+  UI.A.help = () => { UI.closeModal(); UI.tab.more = 'help'; UI.tab.helpb = 'how'; UI.go('more'); };
+  UI.A.econInfo = () => { const g = TG.G; UI.toast(`Economy: ${TG.W.phaseLabel(g)}. ☀️ boom = more customers, 🌧️ recession = fewer; ⛅ in between. Interest rates follow it.`); };
+  UI.A.reloadTab = () => { location.reload(); };
+  TG.Game.onStale = () => { if (TG.G) UI.render(); UI.toast('This game was played in another tab: reload to continue.', true); };
+  if (typeof window !== 'undefined') window.addEventListener('storage', (e) => {
+    if (e.key !== 'tycoon_save_meta' || !e.newValue) return;
+    try { const mt = JSON.parse(e.newValue); if (mt && mt.tab !== TG.Game.TAB && TG.G) { TG.Game.stale = true; UI.render(); } } catch (err) { /* ignore */ }
+  });
+  // saving from a stale tab is refused by the engine; also keep the 💾 chip honest
+  const save0 = UI.save;
+  UI.save = () => { if (TG.Game.stale) return false; return save0(); };
+
+  // ================= ⏩ SKIP: stop-on-trouble toggle next to the button + whole numbers only =================
+  const footer0 = UI.footer;
+  UI.footer = () => {
+    const g = TG.G; const on = g && g.settings.stopOnMajor;
+    return footer0().replace('</div></footer>', `</div><div class="stopRow">🛑 Skip stops early on trouble: ${UI.btn(on ? 'On' : 'Off', 'stopToggle', null, 'xs' + (on ? ' goodb' : ''))}<span class="wide">${on ? '(shop closed, cash below zero, collections, arrests)' : '(skips run to the end no matter what)'}</span></div></footer>`);
+  };
+  UI.A.stopToggle = () => { const s = TG.G.settings; s.stopOnMajor = !s.stopOnMajor; if (s.stopOnMajor) Object.assign(s.majorTypes, { closed: true, cash: true, crime: true }); UI.toast(s.stopOnMajor ? 'A skip now stops early when a shop closes, cash goes below zero, bills go to collections or you are arrested.' : 'Skips now run to the end, even through trouble.'); UI.refresh(); };
+  const skip0 = UI.A.skip;
+  UI.A.skip = () => {
+    const el = document.getElementById('skipN'); const raw = el ? String(el.value).trim() : '';
+    const n = UI.num('skipN', NaN);
+    if (raw !== '' && (!Number.isFinite(n) || n !== Math.floor(n))) return UI.toast('Type a whole number of months, like 12.', true);
+    const g = TG.G;
+    if (n >= 2 && g.settings.warnSupplies !== false && UI.S.skipOK !== g.month) {
+      const W = UI.supplyWarnings(g); const noMgr = g.businesses.filter((b) => TG.ST.def(b) && !TG.D.handler(g, b, 'stock') && !W.some((w) => w.b === b));
+      const reEmpty = g.re && !g.re.manager ? U.sum(g.re.holdings.filter((h) => h.mode === 'rent'), (h) => TG.RE.vacant(h)) : 0;
+      if (W.length || noMgr.length || reEmpty) {
+        UI.modal('⏩ Before you skip', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}</div>`).join('')}${noMgr.map((b) => `<div class="ev warn"><b>${esc(b.name)}</b> has no manager to reorder supplies: it closes when they run out (about ${N((b.stock || {}).qty)} left).</div>`).join('')}${reEmpty ? `<div class="ev warn">🏘️ <b>${reEmpty} empty rental unit${reEmpty > 1 ? 's' : ''}</b>: with no property manager nobody looks for tenants during a skip, and repairs wait for you.</div>` : ''}
+          <div class="mute">During a skip nobody buys supplies for a business without a Shift lead, Ops manager, GM or CEO.${g.settings.stopOnMajor ? ' The skip will stop early if a shop closes.' : ''}</div>
+          <div class="btns">${W[0] || noMgr[0] ? UI.btn('🧑‍💼 Hire a Shift lead', 'hireLeadFor', (W[0] ? W[0].b : noMgr[0]).id, 'pri') : UI.btn('🧑‍💼 Property manager', 'goMoneyTab', 're', 'pri')}${UI.btn(`Skip ${n} months anyway`, 'skipAnyway', null, '')}</div></div>`);
+        return;
+      }
+    }
+    return skip0();
+  };
+
+  { const gm0 = UI.A.goMoneyTab; UI.A.goMoneyTab = (t) => { UI.closeModal(); gm0(t); }; }
+  UI.A.skipAnyway = () => { UI.S.skipOK = TG.G.month; UI.closeModal(); UI.A.skip(); };
+  UI.A.hireLeadFor = (id) => { UI.closeModal(); UI.bizId = id; UI.go('bizd'); UI.A.hireRole('lead'); };
+  // ================= 📦 WARN BEFORE NEXT MONTH IF A SHOP WILL RUN OUT =================
+  UI.supplyWarnings = (g) => {
+    const out = [];
+    for (const b of g.businesses) {
+      if (!TG.ST.def(b) || b.licensePending > 0) continue;
+      const lc = UI.lc(b); const st = b.stock || {};
+      const q = TG.ST.suggest(b, g);
+      if (lc.closed) out.push({ b, q, bad: true, text: `will be CLOSED: no supplies (${N(st.qty)} left). Wages and rent still get paid.` });
+      else if (lc.limit === 'stock' && (lc.demand || 0) > (lc.served || 0) * 1.08 && q >= 1) out.push({ b, q, bad: false, text: `will run out: enough for about ${N(lc.served)} of ${N(lc.demand)} customers.` }); // storage already full = nothing to buy: not a warning
+    }
+    return out;
+  };
+  const next0 = UI.A.next;
+  UI.A.next = (force) => {
+    const g = TG.G;
+    if (g.settings.warnSupplies !== false && UI.S.supOK !== g.month && force !== 'sup') {
+      const W = UI.supplyWarnings(g);
+      if (W.length) {
+        const tot = U.sum(W, (w) => w.q * TG.ST.unitCost(g, w.b));
+        UI.modal('📦 Supplies running low', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}${w.q > 0 ? `<div class="btns">${UI.btn(`📦 Buy ${N(w.q)} (${m(w.q * TG.ST.unitCost(g, w.b))})`, 'supFill', w.b.id, 'sm pri')}</div>` : ''}</div>`).join('')}
+          <div class="mute">Nobody reorders for you unless a manager handles supplies (🤖 Auto).</div>
+          <div class="btns">${W.length > 1 && tot > 0 ? UI.btn(`📦 Buy for all (${m(tot)})`, 'supFillAll', null, 'pri') : ''}${UI.btn('Play the month anyway', 'nextAnyway', null, '')}</div>
+          <div class="btns">${UI.btn("Don't warn me again", 'supNoWarn', null, 'xs')}</div></div>`);
+        return;
+      }
+    }
+    return next0(force === 'sup' ? undefined : force);
+  };
+  UI.A.nextAnyway = () => { UI.S.supOK = TG.G.month; UI.closeModal(); UI.A.next('sup'); };
+  UI.A.supNoWarn = () => { TG.G.settings.warnSupplies = false; UI.toast('OK: no more supply warnings (turn back on in More → Settings).'); UI.A.nextAnyway(); };
+  const fill = (g, b) => { const q = TG.ST.suggest(b, g); return q > 0 ? TG.ST.buy(g, b, q, 0) : 0; };
+  UI.A.supFill = (id) => { const g = TG.G, b = TG.B.get(g, id); if (!b) return; const c0 = g.cash; const n = fill(g, b); UI.toast(n > 0 ? `Bought ${N(n)} for ${b.name} (${m(c0 - g.cash)}).` : 'No room or not enough cash.', !(n > 0)); UI.closeModal(); UI.save(); UI.A.next(); };
+  UI.A.supFillAll = () => { const g = TG.G; const c0 = g.cash; let n = 0; for (const w of UI.supplyWarnings(g)) n += fill(g, w.b); UI.toast(n > 0 ? `Bought supplies for ${m(c0 - g.cash)}.` : 'No room or not enough cash.', !(n > 0)); UI.closeModal(); UI.save(); UI.A.next(); };
+
+  // ================= 🏁 QUICK SETUP: the full cost before you open =================
+  // Dry run on a throw-away copy of the game: open + quick setup, then play 3 months twice (different luck). Nothing real changes.
+  UI.startPreview = (pid, type, q, ent, name, from) => {
+    const g = TG.G; const G0 = TG.G; const LB0 = TG.LB.record; const out = { ok: false };
+    try {
+      TG.LB.record = () => null;
+      const runs = [];
+      for (let k = 0; k < 2; k++) {
+        const g2 = JSON.parse(JSON.stringify(g)); g2.rngState = ((g.rngState || 1) + 7919 * (k + 1)) >>> 0; TG.G = g2;
+        const opts = { name: name || 'preview' }; if (ent) opts.ent = ent; if (from) { if (from.startsWith('biz:')) opts.fromBiz = from.slice(4); else opts.concept = from.slice(2); }
+        const c0 = g2.cash; const r = TG.B.start(g2, type, pid, opts); if (!r || r.ok === false) { out.msg = r && r.msg; break; }
+        if (q) TG.B.quickSetup(g2, r.biz, true, q);
+        const today = c0 - g2.cash; const payroll = TG.S.payroll(r.biz); const after = g2.cash;
+        const nets = []; for (let i = 0; i < 3; i++) { if (i > 0 && r.biz.stock) { const sq = TG.ST.suggest(r.biz, g2); if (sq > 0) TG.ST.buy(g2, r.biz, sq, 0); } TG.Game.nextMonth(g2); /* assumes you buy supplies each month */ const h = r.biz.hist[r.biz.hist.length - 1]; nets.push(h ? (h.cash != null ? h.cash : h.profit) : 0); }
+        nets[0] += today; // setup spending is booked into the first month's books: count it once, as "today"
+        runs.push({ today, payroll, after, nets });
+      }
+      if (runs.length === 2) {
+        const a = runs[0], b = runs[1];
+        out.ok = true; out.today = (a.today + b.today) / 2; out.payroll = (a.payroll + b.payroll) / 2; out.after = (a.after + b.after) / 2;
+        out.m1 = (a.nets[0] + b.nets[0]) / 2; out.m3 = (U.sum(a.nets) + U.sum(b.nets)) / 6;
+        const burn = Math.min(out.m1, out.m3); out.months = burn < 0 ? Math.max(0, out.after) / -burn : Infinity;
+        out.risky = out.after < 0 || out.months < 3 || out.m1 < -Math.max(2000, g.cash * 0.25);
+      }
+    } catch (e) { out.err = e.message; } finally { TG.G = G0; TG.LB.record = LB0; }
+    return out;
+  };
+  UI.startPreviewHtml = (p) => {
+    if (!p.ok) return p.msg ? `<div class="ev bad"><b>You can't open this yet:</b> ${esc(p.msg)} You have ${m(TG.G.cash)}. Pick a cheaper business for this place, or sell/borrow first (💰 Money).</div>` : '<div class="mute">Could not estimate the first months.</div>';
+    const row = (a, b) => `<tr><td>${a}</td><td class="n">${b}</td></tr>`;
+    return `<table>${row('💵 Cash spent today (setup, gear, staff hiring, supplies)', `<b>${m(p.today)}</b>`)}${row('💵 Cash left after opening', `<b class="${p.after < 0 ? 'bad' : ''}">${m(p.after)}</b>`)}${row('👥 Wages each month', m(p.payroll))}${row('📅 First month (estimate)', UI.signed(Math.round(p.m1)))}${row('📅 Average of first 3 months', UI.signed(Math.round(p.m3)))}${row('⏳ Cash lasts', p.months === Infinity ? 'not losing money' : p.months >= 24 ? '2+ years' : p.months < 1 ? 'less than a month' : `about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}`)}</table>
+      ${p.risky ? `<div class="ev bad"><b>⚠️ Risky:</b> ${p.after < 0 ? 'this costs more cash than you have.' : p.months < 3 ? (p.months < 1 ? 'at this rate your cash runs out in the first month.' : `at this rate your cash runs out in about ${Math.round(p.months)} month${Math.round(p.months) === 1 ? '' : 's'}.`) : 'the first month is expected to lose a lot.'} Try ${p.q === 'standard' ? 'budget or used gear, ' : ''}${p.q ? '"No, I\'ll do it myself" (hire fewer people), ' : ''}a cheaper place, or a smaller business.</div>` : '<div class="mute">Estimates from a practice run where you buy supplies every month: real months can be better or worse.</div>'}`;
+  };
+  const startDialog0 = UI.startDialog;
+  UI.startDialog = (pid, type) => {
+    startDialog0(pid, type);
+    const box = document.querySelector('#modal .box'); if (!box) return;
+    const sel = document.getElementById('stQuick'); if (sel) sel.setAttribute('data-change', 'stPrev');
+    const ent = document.getElementById('stEnt'); if (ent) ent.setAttribute('data-change', 'stPrev'); const fr = document.getElementById('stFrom'); if (fr) fr.setAttribute('data-change', 'stPrev');
+    const go = box.querySelector('[data-act="startGo"]');
+    if (go) { go.insertAdjacentHTML('beforebegin', `<div class="card prevbox" id="stPrevBox" data-pid="${esc(pid)}" data-type="${esc(type)}"></div>`); go.textContent = 'Open the business'; }
+    UI.A.stPrev();
+  };
+  UI.A.stPrev = () => {
+    const bx = document.getElementById('stPrevBox'); if (!bx) return;
+    const p = UI.startPreview(bx.dataset.pid, bx.dataset.type, UI.val('stQuick'), UI.val('stEnt') || null, UI.val('stName'), UI.val('stFrom') || null);
+    p.q = UI.val('stQuick'); UI.S.stPrev = p; bx.innerHTML = `<h3 style="margin-top:0">🧾 What it really costs</h3>${UI.startPreviewHtml(p)}`;
+  };
+  const startGo0 = UI.A.startGo;
+  UI.A.startGo = (arg) => {
+    const [pid, type, ok] = String(arg).split('|'); const p = UI.S.stPrev;
+    if (ok !== 'y' && p && p.ok && p.risky) {
+      UI.S.stPend = { name: UI.val('stName'), q: UI.val('stQuick'), ent: UI.val('stEnt'), from: UI.val('stFrom') };
+      UI.modal('Are you sure?', `<div class="card"><p><b>This start looks risky.</b></p>${UI.startPreviewHtml(p)}<div class="btns">${UI.btn('Open anyway', 'startGo', `${pid}|${type}|y`, 'badb')}${UI.btn('Back', 'startBack', `${pid}|${type}`, 'pri')}</div></div>`);
+      return;
+    }
+    const pend = ok === 'y' ? UI.S.stPend : null;
+    if (pend) { // the confirm replaced the dialog: rebuild hidden inputs from what was picked
+      const hold = document.createElement('div'); hold.style.display = 'none';
+      hold.innerHTML = `<input id="stName"><select id="stQuick"><option value=""></option><option value="${esc(pend.q || '')}" selected></option></select>${pend.ent ? `<select id="stEnt"><option value="${esc(pend.ent)}" selected></option></select>` : ''}${pend.from ? `<select id="stFrom"><option value="${esc(pend.from)}" selected></option></select>` : ''}`;
+      document.body.appendChild(hold); hold.querySelector('#stName').value = pend.name || '';
+      try { startGo0(`${pid}|${type}`); } finally { hold.remove(); UI.S.stPend = null; }
+      return;
+    }
+    startGo0(`${pid}|${type}`);
+  };
+  UI.A.startBack = (arg) => { const [pid, type] = String(arg).split('|'); UI.startDialog(pid, type); };
+
+  // signing a lease / buying when you then can't afford to set the business up: ask first
+  const acq0 = UI.A.acq;
+  UI.A.acq = (arg) => {
+    const [id, mode, ok] = String(arg).split('|'); const g = TG.G, C = TG.CONFIG; const p = g.listings.find((x) => x.id === id); const type = UI.S.mkType;
+    if (p && ok !== 'y' && ok !== 'z' && C.businesses[type]) {
+      const pay = mode === 'lease' ? Math.round(TG.P.leaseRent(g, p) * (1 + C.property.leaseDeposit)) : mode === 'cash' ? Math.round(p.price * (1 + C.property.buyCostPct)) : 0;
+      const setup = TG.B.setupCost(g, type, p, null); const left = g.cash - pay;
+      if (pay && left < setup) return UI.modal('Are you sure?', `<div class="card"><p>After this you would have <b>${m(left)}</b>, but setting up a ${esc(C.businesses[type].name.toLowerCase())} here costs about <b>${m(setup)}</b> (before gear and staff). You could not open it yet.</p><div class="btns">${UI.btn(mode === 'lease' ? 'Lease anyway' : 'Buy anyway', 'acq', `${id}|${mode}|z`, 'badb')}${UI.btn('Cancel', 'closeModal', null, 'pri')}</div></div>`);
+    }
+    return acq0(ok === "z" ? `${id}|${mode}|y` : arg);
+  };
+  // ================= ◀ PHONE / BROWSER BACK BUTTON =================
+  // Every screen/tab change and popup adds a history step: Back closes the popup first, then goes to the previous screen.
+  const H = typeof history !== 'undefined' && history.pushState ? history : null;
+  let quiet = false; let inModal = false;
+  const snap = () => ({ tg: 1, s: UI.screen, t: Object.assign({}, UI.tab), b: UI.bizId });
+  const push = (st) => { if (!H) return; try { H.pushState(st, ''); } catch (e) { /* ignore */ } };
+  const go0 = UI.go;
+  UI.go = (screen, extra) => { const was = UI.screen; go0(screen, extra); if (was !== screen || extra) push(snap()); };
+  const tab0 = UI.A.tab;
+  UI.A.tab = (arg) => { tab0(arg); push(snap()); };
+  const modal0 = UI.modal; const close0 = UI.closeModal;
+  UI.modal = (title, html) => { const had = !!document.getElementById('modal'); inModal = true; try { modal0(title, html); } finally { inModal = false; } if (!had) push(Object.assign(snap(), { modal: 1 })); };
+  UI.closeModal = () => {
+    const had = document.getElementById('modal'); close0();
+    if (had && !inModal && H && H.state && H.state.modal) { quiet = true; try { H.back(); } catch (e) { quiet = false; } }
+  };
+  if (typeof window !== 'undefined') window.addEventListener('popstate', (e) => {
+    if (quiet) { quiet = false; return; }
+    if (!TG.G) return;
+    if (document.getElementById('modal')) { close0(); UI.render(); return; }
+    const st = e.state;
+    if (st && st.tg) { UI.screen = st.s || 'home'; UI.tab = Object.assign({}, st.t || {}); UI.bizId = st.b || UI.bizId; UI.render(); window.scrollTo(0, 0); }
+    else if (UI.screen !== 'home') { UI.screen = 'home'; UI.render(); push(snap()); }
+  });
+  if (H) { try { H.scrollRestoration = 'manual'; H.replaceState(snap(), ''); } catch (e) { /* ignore */ } }
+
+  // ================= New game: force the save (starting fresh is on purpose) =================
+  const newGame0 = UI.A.newGame;
+  UI.A.newGame = (scenario) => { newGame0(scenario); TG.Game.stale = false; TG.Game.save(TG.G, true); UI.render(); };
+  const importGo0 = UI.A.importGo;
+  if (importGo0) UI.A.importGo = () => { TG.Game.stale = false; TG.Game.markSeen && TG.Game.markSeen(); importGo0(); };
 })();
 
 </script>

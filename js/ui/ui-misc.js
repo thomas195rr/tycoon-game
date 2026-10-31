@@ -57,10 +57,11 @@
 
   // ---------- settings ----------
   function set(g) {
-    const s = g.settings, MT = { breakdown: 'Equipment breakdowns', keyQuit: 'Key staff quitting', cash: 'Cash crunch / bankruptcy', lawsuit: 'Lawsuits', strike: 'Strikes & walkouts', harvest: 'Harvests', weather: 'Weather disasters' };
+    const s = g.settings, MT = { closed: 'A shop closes (no supplies)', crime: 'Arrests & jail (crime side)', breakdown: 'Equipment breakdowns', keyQuit: 'Key staff quitting', cash: 'Cash crunch / bankruptcy', lawsuit: 'Lawsuits', strike: 'Strikes & walkouts', harvest: 'Harvests', weather: 'Weather disasters' };
     const tg = (k, label, note) => `<span>${label}${note ? `<div class="mute">${note}</div>` : ''}</span><span>${UI.btn(s[k] ? 'On' : 'Off', 'setToggle', k, 'sm' + (s[k] ? ' goodb' : ''))}</span>`;
     let o = `<div class="card"><h3 style="margin-top:0">Gameplay</h3><div class="kv">
-      ${tg('stopOnMajor', 'Stop a skip early on major events', 'Off by default. Choose the event types below.')}
+      ${tg('stopOnMajor', 'Stop a skip early on serious trouble', 'On by default: a skip stops when a shop closes, cash goes below zero, bills go to collections, or you are arrested. Choose the types below.')}
+      ${tg('warnSupplies', 'Warn before Next Month if a shop will run out of supplies')}
       ${tg('confirmPending', 'Warn before Next Month if decisions are waiting')}
       ${tg('gambling', 'Gambling & high-risk investing', 'Casino, betting, penny stocks, coins, margin, angel deals')}
       ${tg('crime', '🕶️ Crime side', 'Street deals, bank jobs, sabotage. Off hides it and freezes everything there.')}
@@ -117,7 +118,7 @@
   };
   function help(g) {
     const C = TG.CONFIG; const t0 = UI.tab.helpb || 'how';
-    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon, 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
+    const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖 How to play', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon + ' ' + esc(d.name.split(' / ')[0]), 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️ Crime', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
     if (t0 === 'crime') return `<div class="card">${pick}</div>${crimeHelp(g, C)}`;
     if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
     const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
@@ -147,10 +148,16 @@
       <ul class="plain small"><li>Crime can pay big, and it ruins people often. Careful play earns about as much as a good legit business, with far bigger swings.</li><li>Nothing is guaranteed.</li></ul></div>`;
   }
   function howTo(C) {
-    const rows = [['🏪', 'Start', 'Pick a business and a place in Market. The place decides how many customers come.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
-      ['📦', 'Stock', 'Buy supplies ahead. Storage limits how much. Old stock goes bad.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
-      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
-    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, t)).join('')}</div>
+    const rows = [['🏪', 'Start', 'Pick a business and a place in 🗺️ Shop (bottom bar). The place decides how many customers come. Quick setup buys the basics for you and shows the full cost first.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
+      ['📦', 'Supplies', 'Most shops sell from supplies (ingredients, parts, fuel). Buy them yourself on the business Now tab before every month (📦 Fill buys about one month). No supplies = shop closed, but wages still get paid. A manager (Shift lead, Ops manager, GM or CEO) can reorder for you: then 🤖 Auto works.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
+      ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⏩', 'Skip', 'Type a number of months and press Skip to play many months at once. By default it stops early on serious trouble (shop closed, cash below zero, arrests): change it next to the Skip button or in Settings.'],
+      ['👔', 'Managers', 'Without managers you do everything: buy supplies, fix machines, answer decision cards. Hire them in a business Staff tab (Shift lead = supplies only; Ops manager = supplies + machines; General manager = everything). A CEO (More → Managers) covers all businesses.'],
+      ['💰', 'Money tab', 'Report shows where every dollar came from and went. Loans: apply and see your approval odds and why. 🏘️ Real estate: buy homes or buildings and rent them out (rent is shown per unit, then the total when every unit is rented). 📈 Investing: stocks and more.'],
+      ['🏦', 'Loans & credit', 'Your credit score (Home) sets loan odds and rates. It rises when you pay on time and falls with late payments, cash below zero and lots of applications. Each loan screen lists what helps and what would raise your odds.'],
+      ['🌾', 'Farm', 'Fields (plant in spring, harvest in fall), cows (calves grow up, cows give milk, sell cattle when market-ready) and an orchard. Seed and feed are bought on the farm Now tab and share storage.'],
+      ['🕶️', 'Crime side', 'Optional (off unless you chose it at the start; switch in Settings). Big money, big risks: raids, fines and jail.'],
+      ['📉', 'Cash below zero', 'You pay late fees and your credit drops. After 3 months in a row creditors sell your things, and if that is not enough you go bankrupt. Watch the 💵 chip at the top.'], ['⚠️', 'Risk', 'Bad events have odds you can see. Upkeep, managers and insurance lower them.'], ['📈', 'Grow', 'Hire managers, open more businesses, buy property, invest. No ending.']];
+    return `<div class="card"><h3 style="margin-top:0">📖 How to play</h3>${rows.map(([i, l, t], n) => UI.irow('hh' + n, i, l, null, null, null, esc(t))).join('')}</div>
       <div class="card"><h3 style="margin-top:0">🎨 Colors</h3><div>${UI.pill('green', 'good')} ${UI.pill('yellow', 'watch')} ${UI.pill('red', 'problem')}</div><div class="mute">Tap any ⓘ or label to see what it means.</div></div>
       <div class="card"><h3 style="margin-top:0">🏢 Business sizes</h3>${['small', 'between', 'corp'].map((t) => `<p><b>${esc(C.tiers[t].label)}</b> ${Object.values(C.businesses).filter((d) => d.tier === t).map((d) => d.icon).join(' ')}</p>`).join('')}<div class="mute">Tap a business icon above for its guide.</div></div>`;
   }
