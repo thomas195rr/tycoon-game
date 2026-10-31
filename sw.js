@@ -1,15 +1,15 @@
 /* Offline cache so the game opens from the home screen without a connection.
    Network first (updates arrive), cached copy when offline. Saves live in the browser (localStorage + IndexedDB), not here. */
-const CACHE = 'tycoon-app-v9';
+const CACHE = 'tycoon-app-v10';
 const FILES = ['./', './index.html', './manifest.json', './css/style.css', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
-  './js/core.js', './js/config.js', './js/config-businesses.js', './js/config-businesses2.js', './js/config-extras.js', './js/config-crime.js', './js/config-v6.js', './js/world.js', './js/industry.js', './js/pricing.js', './js/work.js',
+  './js/core.js', './js/config.js', './js/config-businesses.js', './js/config-businesses2.js', './js/config-extras.js', './js/config-crime.js', './js/config-v6.js', './js/config-v10.js', './js/world.js', './js/industry.js', './js/pricing.js', './js/work.js',
   './js/property.js', './js/staff.js', './js/equipment.js', './js/finance.js', './js/credit.js', './js/business.js', './js/models.js', './js/models2.js', './js/farm.js', './js/herd.js', './js/managers.js',
-  './js/realestate.js', './js/invest.js', './js/crime.js', './js/ledger.js', './js/engine.js', './js/ui/ui-core.js', './js/ui/ui-home.js', './js/ui/ui-market.js', './js/ui/ui-biz.js',
-  './js/ui/ui-models.js', './js/ui/ui-detail.js', './js/ui/ui-money.js', './js/ui/ui-misc.js', './js/ui/ui-crime.js', './js/ui/ui-v6.js', './js/ui/ui-v7.js', './js/ui/ui-v8.js', './js/ui/ui-v9.js'];
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); });
-self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+  './js/realestate.js', './js/invest.js', './js/crime.js', './js/ledger.js', './js/engine.js', './js/v10.js', './js/ui/ui-core.js', './js/ui/ui-home.js', './js/ui/ui-market.js', './js/ui/ui-biz.js',
+  './js/ui/ui-models.js', './js/ui/ui-detail.js', './js/ui/ui-money.js', './js/ui/ui-misc.js', './js/ui/ui-crime.js', './js/ui/ui-v6.js', './js/ui/ui-v7.js', './js/ui/ui-v8.js', './js/ui/ui-v9.js', './js/ui/ui-v10.js'];
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
-  e.respondWith(fetch(e.request).then((r) => { if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); } return r; })
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((r) => { if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); } return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true }).then((m) => m || caches.match('./index.html'))));
 });

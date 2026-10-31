@@ -1,0 +1,64 @@
+# v10 playtest
+
+### Leo, 10: "I have a cow farm. What do I do with old cows?" (375px)
+- My Biz: 🚜Farmnew
+      ⭐ 35 · 👥 4 · 🛠️ 3 · ⚠️ no manager: you do 
+- Sees 👵 Dry / old cows right after 🥩 Market-ready
+- Under it: "💵 Sell: 1 × $1,802 = $1,802"
+- Types 25 tons of feed: "🧾 Buy: 25 × $156 = $3,901"
+- Tapped 💵 Sell on the dry row
+- Row is still there showing 0
+- Gear tab: 🛠️ Gear
+- Sees 🔧 Machines cared for and 🛡️ Machine insurance
+### Ava, 13: "How do I make my cafe earn more?" (375px)
+- Types 500 supplies: "🧾 Buy: 500 × $4.08 = $2,038"
+- Tab: ⬆️ Upgrades
+- 10 upgrades; 10 show payback. Top one: "💡 LED lights & efficient fridges" – pays back in 27 months
+- Bought the best-payback one: 💡 LED lights & efficient fridges
+- Tab: 📣 Ads
+- Types $1,500: "🔮 $1,500/mo ≈ +9% more customers wanting you (after flops ≈ +7%) → about +0 served. ⚠️ You are already about full: extr"
+- Next month the Ads tab says: "Last month ($1,500) · ⚠️ you were full: more ads cannot sell more · flopped"
+- Sees "Your customers": commuters, remote workers, students, food lovers
+- Home: 🏠Home
+- "⏱️ Play time: 4 mo (all your games, in game time) · this game 4 mo · v10"
+### Sam, 15: "I want to buy a duplex with a loan and rent it out" (1280px)
+- Mortgage screen: down payment choices 20% = $68.2k / 30% = $102.3k / 40% = $136.4k / 50% = $170.5k
+- Picks 50% down: Loan payment $1,612/mo -> Loan payment $1,008/mo
+- Apply & buy: ok
+- Owns it: 2 of 2 units empty
+- Sees 2 rent pickers (one per empty unit)
+- After raising unit 2's rent: "Rents set per unit = $3,958/mo when full"
+- Search unit 1: 🔎 Search $716
+- Search screen: "Rent you ask $1,721 (100% of market)"
+### Kim, 12: "Give me a broken business to fix" (375px)
+- Started with a carwash: rep 18, 0/1 machines broken, team morale 35, debt $49,000, cash $20,000
+- Gear tab: 🛠️ Gear
+- Gear says a destroyed machine waits for "you decide" (no manager)
+- Sees ♻️ Replace like-for-like and 🗑️ Scrap on the destroyed machine
+- Replaced it
+### Raj, 14: "GM or Ops? And can I bet big?" (375px)
+- Manager tab: "GM or Ops manager?" card with what each does
+- Gear: 🔁 Like-for-like
+- Destroyed a standard machine: Ops manager replaced it with a standard one
+- Worker card: "🎁 A bonus: 🤝 loyalty 10 → 21 · 🎯 chance a rival hires them away 0.1% → 0.1%/mo · 😊 morale +8. Each bonus adds less l"
+- Casino: "Table limit: none"
+- Bets $250,000: "Roulette: red / black: lost $250.0k"
+
+## How it should work (checklist)
+- [x] Farm Now tab: a 👵 Dry / old cows row sits right under 🥩 Market-ready, even with 1 cow (or 0), with a box + 💵 Sell
+- [x] Every "how many" box next to Buy/Sell shows "N × price each = total" and updates while typing
+- [x] Every upgrade card shows its price, 📈 what it adds per month and ⏱️ how many months to pay back, before buying
+- [x] Ads tab shows what a budget would do before saving, and what the ads really did last month
+- [x] A rental you just bought is completely empty: every unit needs its own tenant
+- [x] Each empty unit has its own rent picker; the total "when full" adds them up
+- [x] A mortgage lets you choose the down payment (20-50%) and shows the monthly payment for it
+- [x] You can start by taking over a failing business of any type: worn gear, low morale, weak reputation, debt
+- [x] Gear tab: 🔧 machines cared for X/Y (machines, not cows), ♻️ who replaces destroyed machines, 🛡️ machine insurance with its odds
+- [x] With no GM/Ops manager, a destroyed machine waits for YOU (Replace like-for-like or Scrap)
+- [x] With an Ops manager, the like-for-like order makes them replace with the same kind and quality
+- [x] A worker card shows what a bonus does to loyalty and to the odds a rival hires them away
+- [x] Casino shows no table limit and no bets-left counter; odds text unchanged
+- [x] Home shows total play time in game years (across games)
+- [x] Manager tab explains GM (people & sales) vs Ops (machines & running things)
+
+All checklist items work

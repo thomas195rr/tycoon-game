@@ -79,7 +79,7 @@ const worker = (TG, g, b, over) => { const c = TG.S.candidate0(g, b, key(TG, b),
   const s = JSON.parse(TG.Game.serialize(g)); s.v = 8; for (const bb of s.businesses) for (const e of [].concat(bb.staff, Object.values(bb.spec || {}).filter(Boolean))) { delete e.pers; delete e.persSeen; delete e.expGain; }
   let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v8 save failed to load: ' + e.message); }
   if (g2) { TG.G = g2; const a = g2.businesses.find((x) => x.id === b.id), z = g2.businesses.find((x) => x.id === c2.id);
-    ok(g2.v === 9, 'save is now v9'); ok(!('lead' in a.spec) && !('lead' in z.spec), 'no Shift lead seat left');
+    ok(g2.v >= 9, 'save is now v9+'); ok(!('lead' in a.spec) && !('lead' in z.spec), 'no Shift lead seat left');
     ok(a.spec.ops && a.spec.ops.id === lead.id && a.spec.ops.role === 'ops', 'lead became the Ops manager when that seat was free');
     ok(z.staff.some((e) => e.name === c2.spec.lead.name && e.role === key(TG, z)), 'lead joined the crew when Ops was taken');
     ok(Array.isArray(g2.v9notes) && g2.v9notes.length === 2, 'the player gets a note for each change');

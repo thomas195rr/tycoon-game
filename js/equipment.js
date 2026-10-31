@@ -95,8 +95,8 @@
     factors.push(`${(it.age / 12).toFixed(1)} yrs old`);
     factors.push(`${Math.round(E.effWear(it))}% wear`);
     factors.push(`${t.label.toLowerCase()} quality`);
-    factors.push(it.maint ? 'on maintenance plan' : 'no maintenance plan');
-    if (cov > 0) factors.push('mechanic on staff'); else factors.push('no mechanic');
+    if (it.leased) factors.push('lease includes servicing');
+    if (cov > 0) factors.push(cov < 0.999 ? `mechanics cover ${Math.round(cov * 100)}% of your machines` : 'mechanic looks after it'); else factors.push('no mechanic');
     if (b.pace === 'rush') factors.push('rushed pace');
     if (blF > 1.01) factors.push(`unfinished work x${blF.toFixed(2)}`);
     return { p, factors };
@@ -187,7 +187,6 @@
       const use = it.broken ? 0.2 : (pu != null ? TG.WK.wearMult(pu) : ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
       let wg = eq.wearPerMonth * use * (it.maint ? eq.maintPlanWearMult : 1) * (1 - (1 - eq.mechanicWearMult) * cov) * wearFix * (120 / d.life);
       it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4) * (1 - TG.S.perk(b, 'wearCut')), 0, 100);
-      if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);
       if (it.leased) TG.F.spend(g, it.leasePay, 'Equipment lease', b.id);
       if (it.broken) continue;
       if (d.upkeep) TG.F.spend(g, Math.round(d.upkeep * g.world.priceIdx), 'Equipment upkeep', b.id);
@@ -231,7 +230,8 @@
     let loss = 0;
     if (!it.leased) {
       loss = E.resale(g, b, Object.assign({}, it, { broken: null }));
-      const cov = TG.F.claim(g, b, 'equipment', loss, `${it.label} destroyed`);
+      const insured = b.ins && b.ins.equipment; /* v10 machine insurance pays what a new one of the same kind costs */
+      const cov = TG.F.claim(g, b, 'equipment', insured ? E.price(g, b, it.type, it.tier === 'used' ? 'budget' : it.tier) : loss, `${it.label} destroyed`);
       if (cov) loss -= cov;
     }
     TG.rep.event(g, b, 'major', `${it.label} #${E.num(b, it)} was destroyed in a catastrophic failure`, why, { major: 'breakdown' });
@@ -248,7 +248,7 @@
     opts.push({ id: 'leave', label: destroyed ? 'Scrap it, no replacement' : 'Leave it broken' });
     TG.D.add(g, { kind: 'broken', bizId: b.id, itemId: it.id, title: `${d.label} ${destroyed ? 'destroyed' : 'broken'}`,
       text: `${it.label} #${E.num(b, it)} (${TG.CONFIG.equipTiers[it.tier].label}, ${(it.age / 12).toFixed(1)} yrs, ${Math.round(E.effWear(it))}% wear) is out of action.${d.critical ? ' It is critical: capacity drops until it is fixed.' : ''}`,
-      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.${destroyed ? '' : E.hasMech(b) ? ' Your mechanic will fix it next month if cash allows.' : ' No mechanic: it stays broken until you repair it.'}`, options: opts, def: destroyed ? 'leave' : null });
+      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.${destroyed ? '' : E.hasMech(b) ? ' Your mechanic will fix it next month if cash allows.' : ' No mechanic: it stays broken until you repair it.'}`, options: opts, def: null }); /* v10: a destroyed machine waits for YOU unless a GM / Ops manager (or CEO) replaces it */
   };
 
   // replace a broken/destroyed item (or add new)
@@ -261,7 +261,6 @@
     b.equip = b.equip.filter((x) => x.id !== itId);
     if (sold) TG.F.earn(g, sold, 'Asset sales', b.id, true);
     const n = E.buy(g, b, typeId, tier);
-    if (n) n.maint = !!(it.maint);
     TG.rep.decision(g, b, by, `Sold the old ${it.label} for ${U.money(sold)} and bought a ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} one (${U.money(price)})`);
     return true;
   };

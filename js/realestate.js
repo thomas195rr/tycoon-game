@@ -26,7 +26,8 @@
     price = Math.round(price / 1000) * 1000;
     const acres = kindId === 'land' ? Math.round(R.range(2, 40)) : 0;
     return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
-      age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month };
+      age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
+      life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
   };
   RE.refill = (g, n) => {
     for (let i = 0; i < n; i++) {
@@ -41,15 +42,17 @@
   };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
-  RE.askRent = (g, h) => Math.round(RE.marketRent(g, h) * (h.rentR || 1));
+  // v10: every unit can have its own rent (h.unitR[u] = share of market rent); otherwise the building's default (h.rentR)
+  RE.unitRentR = (h, u) => (u != null && h.unitR && h.unitR[u] != null ? h.unitR[u] : (h.rentR || 1));
+  RE.askRent = (g, h, u) => Math.round(RE.marketRent(g, h) * RE.unitRentR(h, u));
   RE.estRent = (g, l) => Math.round(RE.marketRent(g, l) * Math.max(1, l.units || 0) * 0.92);
   RE.vacant = (h) => (h.tenants || []).filter((t) => !t).length;
   // v7: ONE tenant per home / unit. Every empty unit is filled by its own search (one applicant at a time).
   const mgrSkill = (g) => (g.re.manager ? (g.re.manager.skill || 50) : null);
   RE.mgrCostMult = (g) => { const s = mgrSkill(g); return s == null ? 1 : U.clamp(1.2 - s / 250, 0.8, 1.2); }; // a skilled manager gets better vendor prices
-  RE.searchCost = (g, h, byMgr) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
-  RE.poolPreview = (g, h, byMgr) => { // what ONE unit's search is likely to bring, shown before you pay
-    const T = TC(), r = h.rentR || 1, k = RC().kinds[h.kind];
+  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h, u)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
+  RE.poolPreview = (g, h, byMgr, unit) => { // what ONE unit's search is likely to bring, shown before you pay
+    const T = TC(), r = RE.unitRentR(h, unit), k = RC().kinds[h.kind];
     const n = Math.min(T.pool.max, T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * (k.lease ? T.pool.commercial : 1));
     const sk = byMgr ? mgrSkill(g) : null;
     const q = U.clamp(T.quality.atMarket + T.quality.slope * (1 - r) + (h.cond - 60) * T.quality.cond + (sk != null ? (sk - 50) / 500 : 0), 0.1, 0.88);
@@ -76,11 +79,11 @@
     if (u < 0 || h.tenants[u]) return { ok: false, msg: 'No empty units.' };
     if (RE.unitIssues(h, u).length) return { ok: false, msg: 'Fix the repair in this unit first: nobody signs a lease for a broken home.' };
     const byMgr = !!(by && g.re.manager);
-    const cost = RE.searchCost(g, h, byMgr); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
+    const cost = RE.searchCost(g, h, byMgr, u); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
     TG.F.spend(g, cost, 'Tenant search'); g.re.m.cost = (g.re.m.cost || 0) + cost;
-    const pv = RE.poolPreview(g, h, byMgr); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
+    const pv = RE.poolPreview(g, h, byMgr, u); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
     const list = []; for (let i = 0; i < n; i++) list.push(RE.applicant(g, h, R.normal(pv.q, TC().quality.sd)));
-    h.searches[u] = { m: g.month, rent: RE.askRent(g, h), list, i: 0 };
+    h.searches[u] = { m: g.month, rent: RE.askRent(g, h, u), list, i: 0 };
     if (by) TG.rep.decision(g, null, by, `Paid ${U.money(cost)} for a tenant search for unit ${u + 1} at ${h.name}: ${n} applicant(s)`);
     return { ok: true, n, cost, unit: u };
   };
@@ -162,11 +165,12 @@
   RE.totalValue = (g) => (g.re ? U.sum(g.re.holdings, (h) => RE.value(g, h)) : 0);
   RE.unitsOwned = (g) => U.sum(g.re.holdings, (h) => h.units || 0);
 
-  RE.buy = (g, listingId, mortgage, term) => {
+  RE.maxLtv = (l) => (RC().kinds[l.kind].commercial ? 0.75 : 0.8);
+  RE.buy = (g, listingId, mortgage, term, downPct) => {
     const C = TG.CONFIG; const l = g.re.listings.find((x) => x.id === listingId); if (!l) return { ok: false, msg: 'Listing gone.' };
     const fees = Math.round(l.price * C.property.buyCostPct);
     if (mortgage) {
-      const ltv = RC().kinds[l.kind].commercial ? 0.75 : 0.8; const down = Math.round(l.price * (1 - ltv));
+      const ltv = Math.min(RE.maxLtv(l), downPct ? 1 - downPct : 1); const down = Math.round(l.price * (1 - ltv)); /* v10: you can put more down for a smaller payment */
       if (g.cash < down + fees) return { ok: false, msg: `Need ${U.money(down + fees)} down.` };
       const ok = TG.CREDIT.apply(g, 'mortgage', l.price - down, { collateral: { kind: 'property', id: l.id }, label: 'Mortgage: ' + l.name, noCash: true, ltv, asset: l.price, extraIncome: RE.estRent(g, l), term });  if (!ok.ok) return ok;
       TG.F.spend(g, down + fees, 'Real estate purchases', null, true); const loan = ok.loan;
@@ -174,8 +178,8 @@
     } else { if (g.cash < l.price + fees) return { ok: false, msg: `Need ${U.money(l.price + fees)}.` }; TG.F.spend(g, l.price + fees, 'Real estate purchases', null, true); }
     g.re.listings = g.re.listings.filter((x) => x !== l);
     l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
-    l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(R.chance(l.distressed ? 0.2 : 0.6) ? RE.newTenant(g, l, true) : null);
-    l.rentR = 1; l.searches = {}; l.issues = [];
+    l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(null); /* v10: every unit starts EMPTY: you find and pick each tenant (and can set each unit's rent) */
+    l.rentR = 1; l.unitR = {}; l.searches = {}; l.issues = [];
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
     g.re.holdings.push(l);
     return { ok: true, h: l };
@@ -268,8 +272,11 @@
     if (g.re.fund && net > 0) spend(net * g.re.fund.share, 'Fund investor distributions');
     g.re.hist.push({ m: g.month, rev: Math.round(g.re.m.rev), cost: Math.round(g.re.m.cost) }); if (g.re.hist.length > 120) g.re.hist.shift();
     // listings
-    g.re.listings = g.re.listings.filter((l) => g.month - l.listed < 10 || R.chance(0.5));
-    RE.refill(g, rc.newPerMonth);
+    // v10: each listing stays 3-7 months, then a new one takes its place, so the market keeps changing
+    for (const l of g.re.listings) if (l.life == null) l.life = R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]);
+    const gone = g.re.listings.filter((l) => g.month - l.listed >= l.life).length;
+    g.re.listings = g.re.listings.filter((l) => g.month - l.listed < l.life);
+    RE.refill(g, Math.max(gone, rc.listingCount - g.re.listings.length));
     while (g.re.listings.length > 20) g.re.listings.shift();
   };
   RE.holdingMonth = (g, h, X) => {
@@ -322,7 +329,7 @@
       // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
       const held = g.month - t.since;
       if (held >= t.lease && held % 12 === t.lease % 12) {
-        const ask = RE.askRent(g, h), mr = RE.marketRent(g, h);
+        const ask = RE.askRent(g, h, i), mr = RE.marketRent(g, h);
         const leaveP = T.leave.base + T.leave.k * (1 - t.rel) + (ask > mr * 1.08 ? T.leave.overRent * (ask / mr - 1.08) * 5 : 0) + 0.2 * Math.min(2, broken);
         if (R.chance(U.clamp(leaveP, 0, 0.95))) { h.tenants[i] = null; spend(t.rent * T.turnover, 'Unit turnover'); TG.rep.event(g, null, 'info', `A tenant moved out of ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''}`, `Lease ended${ask > mr * 1.08 ? '; your rent is above market' : ''}${broken ? '; repairs were left unfixed' : ''}. ${mgr ? 'Your manager will find a new one.' : 'Run a tenant search to fill it.'}`); continue; }
         t.rent = rentCapOn ? Math.round(Math.min(ask, t.rent * 1.02)) : ask;

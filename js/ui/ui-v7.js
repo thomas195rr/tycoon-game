@@ -131,14 +131,16 @@
       const fix = iss.map((it) => `<div class="small bad">🔧 ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
       if (t) { const q = RE.quality(t); return `<div class="unit"><span class="un">🟢 ${u + 1}</span><span class="ub"><b>${esc(t.name)}</b> ${UI.pill('⭐'.repeat(q.stars) + ' ' + q.label, q.tone)}<br>${m(t.rent)}/mo · ${t.evict ? `<span class="bad">eviction: ${t.evict} mo</span>` : `lease ${RE.leaseLeft(g, t)} mo left`}${t.late ? ` · <span class="bad">${t.late} mo behind</span>` : ''}${fix}</span></div>`; }
       const cur = RE.current(g, h, u); const s = h.searches[u];
-      const act = h.mode !== 'rent' ? '<span class="mute">not renting</span>' : iss.length ? '<span class="mute">fix first</span>' : mgr ? '<span class="mute">manager is on it</span>' : cur ? UI.btn(`👤 Applicants (${s.list.length - s.i})`, 'reSearch', `${h.id}|${u}`, 'xs pri') : UI.btn(`🔎 Search ${m(RE.searchCost(g, h))}`, 'reSearch', `${h.id}|${u}`, 'xs');
-      return `<div class="unit"><span class="un">🔴 ${u + 1}</span><span class="ub"><b>Empty</b> · would rent for ${m(RE.askRent(g, h))}/mo${fix}</span>${act}</div>`;
+      const act = h.mode !== 'rent' ? '<span class="mute">not renting</span>' : iss.length ? '<span class="mute">fix first</span>' : mgr ? '<span class="mute">manager is on it</span>' : cur ? UI.btn(`👤 Applicants (${s.list.length - s.i})`, 'reSearch', `${h.id}|${u}`, 'xs pri') : UI.btn(`🔎 Search ${m(RE.searchCost(g, h, false, u))}`, 'reSearch', `${h.id}|${u}`, 'xs');
+      const ur = RE.unitRentR(h, u); const mr = RE.marketRent(g, h); const rsel = `<select class="usel" data-change="reUnitR" aria-label="rent for unit ${u + 1}">${TG.CONFIG.tenants.rentSteps.map((r) => `<option value="${h.id}|${u}|${r}"${Math.abs(ur - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select>`;
+      return `<div class="unit" data-unit="${u}"><span class="un">🔴 ${u + 1}</span><span class="ub"><b>Empty</b> · rent ${rsel}${fix}</span>${act}</div>`;
     });
     const big = h.tenants.length > 8; const lim = UI.S['units' + h.id] ? UI.S['units' + h.id] : 40;
     const shown = UL.slice(0, lim).join('') + (UL.length > lim ? `<div class="btns">${UI.btn(`Show ${Math.min(40, UL.length - lim)} more units`, 'unitsMore', h.id, 'xs')}</div>` : '');
     const whole = (h.issues || []).filter((x) => x.unit == null).map((it) => `<div class="ev bad">🔧 Building: ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
     return `${whole}<details class="grp"${big ? '' : ' open'}><summary><span class="gl"><span class="car"></span>🚪 Units: ${occ}/${h.tenants.length} rented</span><span class="gv">${h.tenants.length - occ ? `<span class="bad">${h.tenants.length - occ} empty</span>` : '<span class="good">full</span>'}</span></summary>${shown}</details>`;
   };
+  UI.A.reUnitR = (v) => { const [hid, u, r] = String(v).split('|'); const h = TG.G.re.holdings.find((x) => x.id === hid); if (!h) return; h.unitR = h.unitR || {}; h.unitR[u] = Number(r); UI.refresh(); };
   UI.A.unitsMore = (hid) => { UI.S['units' + hid] = (UI.S['units' + hid] || 40) + 40; UI.refresh(); };
   UI.A.reFix = (arg) => { const [hid, iid] = arg.split('|'); const r = TG.RE.fixIssue(TG.G, hid, iid); if (UI.res(r, r.ok ? `Fixed for ${m(r.cost)}.` : null)) UI.refresh(); };
 

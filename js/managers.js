@@ -6,8 +6,13 @@
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
     pr: ['ads', 'gm'], fund: ['gm', 'accountant'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm'], farm: ['ops', 'gm'], expand: ['ops'],
   };
+  // v10: the GM is the people & sales boss, the Ops manager the machines & running-things boss.
+  // Each makes better calls in their own area and worse ones outside it (shown on the Manager tab).
+  const STRONG = { gm: ['poach', 'theft', 'pr', 'fund', 'hire', 'raise', 'bid', 'franchise'], ops: ['broken', 'stock', 'farm', 'expand'] };
+  D.COVER = COVER; D.STRONG = STRONG;
+  D.roleEdge = (role, kind) => (STRONG[role] ? (STRONG[role].includes(kind) ? 0.08 : -0.06) : 0);
 
   D.add = (g, dec) => {
     const dup = g.decisions.find((d) => d.kind === dec.kind && d.bizId === dec.bizId && ((dec.itemId && d.itemId === dec.itemId) || (dec.empId && d.empId === dec.empId) || (dec.suitId && d.suitId === dec.suitId) || (dec.reId && d.reId === dec.reId && d.unit === dec.unit) || (dec.kind === 'pr' && d.kind === 'pr')));
@@ -25,7 +30,7 @@
   };
   D.handler = (g, b, kind) => {
     const roles = COVER[kind] || [];
-    if (b && b.spec) for (const r of roles) { const e = b.spec[r]; if (e) return { e, label: `${TG.CONFIG.specialists[r].label} ${e.name}`, role: r, p: D.pGood(g, e) }; }
+    if (b && b.spec) for (const r of roles) { const e = b.spec[r]; if (e) return { e, label: `${TG.CONFIG.specialists[r].label} ${e.name}`, role: r, p: U.clamp(D.pGood(g, e) + D.roleEdge(r, kind), 0.05, 0.97) }; }
     if (g.ceo && (kind !== 'evict')) return { e: g.ceo, label: `CEO ${g.ceo.name}`, role: 'ceo', p: D.pGood(g, g.ceo, true) };
     if (kind === 'evict' && g.re.manager) return { e: g.re.manager, label: `Property manager ${g.re.manager.name}`, role: 'rem', p: D.pGood(g, g.re.manager) };
     return null;

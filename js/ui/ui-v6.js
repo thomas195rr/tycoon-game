@@ -79,7 +79,7 @@
     const terms = TG.CONFIG.credit.terms.mortgage;
     const row = (a, b) => `<tr><td>${a}</td><td class="n">${b}</td></tr>`;
     return `<div class="card"><h3>🏦 Your monthly payment</h3><table>
-      ${row('Price', m(p.loan + p.down))}${row('Down payment', `${m(p.down)} (${U.pct(p.down / (p.loan + p.down))})`)}${row('Loan', m(p.loan))}
+      ${row('Price', m(p.loan + p.down))}${row('Down payment', act === 'reFin' ? `<select data-change="finDown" data-id="${id}" data-act2="${act}">${TG.CONFIG.v10.reDown.map((d) => `<option value="${d}"${Math.abs(p.down / (p.loan + p.down) - d) < 0.02 ? ' selected' : ''}>${U.pct(d)} = ${m((p.loan + p.down) * d)}</option>`).join('')}</select>` : `${m(p.down)} (${U.pct(p.down / (p.loan + p.down))})`)}${row('Loan', m(p.loan))}
       ${row('Length', `<select data-change="finTerm" data-id="${id}" data-act2="${act}">${terms.map((t) => `<option value="${t}"${p.q.term === t ? ' selected' : ''}>${t / 12} years</option>`).join('')}</select>`)}
       ${row(`Rate <span class="mute">(score ${p.q.score})</span>`, U.pct(p.q.rate, 2))}${row('Loan payment', `<b>${m(p.q.pay)}/mo</b>`)}${row('Property tax', `${m(p.tax)}/mo`)}${row('Insurance', `${m(p.ins)}/mo`)}
       ${row('<b>Total each month</b>', `<b>${m(p.total)}/mo</b>`)}${row('<b>Cash today</b>', `<b>${m(p.cash)}</b>`)}</table>
@@ -90,11 +90,12 @@
       ${g.cash < p.cash ? `<div class="ev bad">You need ${m(p.cash - g.cash)} more cash today to apply (you have ${m(g.cash)}).</div>` : ''}
       <div class="mute">Applying counts as a loan application even if the bank says no.</div></div>`;
   };
+  UI.A.finDown = (v, el) => { UI.S.finDown = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
   UI.A.finTerm = (v, el) => { UI.S.finTerm = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
   // real estate listing
   UI.A.reFin = (id) => {
     const g = TG.G; const l = g.re.listings.find((x) => x.id === id); if (!l) return;
-    const k = TG.CONFIG.realEstate.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const rc = TG.CONFIG.realEstate;
+    const ltv = Math.min(TG.RE.maxLtv(l), 1 - (UI.S.finDown || 0)); const rc = TG.CONFIG.realEstate; /* v10: pick your down payment */
     const p = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc.propertyTax, insPct: rc.insurancePct }, UI.S.finTerm || 300);
     const pu = TG.RE.marketRent(g, l);
     // v9 audit: what a typical month leaves you after ALL running costs and the loan (rentals with a loan often cost you cash each month)
@@ -103,7 +104,7 @@
     UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + flow + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
       <div class="btns">${UI.btn('📝 Apply & buy', 'reFinGo', id, 'sm pri', !!p.q.block || g.cash < p.cash)}${UI.btn('Cancel', 'closeModal', null, 'sm')}</div>`);
   };
-  UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, 'Approved and bought.'); };
+  UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300, UI.S.finDown || 0); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, r && r.h && r.h.units ? `Approved and bought. ${r.h.units > 1 ? `All ${r.h.units} units are` : 'It is'} empty: set each unit's rent and find a tenant for each one.` : 'Approved and bought.'); };
   // business property listing
   UI.A.propFin = (id) => {
     const g = TG.G; const p0 = g.listings.find((x) => x.id === id); if (!p0) return; const C = TG.CONFIG;
@@ -116,26 +117,27 @@
   UI.rentRows = (g, h) => {
     const RE = TG.RE, T = TG.CONFIG.tenants; if (!h.units || h.kind === 'land') return '';
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
-    let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
-    if (h.units > 1) o += `<div class="small">Your rent ${m(ask)}/unit × ${h.units} units = <b>${m(ask * h.units)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
+    let o = `<div class="row small" style="margin-top:4px"><span>${h.units > 1 ? 'Rent for every unit' : 'Your rent'}</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
+    const tot = (h.tenants || []).reduce((a, t, u) => a + (t ? t.rent || 0 : RE.askRent(g, h, u)), 0); const diff = Object.keys(h.unitR || {}).length > 0;
+    if (h.units > 1) o += `<div class="small">${diff ? 'Rents set per unit' : `Your rent ${m(ask)}/unit × ${h.units} units`} = <b>${m(tot)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
     if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect roughly ${Math.max(1, Math.round(pv.n) - 2)}-${Math.round(pv.n) + 2} applicants per search (it varies), mostly ${pv.label}.</div>`;
     void cur;
     return o;
   };
-  UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) h.rentR = Number(v); UI.refresh(); };
+  UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) { h.rentR = Number(v); h.unitR = {}; } UI.refresh(); }; /* v10: one rent for all; each empty unit can then be changed on its own */
   // v7: every unit has its own search; you see one applicant at a time and cannot go back
   UI.A.reSearch = (arg) => {
     const g = TG.G, RE = TG.RE; const [hid, us] = String(arg).split('|'); const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
     const u = RE.pickUnit(g, h, us != null && us !== '' ? Number(us) : null, true); if (u < 0 || h.tenants[u]) { UI.closeModal(); UI.refresh(); return UI.toast('That unit is rented.'); }
     const a = RE.current(g, h, u); const tag = h.units > 1 ? ` · unit ${u + 1}` : ''; const key = `${hid}|${u}`;
     if (!a) {
-      const pv = RE.poolPreview(g, h); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
+      const pv = RE.poolPreview(g, h, false, u); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
       return UI.modal(`🔎 Tenant search${esc(tag)}`, `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
-        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
+        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h, u))} (${Math.round(RE.unitRentR(h, u) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h, false, u))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
         <div class="mute">One tenant per home. This search is for this unit only. Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
         ${RE.unitIssues(h, u).length ? '<div class="ev bad">Fix the repair in this unit first.</div>' : ''}
-        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h, false, u))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h, false, u) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
     }
     const s = h.searches[u]; const left = s.list.length - s.i; const marks = RE.applicantMarks(a);
     UI.modal(`👤 Applicant${esc(tag)}`, `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left for this unit</span></div>

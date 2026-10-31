@@ -59,7 +59,8 @@
   // ---- farm: a short summary per area (details live on the 🌄 Land tab) ----
   function farmRows(g, b) {
     const f = TG.M.farmEnsure(b), A = f.areas; let o = '';
-    if (A.cows.acres || A.cows.herd) {
+    if (A.cows.st) TG.M.herdSync(A.cows); /* v10: count the herd BEFORE deciding to show it, so 1 dry cow on a farm with no cow acres still gets its row */
+    if (A.cows.acres || A.cows.herd || (A.cows.st && TG.M.cowStages.some((k) => (A.cows.st[k] || 0) > 0))) {
       const a = A.cows, HC = TG.CONFIG.cows; TG.M.herdSync(a);
       const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
       o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);

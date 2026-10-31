@@ -16,7 +16,7 @@
   UI.screens.bizd = () => {
     const g = TG.G, b = biz(); if (!b) { UI.screen = 'biz'; return UI.screens.biz(); }
     const d = TG.B.def(b);
-    const tabs = [['overview', '📋 Now'], ['rep', '📊 Reports'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Extras'], ['mkt', '📣 Ads']];
+    const tabs = [['overview', '📋 Now'], ['rep', '📊 Reports'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Upgrades'], ['mkt', '📣 Ads']];
     if (TG.UI.modelPanel[d.model]) tabs.splice(2, 0, ['model', TG.UI.modelPanel[d.model].label]);
     tabs.push(['own', '🔑 Owner']);
     const t = UI.curTab('biz', 'overview');
@@ -159,7 +159,7 @@
     const who = (kind) => D.handler(g, b, kind);
     const hire = who('hire'), stockH = TG.ST.def(b) ? who('stock') : null; const fh = b.farm ? D.orderTaker(g, b, 'farm') : null;
     const mechs = TG.E.mechs(b), hasEq = b.equip.length > 0 && !!TG.S.roleDef(b, 'mech'); const NOM = '<span class="bad">No manager: you must do this yourself</span>';
-    let o = `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
+    let o = UI.gmOpsCard(g, b) + `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
       ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
       ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out. (Managers order; your crew works the site.)', null, stockH ? esc(stockH.label) : NOM) : ''}
@@ -201,6 +201,13 @@
     o += `<div class="card"><details><summary>📝 What your managers did</summary>${dec.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> <b>${esc(e.by)}</b>: ${esc(e.text)}</div>`).join('') || '<div class="mute">Nothing yet.</div>'}</details></div>`;
     return o;
   }
+  UI.gmOpsCard = (g, b) => {
+    const C = TG.CONFIG; const gm = b.spec && b.spec.gm, ops = b.spec && b.spec.ops;
+    const perks = (r) => (C.perks[r] || []).map(([lvl, , , t]) => `${lvl ? `<span class="mute">skill ${lvl}+:</span> ` : ''}${esc(t)}`).join(' · ');
+    const row = (r, e, ic, jobs) => UI.irow('go' + r + b.id, ic, C.specialists[r].label, e ? `skill ${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}` : '<span class="mute">not hired</span>', C.specialists[r].desc, e ? null : UI.btn('➕ Hire', 'hireRole', r, 'xs'), `${jobs}<br>🏅 ${perks(r)}`);
+    return `<div class="card"><h3 style="margin-top:0">🧭 GM or Ops manager? ${UI.tipBtn('gmops' + b.id)}</h3>${UI.tipLine('gmops' + b.id, 'Both cost a manager salary. The GM is the people & sales boss; the Ops manager is the machines & running-things boss. Each is better at their own jobs (about +8% right calls) and a bit worse at the other one\'s (−6%). Many businesses hire both once they grow.')}
+      ${row('gm', gm, '👔', '👥 hiring, pay & poach offers · 📣 PR & bids · 🧑‍🤝‍🧑 more customers')}${row('ops', ops, '⚙️', '📦 supplies · 🔧 destroyed machines · 🚜 farm work · ➕ buys machines when full')}</div>`;
+  };
   UI.A.ordSpare = (v) => { biz().orders.spare = Number(v); UI.refresh(); };
   UI.A.ordCow = (k) => { const co = biz().farm.orders.cows; co[k] = !co[k]; UI.refresh(); };
   UI.A.ordFeed = (v) => { biz().farm.orders.cows.feedMonths = Number(v); UI.refresh(); };
@@ -218,6 +225,7 @@
     }
     const rd = TG.S.roleDef(b, c.role) || {}; const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
     let each, team = '';
+    if (c.role === 'mech') { const capE = TG.E.mechCapOf(est); const now = TG.E.mechCap(b); const have = TG.E.machines(b); each = `cares for ~${Math.round(capE)} machines`; team = ` · team ${Math.round(now)} → ${Math.round(now + capE)} machines (you have ${have})`; return `<div class="small">🔧 ${each}${team} · 🕒 shows up ${rel}${c.revealed.reliability ? '' : ' (check to see)'}</div>`; }
     if (b.farm) { const ef = M.staffEff(est); each = `${Math.round(100 * ef)} work pts (~${Math.round(M.areaE(b, 'crops').acresPerHand * ef)} crop acres, ~${Math.round(M.areaE(b, 'orchard').acresPerHand * ef)} orchard acres or ~${Math.round(M.areaE(b, 'cows').headPerHand * ef)} cows)`; }
     else if (rd.cap > 1) { each = `${Math.round(rd.cap * M.staffEff(est)).toLocaleString()} ${rd.support ? 'covered' : unit}/mo`; const now = U.sum(b.staff.filter((e) => e.role === c.role), (e) => rd.cap * M.staffEff(e)); team = ` · team ${Math.round(now).toLocaleString()} → ${Math.round(now + rd.cap * M.staffEff(est)).toLocaleString()}`; }
     else each = `${U.pct(M.staffEff(est) / M.staffEff({ skill: 50, reliability: 75 }))} of a normal worker`;
@@ -246,7 +254,7 @@
     const isSpec = !!C.specialists[e.role];
     UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
       ${UI.skillInfo(g, b, e)}${UI.payCard(g, b, e)}${UI.trainCard(g, b, e)}
-      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div><div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
+      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div>${(() => { const bp = TG.S.bonusPreview(g, b, e); return `<div class="small" id="bonusPrev">🎁 A bonus: 🤝 loyalty ${bp.from} → <b>${bp.to}</b> · 🎯 chance a rival hires them away ${U.pct(bp.pFrom, 1)} → <b>${U.pct(bp.pTo, 1)}</b>/mo · 😊 morale +${TG.CONFIG.staff.bonusMorale}. Each bonus adds less loyalty the more loyal they already are.</div>`; })()}<div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
       ${UI.btn(`Fire (severance ${m(e.wage * C.staff.severanceMonths)})`, 'empDo', `${id}|fire`, 'sm badb')}</div>
       ${!isSpec ? `<div class="row" style="margin-top:8px"><span class="small">Promote to</span><select id="promRole">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}">${esc(s.label)}${b.spec[k] ? ' (replaces current)' : ''}</option>`).join('')}</select>${UI.btn('Promote', 'empDo', `${id}|promote`, 'sm')}</div><div class="mute">A promoted worker's management skill can surprise you either way.</div>` : ''}</div>`);
   };
@@ -298,7 +306,7 @@
     const g = TG.G, b = biz(); const [id, act] = arg.split('|');
     if (act === 'train' || act === 'trainA') { const r = TG.S.train(g, b, id, act === 'trainA' ? 'advanced' : 'basic'); if (!r) return UI.toast('Not enough cash.', true); UI.toast(r.spam ? 'Too much training this month: burned out (morale down, no skill).' : r.gain > 0 ? `Skill +${r.gain}. They spend ${U.pct(r.away)} of this month training. Market value ${m(r.mv0)} → ${m(r.mv1)}.` : 'Training did not stick (slow learner). Now you know how they learn.', r.gain <= 0); }
     if (act === 'raise' || act === 'raiseM') { const r = TG.S.raise(g, b, id, act === 'raiseM' ? 'market' : 'pct'); UI.toast(r && r.spam ? 'Another raise this month? Payroll said no and it felt like a broken promise (morale down).' : r ? `Raise: ${m(r.from)} → ${m(r.to)}/mo. Morale and loyalty up.` : 'Not found.', r && r.spam); }
-    if (act === 'bonus') { const r = TG.S.bonus(g, b, id); UI.toast(r && r.spam ? 'Another bonus this month means less each time (morale down).' : 'Bonus paid.', r && r.spam); }
+    if (act === 'bonus') { const r = TG.S.bonus(g, b, id); UI.toast(r && r.spam ? 'Another bonus this month means less each time (morale down).' : r && r.loyalty ? `Bonus paid. Loyalty ${r.loyalty[0]} → ${r.loyalty[1]}.` : 'Bonus paid.', r && r.spam); }
     if (act === 'fire') { TG.S.fire(g, b, id, 'fired'); const c = {}; for (const e of b.staff) c[e.role] = (c[e.role] || 0) + 1; for (const r in b.target) b.target[r] = Math.min(b.target[r], Math.max(c[r] || 0, 0)); UI.closeModal(); UI.toast('Let go.'); return UI.refresh(); }
     if (act === 'promote') { const e = TG.S.promote(g, b, id, UI.val('promRole')); if (e) UI.toast(`${e.name} promoted. True manager skill: ${e.skill}.`); UI.closeModal(); return UI.refresh(); }
     UI.A.emp(id); UI.refresh();
@@ -318,7 +326,7 @@
   function equip(g, b) {
     const d = TG.B.def(b), C = TG.CONFIG; const E = TG.E;
     const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease;
-    let o = `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
+    let o = UI.machinesCard(g, b) + `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
       ${UI.tipLine('eqhow', `${C.equipTiers[tier].label}: price x${C.equipTiers[tier].price}, breaks x${C.equipTiers[tier].brk}, output x${C.equipTiers[tier].out}. Used gear may hide wear. Lease = ${U.pct(C.equipment.leaseMonthlyPct, 1)} of price a month, repairs included.`)}</div>`;
     const cats = []; const byCat = {};
     for (const ed of d.equip) { const c = ed.cat || 'other'; if (!byCat[c]) { byCat[c] = []; cats.push(c); } byCat[c].push(ed); }
@@ -338,17 +346,35 @@
     }
     return o;
   }
+  // v10: who looks after your machines, and the machine insurance (both in one place, on the Gear tab)
+  UI.machinesCard = (g, b) => {
+    const E = TG.E, C = TG.CONFIG; if (!b.equip.length && !TG.B.def(b).equip.length) return '';
+    const mechs = E.mechs(b); const cap = E.mechCap(b); const n = E.machines(b); const canMech = !!TG.S.roleDef(b, 'mech');
+    const broken = b.equip.filter((x) => x.broken && x.broken !== 'destroyed').length; const gone = b.equip.filter((x) => x.broken === 'destroyed').length;
+    const h = TG.D.handler(g, b, 'broken'); const like = !!(b.orders && b.orders.replaceLike);
+    let o = `<div class="card"><h3 style="margin-top:0">🔧 Machine care ${UI.tipBtn('mc' + b.id)}</h3>${UI.tipLine('mc' + b.id, `A mechanic services machines when they need it (less wear, fewer breakdowns) and repairs broken ones for less than an outside repair. Each one cares for about ${C.mechanic.per} machines (more if skilled). Without one: tap 🧰 Service yourself and pay outside repair prices.`)}`;
+    if (canMech) o += UI.irow('mcw' + b.id, '🔧', 'Machines cared for', `${Math.min(n, Math.round(cap))}/${n}`, mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''} can care for about ${Math.round(cap)} machines. You have ${n}.${cap < n ? ' Some machines get no care: hire another mechanic.' : ''}` : 'No mechanic: no machine is cared for. Hire one in 👥 Staff.', mechs.length ? null : UI.btn('➕ Hire', 'hireRole', 'mech', 'xs'), mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''} · skill ${Math.round(E.mechSkill(b))}${cap < n ? ' · <span class="warn">over capacity</span>' : ''}` : '<span class="bad">no mechanic</span>');
+    if (canMech) o += `<div style="margin:0 0 6px 48px">${UI.bar(Math.min(n, cap), Math.max(n, 1))}</div>`;
+    if (broken || gone) o += UI.irow('mcb' + b.id, '⚠️', 'Out of action', `${broken + gone}`, `${broken} broken (fix below or your mechanic fixes it), ${gone} destroyed (replace or scrap below).`, null, gone ? (h ? `${esc(h.label)} replaces destroyed ones` : '<span class="bad">no manager: you must replace destroyed machines</span>') : '');
+    o += UI.irow('mcr' + b.id, '♻️', 'When a machine is destroyed', h ? (like ? 'like-for-like' : 'best judgement') : 'you decide', h ? `${h.label} replaces it at the start of next month (gets it right about ${U.pct(h.p)} of the time). Best judgement = picks used, standard or premium by your cash and whether you have a mechanic. Like-for-like = same kind and quality as before.` : 'No GM or Ops manager: a destroyed machine waits for you (Replace or Scrap in the list below).', h ? UI.btn(like ? '🔁 Like-for-like ✓' : '🔁 Like-for-like', 'ordLike', null, 'xs' + (like ? ' pri' : '')) : UI.btn('➕ Ops manager', 'hireRole', 'ops', 'xs'));
+    if (TG.B.def(b).insurance.includes('equipment')) {
+      const on = !!(b.ins && b.ins.equipment); const pr = TG.F.premium(g, b, 'equipment'); const rk = TG.V10.machineRisk(g, b); const val = TG.V10.machineNew(g, b);
+      o += UI.irow('mci' + b.id, on ? '✅' : '🛡️', 'Machine insurance', `${m(pr)}/mo`, `If a machine you own is DESTROYED (total failure), it pays ${U.pct(C.finance.insCover)} of what a new one costs, after a ${m(C.finance.insDeductible * g.world.priceIdx)} deductible. Normal breakdowns are not covered (that is your mechanic's job). Leased machines are the leasing company's problem. Premium = ${U.pct(C.v10.machineIns.pct, 2)} of the new price of your machines (${m(val)}) a month, and rises after a claim. Right now the odds one of your machines is destroyed this month are about ${U.pct(rk.p, 1)} (expected loss ≈ ${m(rk.exp)}/mo).`, on ? UI.btn('Covered ✓ (cancel)', 'ins', 'equipment', 'xs goodb') : UI.btn('🛒 Buy', 'ins', 'equipment', 'xs'), `odds of a total loss ${U.pct(rk.p, 1)}/mo · ≈ ${m(rk.exp)}/mo expected`);
+    }
+    return o + '</div>';
+  };
+  UI.A.ordLike = () => { const b = biz(); b.orders = b.orders || {}; b.orders.replaceLike = !b.orders.replaceLike; UI.refresh(); };
   function itemRow(g, b, it) {
     const C = TG.CONFIG, E = TG.E; const bc = it.broken ? null : E.breakChance(g, b, it); const w = E.effWear(it);
     const st = it.broken === 'destroyed' ? UI.pill('gone', 'bad') : it.broken ? UI.pill('broken', 'bad') : UI.risk(bc.p);
     const wearShown = it.hidden > 0 && !it.inspected ? `${Math.round(it.wear)}%+?` : `${Math.round(w)}%`;
     const k = 'it' + it.id;
     return `<div class="ev ${it.broken ? 'bad' : w > 70 ? 'warn' : 'good'}"><div class="row sp"><b data-act="tip" data-arg="${k}" data-nosave="1">${esc(it.label)} #${E.num(b, it)}</b>${st}</div>
-      <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased' : ''}${it.maint ? ' · 🛡️ plan' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
+      <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased (servicing included)' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
       ${UI.tipLine(k, `${C.equipTiers[it.tier].label}. Worth ${m(E.resale(g, b, it))}.${it.leased ? ' Lease ' + m(it.leasePay) + '/mo.' : ''}${it.warranty > 0 ? ' Warranty ' + it.warranty + ' mo.' : ''}${bc ? ' Break risk: ' + bc.factors.join(', ') + '.' : ''}`)}
       <div class="btns">${it.broken && it.broken !== 'destroyed' ? UI.btn(`🔧 Fix ${it.warranty > 0 || it.leased ? '(free)' : m(E.repairCost(g, b, it))}`, 'eqDo', `${it.id}|repair`, 'xs goodb') : ''}
       ${!it.broken ? UI.btn(`🧰 Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}${TG.USES.used(it, 'service', g.month) ? ' ✓' : ''}`, 'eqDo', `${it.id}|service`, 'xs') : ''}
-      ${!it.leased ? UI.btn(it.maint ? '🛡️ Stop plan' : `🛡️ Plan ${m(E.def(b, it.type).price * C.equipment.maintPlanCostPct * g.world.priceIdx)}/mo`, 'eqDo', `${it.id}|maint`, 'xs') : ''}
+      ${it.broken === 'destroyed' ? `${UI.btn(`♻️ Replace like-for-like ${m(E.price(g, b, it.type, it.tier))}`, 'eqDo', `${it.id}|replace`, 'xs goodb')}${UI.btn('🗑️ Scrap', 'eqDo', `${it.id}|scrap`, 'xs')}` : ''}
       ${it.hidden > 0 && !it.inspected ? UI.btn(`🔍 ${m(E.def(b, it.type).price * C.equipment.inspectCost * g.world.priceIdx)}`, 'eqDo', `${it.id}|inspect`, 'xs') : ''}
       ${UI.btn(it.leased ? '↩️ Return' : '💵 Sell', 'eqDo', `${it.id}|sell`, 'xs badb')}</div></div>`;
   }
@@ -365,7 +391,8 @@
     const g = TG.G, b = biz(); const [id, act] = arg.split('|'); const it = b.equip.find((x) => x.id === id); if (!it) return;
     if (act === 'repair') TG.E.repair(g, b, id, 'You');
     if (act === 'service') { const r = TG.E.service(g, b, id); if (r === 'again') UI.toast('Already serviced this month: that visit did nothing (one service a month).', true); }
-    if (act === 'maint') it.maint = !it.maint;
+    if (act === 'replace') { if (!TG.E.replace(g, b, id, it.tier, 'You')) UI.toast(`Not enough cash (${m(TG.E.price(g, b, it.type, it.tier))}).`, true); }
+    if (act === 'scrap') { TG.E.sell(g, b, id); UI.toast('Scrapped.'); }
     if (act === 'inspect') { TG.E.inspect(g, b, id); UI.toast(`True wear: ${Math.round(it.wear)}%`); }
     if (act === 'sell') { const v = TG.E.sell(g, b, id); UI.toast(v ? `Sold for ${m(v)}.` : 'Returned.'); }
     TG.D.removeFor(g, (dd) => dd.itemId === id && !b.equip.some((x) => x.id === id && x.broken));
@@ -377,7 +404,7 @@
   UI.fixDesc = (g, b, f) => {
     const d = TG.B.def(b), out = [], P = (x, dg) => U.pct(x, dg || 0); const eqL = (id) => { const e = d.equip.find((x) => x.id === id); return e ? e.label.toLowerCase() : id; };
     const risk = (k) => { const r = d.risks.find((x) => x.id === k); return r ? r.label.toLowerCase() : k; };
-    for (const [k, v] of Object.entries(f.reduces || {})) out.push(`${risk(k)} odds ${v === 0 ? 'gone' : '−' + P(1 - v)}`);
+    for (const [k, v] of Object.entries(f.reduces || {})) out.push(`${risk(k)} odds ${v === 0 ? 'gone' : v > 1 ? '+' + P(v - 1) : '−' + P(1 - v)}`);
     if (f.equipBreak) for (const [k, v] of Object.entries(f.equipBreak)) out.push(`${eqL(k)} breakdown odds −${P(1 - v)}`);
     if (f.skillGrowth) out.push(`staff learn ${P(f.skillGrowth - 1)} faster`);
     if (f.cogsAdd) out.push(f.cogsAdd > 0 ? `supplies cost +${P(f.cogsAdd)} of sales` : `supplies cost ${P(-f.cogsAdd)} of sales less`);
@@ -407,6 +434,13 @@
     if (f.scandalCut) out.push(`franchisee scandal odds −${P(1 - f.scandalCut)}`);
     if (f.appMult) out.push(`${P(1 - f.appMult)} fewer join requests`);
     if (f.cannibalCut) out.push(`shops steal ${P(f.cannibalCut)} fewer of each other's customers`);
+    if (f.staffMult) out.push(`staff get ${P(f.staffMult)} more done`);
+    if (f.capMult) out.push(`+${P(f.capMult)} room / capacity`);
+    if (f.supplyCut) out.push(`supplies cost ${P(f.supplyCut)} less`);
+    if (f.salesUp) out.push(`+${P(f.salesUp)} on every sale`);
+    if (f.costCut) for (const [l, v] of Object.entries(f.costCut)) out.push(`${l.toLowerCase()} −${P(v)}`);
+    if (f.churnCut) out.push(`${P(f.churnCut, 1)} fewer users quit each month`);
+    if (f.organicMult) out.push(`+${P(f.organicMult - 1)} free sign-ups (word of mouth)`);
     if (f.perUnitMonthly) out.push(`${m(f.perUnitMonthly * g.world.priceIdx)}/mo for each ${b.type === 'tech' ? 'server' : 'truck'}`);
     const S = {
       plant: () => { const v = TG.M.plantVolume ? TG.M.plantVolume(b) : 0; return [`sells grain & fruit for +${P(f.valueMult - 1)} and milk & beef for +20% (you sell flour, juice, cheese and packed meat instead of raw goods)`, `only runs with ${N(f.minVolume)} t a year through it (you had ${N(v)} t in the last 12 months); below that it sits idle`, `${P(0.012, 1)} chance a month it breaks (repair ${m(9000000 * 0.02 * g.world.priceIdx)}, idle that month)`]; },
@@ -430,35 +464,63 @@
   };
   const N = (x) => Math.round(x || 0).toLocaleString();
   function upg(g, b) {
-    const d = TG.B.def(b), C = TG.CONFIG;
-    let o = `<div class="card"><h3 style="margin-top:0">⬆️ Upgrades</h3><div class="mute">Each one says exactly what it changes, in numbers.</div>`;
-    for (const f of d.fixes) {
-      const on = !!b.fixes[f.id]; const what = UI.fixDesc(g, b, f);
-      o += `<div class="ev ${on ? 'good' : ''}"><div class="row sp"><b>${esc(f.label)}</b>${on ? UI.pill('active', 'good') : ''}</div><div class="small">💵 ${f.cost ? `${m(f.cost * g.world.priceIdx)} once` : 'No upfront cost'}${f.monthly ? ` + ${m(f.monthly * g.world.priceIdx)}/mo` : ''}</div>
-        <ul class="fx">${what.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        <div class="btns">${on ? (b.fixes[f.id].until > g.month ? `<span class="mute">Locked in until ${U.dateStr(b.fixes[f.id].until)}</span>` : UI.btn('Drop', 'fix', `${f.id}|0`, 'sm')) : UI.btn('Add', 'fix', `${f.id}|1`, 'sm pri')}</div></div>`;
+    const d = TG.B.def(b), C = TG.CONFIG; const V = TG.V10;
+    let o = `<div class="card"><h3 style="margin-top:0">⬆️ Upgrades ${UI.tipBtn('upgH' + b.id)}</h3>${UI.tipLine('upgH' + b.id, 'Each card says what it changes in numbers. 📈 Payback = what it adds to a month (next month, played twice on a copy of your game: with and without it, same luck), plus the trouble it saves on average. Payback months = upfront cost ÷ that. Estimates, not promises: busy months pay more.')}<div class="mute">${d.fixes.filter((f) => b.fixes[f.id]).length}/${d.fixes.length} active · best payback first</div></div>`;
+    const rows = d.fixes.map((f) => ({ f, gain: b.fixes[f.id] ? null : V.fixGain(g, b, f.id) }));
+    rows.sort((x, y) => (!!b.fixes[x.f.id] - !!b.fixes[y.f.id]) || ((x.gain ? x.gain.months : 1e9) - (y.gain ? y.gain.months : 1e9)));
+    o += '<div class="card">';
+    for (const { f, gain } of rows) {
+      const on = !!b.fixes[f.id]; const what = UI.fixDesc(g, b, f); const cost = Math.round((f.cost || 0) * g.world.priceIdx); const mo = Math.round((f.monthly || 0) * g.world.priceIdx);
+      let pay = '';
+      if (gain) {
+        const net = gain.net; const pm = gain.months;
+        if (!b.revAvg && !(gain.net > 0)) pay = '<div class="small mute">📈 Payback shows once you have sales.</div>'; else
+        pay = `${gain.full ? '<div class="small warn">⚠️ You are full right now: more customers cannot be served. Add staff or gear first, then this pays.</div>' : ''}<div class="small">📈 <b class="${net > 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b> (${gain.money == null ? '?' : (gain.money >= 0 ? '+' : '−') + m(Math.abs(gain.money))} ${gain.slow ? 'a month, once it builds up (about a year)' : 'next month'}${gain.risk > 0 ? ` + ${m(gain.risk)} less trouble on average` : gain.risk < 0 ? ` − ${m(-gain.risk)} more trouble on average` : ''}${mo ? ', after its monthly fee' : ''}) · ⏱️ ${net <= 0 ? '<span class="bad">does not pay back right now</span>' : cost ? `pays back in <b>${pm < 1 ? 'under 1' : pm > 120 ? '10+ yrs' : Math.round(pm)} month${pm >= 1.5 && pm <= 120 ? 's' : ''}</b>` : '<b>pays from month 1</b>'}</div>`;
+      }
+      o += `<div class="ev ${on ? 'good' : ''} upgcard" data-fix="${esc(f.id)}"><div class="row sp"><b>${f.ic || '⬆️'} ${esc(f.label)}</b>${on ? UI.pill('active', 'good') : ''}</div><div class="small">💵 ${cost ? `${m(cost)} once` : 'No upfront cost'}${mo ? ` + ${m(mo)}/mo` : ''}${f.perUnitMonthly ? ` + ${m(f.perUnitMonthly * g.world.priceIdx)}/mo each ${b.type === 'tech' ? 'server' : 'truck'}` : ''}</div>
+        <ul class="fx">${what.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>${pay}
+        <div class="btns">${on ? (b.fixes[f.id].until > g.month ? `<span class="mute">Locked in until ${U.dateStr(b.fixes[f.id].until)}</span>` : UI.btn('Drop', 'fix', `${f.id}|0`, 'sm')) : UI.btn(cost ? `🛒 Add (${m(cost)})` : '🛒 Add', 'fix', `${f.id}|1`, 'sm pri', g.cash < cost)}</div></div>`;
     }
-    o += `</div><div class="card"><h3 style="margin-top:0">Insurance</h3><div class="mute">Insurance pays most of a covered loss. Premiums rise after claims.</div><table>`;
-    for (const t of d.insurance) {
-      const I = C.finance.insurance[t]; if (!I) continue;
-      o += `<tr><td>${esc(I.label)}</td><td class="n">${m(TG.F.premium(g, b, t))}/mo</td><td class="n">${b.ins[t] ? UI.btn('Covered ✓ (cancel)', 'ins', t, 'sm goodb') : UI.btn('Buy', 'ins', t, 'sm')}</td></tr>`;
+    o += '</div>';
+    const ins = d.insurance.filter((t) => t !== 'equipment');
+    if (ins.length) {
+      o += `<div class="card"><h3 style="margin-top:0">🛡️ Insurance</h3><div class="mute">Pays ${U.pct(C.finance.insCover)} of a covered loss after a deductible. Premiums rise after claims. Machine insurance is on the 🛠️ Gear tab.</div>`;
+      for (const t of ins) { const I = C.finance.insurance[t]; if (!I) continue; o += UI.irow('ins' + t + b.id, b.ins[t] ? '✅' : '🛡️', I.label, `${m(TG.F.premium(g, b, t))}/mo`, I.desc || 'Pays most of a covered loss.', b.ins[t] ? UI.btn('Covered ✓ (cancel)', 'ins', t, 'xs goodb') : UI.btn('Buy', 'ins', t, 'xs')); }
+      o += '</div>';
     }
-    return o + `</table></div>`;
+    return o;
   }
   UI.A.fix = (arg) => { const g = TG.G, b = biz(); const [id, on] = arg.split('|'); if (on === '1') UI.res(TG.B.buyFix(g, b, id), 'Added.'); else { TG.B.dropFix(g, b, id); UI.toast('Dropped.'); } UI.refresh(); };
   UI.A.ins = (t) => { const b = biz(); b.ins[t] = !b.ins[t]; UI.refresh(); };
 
   // ---------- marketing ----------
   function mkt(g, b) {
-    const C = TG.CONFIG.reputation; const ab = TG.B.adBoost(g, b);
-    let o = `<div class="card"><h3 style="margin-top:0">Advertising</h3><div class="kv"><span>Monthly budget</span><span><input type="number" id="adBudget" value="${b.ads.budget || 0}" min="0" step="100"></span>
-      <span>Channel</span><span><select id="adCh">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${b.ads.channel === k ? ' selected' : ''}>${c.label} (flop risk ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
-      <div class="btns">${UI.btn('Save ad plan', 'adSave', null, 'pri')}</div>
-      <div class="mute">Current effect: about +${U.pct(ab.boost || 0)} demand. Ads have diminishing returns and work worse with a poor reputation${b.spec.ads ? '; your ads manager makes spend go further' : ''}.</div></div>`;
+    const C = TG.CONFIG.reputation; const V = TG.V10; let o = '';
+    const cu = (TG.CONFIG.businesses[b.type].customers || []);
+    if (cu.length) o += `<div class="card"><h3 style="margin-top:0">🧑‍🤝‍🧑 Your customers</h3>${cu.map((c, i) => UI.irow('cu' + b.id + i, c.ic, c.who, U.pct(c.share), `${c.who}: about ${U.pct(c.share)} of your customers. They want ${c.wants}.`, null, esc(c.wants))).join('')}</div>`;
+    if (!V.adModel(b)) {
+      return o + `<div class="card"><h3 style="margin-top:0">📣 Advertising</h3><div class="ev info">${b.farm ? '🚜 A farm sells to the market at the market price' : '🏭 A factory sells to buyers at the market price'}: ads cannot sell more. Raise output and quality instead (⬆️ Upgrades and 🛠️ Gear).</div></div>`;
+    }
+    const ab = TG.B.adBoost(g, b); const ch = b.ads.channel || 'social'; const budget = b.ads.budget || 0;
+    const L = b.adLast; const H = (b.adHist || []).slice(-6);
+    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Ads bring extra customers, with diminishing returns (each extra dollar does a bit less). A good reputation makes them work better. Each channel has a chance to flop (that month the ads do little). If you are already full, extra customers are turned away: add staff or gear first.')}
+      <div class="kv"><span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span>
+      <span>📺 Channel</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.label} (flop ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
+      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch)}</div>
+      <div class="btns">${UI.btn('💾 Save ad plan', 'adSave', null, 'pri')}${budget ? UI.btn('⏹️ Stop ads', 'adStop', null, 'sm') : ''}</div></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">📏 What your ads really did</h3>${L ? UI.irow('adL' + b.id, L.flop ? '💨' : '📈', `Last month (${m(L.spent)})`, `+${Math.round(L.extra).toLocaleString()} ${esc(L.unit)}`, L.flop ? 'The campaign flopped: it did much less than usual.' : 'Counted from last month: what you sold versus what you would have sold without the ads.', null, `${L.extraRev ? `≈ ${m(L.extraRev)} extra sales` : ''}${L.full ? ' · ⚠️ you were full: more ads cannot sell more' : ''}${L.flop ? ' · flopped' : ''}`) : '<div class="mute">No ads ran last month.</div>'}
+      ${H.length > 1 ? `<table class="small"><tr><th>Month</th><th class="n">Spent</th><th class="n">Extra</th></tr>${H.slice().reverse().map((x) => `<tr><td>${U.dateStr(x.m)}</td><td class="n">${m(x.spent)}</td><td class="n">+${Math.round(x.extra).toLocaleString()}${x.flop ? ' 💨' : ''}</td></tr>`).join('')}</table>` : ''}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Reputation & PR</h3><div>Reputation ${Math.round(b.rep)}/100 ${UI.bar(b.rep, 100)}</div><div class="mute">PR can speed up recovery after a hit, but can flop.</div>${UI.irow('prUse' + b.id, '📣', 'PR left this month', `${TG.USES.left(b, 'pr', g.month, TG.CONFIG.reputation.prPerMonth)}/${TG.CONFIG.reputation.prPerMonth}`, 'You get 2 PR moves a month. The 2nd does half as much. Any more looks spammy or desperate and LOSES reputation.')}<div class="btns">${Object.entries(C.pr).map(([k, p]) => UI.btn(`${p.label} (${p.cost != null ? m(p.cost * g.world.priceIdx) : m(b.revAvg * p.costRev)}, ${U.pct(p.fail)} flop)`, 'pr', k, 'sm')).join('')}</div></div>`;
     return o;
   }
   UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; UI.toast('Ad plan saved.'); UI.refresh(); };
+  UI.A.adStop = () => { biz().ads.budget = 0; UI.toast('Ads stopped.'); UI.refresh(); };
+  UI.adPrevHtml = (g, b, budget, ch) => {
+    if (!(budget > 0)) return '<div class="mute">No ads: type a budget to see what it would do.</div>';
+    const p = TG.V10.adPreview(g, b, budget, ch); const mdl = TG.B.def(b).model; const per = (mdl === 'service' || mdl === 'freight');
+    return `<div class="ev ${p.full ? 'warn' : 'info'}">🔮 <b>${m(budget)}/mo</b> ≈ <b>+${U.pct(p.boost)}</b> more customers wanting you (after flops ≈ +${U.pct(p.expBoost)})${per && b.lastCtx ? ` → about <b>+${Math.round(p.extra).toLocaleString()}</b> served${p.extraRev ? `, ≈ ${m(p.extraRev)} sales` : ''}` : ''}.${p.full ? ' ⚠️ You are already about full: extra customers will be turned away.' : ''}</div>`;
+  };
+  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), UI.val('adCh') || 'social'); };
   UI.A.pr = (k) => { TG.B.doPR(TG.G, biz(), k, 'You'); const d = TG.G.cur.decisions[TG.G.cur.decisions.length - 1]; UI.toast(d ? d.text : 'Done.', d && d.outcome === 'bad'); UI.refresh(); };
 
   // ---------- ownership ----------

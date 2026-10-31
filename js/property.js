@@ -21,7 +21,7 @@
     const lt = C.landTypes[landType];
     const sizeT = Math.pow(R.next(), 1.6);
     const sqft = Math.round(U.lerp(k.sqft[0], k.sqft[1], opts.big ? R.range(0.5, 1) : sizeT) / 10) * 10;
-    let acres = U.lerp(k.acres[0], k.acres[1], opts.big ? R.range(0.5, 1) : Math.pow(R.next(), 1.5));
+    let acres = U.lerp(k.acres[0], k.acres[1], opts.big ? R.range(0.5, 1) : opts.small ? R.range(0.02, 0.2) : Math.pow(R.next(), 1.5)); /* v10: small = a family farm (about 60-200 acres) */
     acres = acres >= 10 ? Math.round(acres) : Math.round(acres * 100) / 100;
     const soil = R.range(lt.soil[0], lt.soil[1]), water = R.range(lt.water[0], lt.water[1]);
     const roadR = { city: [0.85, 1], suburb: [0.7, 0.95], town: [0.5, 0.85], rural: [0.25, 0.7], remote: [0.05, 0.35] }[loc];
@@ -37,7 +37,7 @@
     const p = {
       id: U.uid('p'), kind: kindId, loc, region, landType, sqft, acres, soil, water, road, climate, cond, orchard,
       traffic: R.range(L.traffic[0], L.traffic[1]), labor: R.range(L.labor[0], L.labor[1]),
-      price, tax: L.tax * R.range(0.8, 1.25), listed: g.month || 0,
+      price, tax: L.tax * R.range(0.8, 1.25), listed: g.month || 0, life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]), /* v10: on the market 3-7 months */
       name: `${R.int(10, 9800)} ${R.pick(STREETS)} ${R.pick(['Rd', 'St', 'Ave', 'Ln', 'Way', 'Pike'])}`,
     };
     return p;
@@ -139,14 +139,18 @@
     while (g.listings.length < C.start.listings) g.listings.push(P.gen(g));
     // make sure some cheap starter listings exist
     for (let i = 0; i < 3; i++) g.listings.push(P.gen(g, { kind: 'lot', loc: R.pick(['town', 'rural']) }));
+    for (let i = 0; i < 2; i++) g.listings.push(P.gen(g, { kind: 'farmland', small: true, landType: i ? 'grassland' : undefined })); /* v10: a small farm you can afford is always on offer */
   };
   P.month = (g) => {
     const C = TG.CONFIG;
-    g.listings = g.listings.filter((p) => g.month - p.listed < 14 || R.chance(0.5));
-    for (let i = 0; i < C.start.newListingsPerMonth; i++) {
-      const t = R.pick(Object.keys(C.businesses));
-      g.listings.push(R.chance(0.5) ? P.gen(g, P.idealFor(t)) : P.gen(g));
-    }
+    // v10: every listing stays 3-7 months, then a new one takes its place (the market keeps changing)
+    for (const p of g.listings) if (p.life == null) p.life = R.int(C.v10.listingLife[0], C.v10.listingLife[1]);
+    g.listings = g.listings.filter((p) => g.month - p.listed < p.life);
+    for (const t of Object.keys(C.businesses)) if (!g.listings.some((p) => P.suit(p, t) >= 0.6)) g.listings.push(P.gen(g, P.idealFor(t))); // every business always has a good place on offer
+    if (g.listings.filter((p) => p.kind === 'farmland' && p.acres <= 250).length < 2) g.listings.push(P.gen(g, { kind: 'farmland', small: true, landType: R.chance(0.5) ? 'grassland' : undefined }));
+    if (!g.listings.some((p) => p.kind === 'lot')) g.listings.push(P.gen(g, { kind: 'lot', loc: R.pick(['town', 'rural']) }));
+    let add = Math.max(C.start.newListingsPerMonth, C.start.listings - g.listings.length);
+    while (add-- > 0) { const t = R.pick(Object.keys(C.businesses)); g.listings.push(R.chance(0.5) ? P.gen(g, P.idealFor(t)) : P.gen(g)); }
     if (R.chance(0.08)) g.listings.push(P.gen(g, { kind: R.pick(['farmland', 'warehouse', 'hotelbldg']), big: true }));
     while (g.listings.length > C.start.maxListings) g.listings.shift();
   };

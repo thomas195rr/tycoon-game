@@ -31,6 +31,7 @@
       const dm = B().demandMult(g, b, ctx, { noAds: true });
       const r = TG.PR.ratio(g, b);
       let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5) * TG.PR.demandF(r);
+      { const adPart = adVisitors * (flop ? 0.2 : 1) * br.conv * qualF * dm * (1 - share * 0.5) * TG.PR.demandF(r); ctx.adStat = { extraOrders: adPart, share: adPart / Math.max(1e-9, orders), unit: 'orders', flop }; }
       if (R.chance(br.viral * (0.5 + b.rep / 100))) { const x = R.range(br.viralMult[0], br.viralMult[1]); orders *= x; TG.rep.event(g, b, 'good', `Went viral! Orders x${x.toFixed(1)} this month`, 'Rare viral moment'); }
       let packCap = (U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) + d.roles.packer.cap * (ctx.mw || 0)) * (fo.packerMult || 1);
       if (b.equip.some((x) => x.type === 'shelving' && !x.broken)) packCap *= 1.15;
@@ -164,7 +165,8 @@
     cfg() { return TG.CONFIG.businesses.construction.projects; },
     offers(g, b) {
       const P = this.cfg(); b.proj.offers = b.proj.offers.filter((o) => o.expires > g.month);
-      const n = R.int(P.offers[0], P.offers[1]);
+      const adN = b.ads && b.ads.budget > 0 && !g._pvOff ? (TG.B.projAdOffers ? TG.B.projAdOffers(g, b) : 0) : 0; /* v10: ads bring more bid invitations */
+      const n = R.int(P.offers[0], P.offers[1]) + adN; b.proj.adOffers = adN;
       for (let i = 0; i < n; i++) {
         const sizes = Object.keys(P.sizes).filter((k) => b.rep >= P.sizes[k].minRep || R.chance(0.15));
         const k = R.pick(sizes); const s = P.sizes[k];
@@ -272,8 +274,9 @@
       const adMgr = b.spec.ads; const flop = b.ads.budget > 0 && R.chance(C.reputation.adChannels[b.ads.channel].flop * (adMgr ? 0.5 : 1));
       if (flop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped', 'Campaigns can flop');
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
-      let organic = t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf;
+      let organic = (t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf) * (((b.fixesOn || {}).organicMult) || 1); /* v10: invite-a-friend */
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
+      ctx.adStat = { extra: paid * hit, unit: 'new users', share: paid / Math.max(1e-9, paid + organic), flop };
       let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
@@ -283,7 +286,7 @@
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
-      const churnRate = Math.max(0.01, T.churnBase - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
+      const churnRate = Math.max(0.01, T.churnBase - (((b.fixesOn || {}).churnCut) || 0) - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
       const prevU = t.users;
       const churn = t.users * churnRate;
       t.users = Math.max(0, Math.round(t.users + newU - churn));
@@ -349,6 +352,7 @@
       const C = TG.CONFIG, fr = C.businesses.franchise.franchise, s = b.fr, fo = b.fixesOn || {};
       // applications
       const lam = b.rep * fr.appsPerRep * TG.W.econMult(g, 1) * (fo.appMult || 1) * (b.ads.budget > 0 ? 1 + Math.min(1, b.ads.budget / 20000) : 1);
+      if (b.ads.budget > 0) ctx.adStat = { extra: lam - lam / (1 + Math.min(1, b.ads.budget / 20000)), unit: 'franchise requests', share: 1 - 1 / (1 + Math.min(1, b.ads.budget / 20000)) };
       const n = poisson(lam);
       s.apps = s.apps.filter((a) => a.expires > g.month);
       for (let i = 0; i < n && s.apps.length < 8; i++) {

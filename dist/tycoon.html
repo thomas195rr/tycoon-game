@@ -1697,6 +1697,180 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 })();
 
 </script>
+<script>/* js/config-v10.js */
+/* config-v10.js - v10 numbers: more upgrades for every business (each with a visible payoff), who each business's
+   customers are, machine insurance, gambling without a table limit, listing turnover, play time, struggling-business takeovers.
+   Upgrade effect keys added in v10 (see js/v10.js): staffMult (+key staff output), capMult (+machine capacity),
+   supplyCut (supplies cheaper), salesUp (+ on every sale), costCut {money line: share cut}, plus the old ones
+   (demand, ticketMult, repTarget, seasonFloor, seasonDamp, hitSoften, badDebtMult, otaCut, loadMult, fuelCut ...). */
+(function () {
+  const C = globalThis.TG.CONFIG, BZ = C.businesses, fix = C._fix;
+  const add = (type, list) => { for (const f of list) { if (!BZ[type].fixes.some((x) => x.id === f.id)) BZ[type].fixes.push(f); } };
+  const U = (ic, f) => Object.assign(f, { ic });
+  // ---------- MORE UPGRADES (every business gets at least 4 new ones) ----------
+  add('cafe', [
+    U('📱', fix('mobileorder', 'Mobile order-ahead app', 6000, 180, {}, { demand: 0.05, staffMult: 0.06 })),
+    U('🥐', fix('pastry', 'Pastry & sandwich case', 9000, 120, { spoil: 1.15 }, { ticketMult: 1.07 })),
+    U('🔥', fix('roaster', 'Roast your own beans', 22000, 300, {}, { supplyCut: 0.12 })),
+    U('⛱️', fix('patio', 'Outdoor patio', 12000, 90, {}, { demand: 0.05, capMult: 0.08 })),
+    U('💡', fix('ecofit', 'LED lights & efficient fridges', 8000, 0, {}, { costCut: { Utilities: 0.3 } })),
+  ]);
+  add('foodtruck', [
+    U('📍', fix('social', 'Daily "where we park" posts', 1500, 120, {}, { demand: 0.06 })),
+    U('🎉', fix('catering', 'Catering & event bookings', 4000, 150, {}, { demand: 0.05, seasonDamp: 0.2 })),
+    U('🥤', fix('combo', 'Combo meals with drinks', 2000, 0, {}, { ticketMult: 1.06 })),
+    U('🏬', fix('depot', 'Restaurant-depot membership', 600, 40, {}, { supplyCut: 0.08 })),
+  ]);
+  add('bakery', [
+    U('🏪', fix('wholesale', 'Wholesale to local cafes', 8000, 200, {}, { demand: 0.08, ticketMult: 0.97 })),
+    U('🎂', fix('cakes', 'Custom cakes & orders', 6000, 150, {}, { ticketMult: 1.07 })),
+    U('🌾', fix('flourdeal', 'Flour mill contract', 3000, 0, {}, { supplyCut: 0.1 })),
+    U('🛒', fix('preorder', 'Online pre-orders (bake to order)', 4000, 120, { stale: 0.7 }, {})),
+    U('💡', fix('ecoovens', 'Energy-saving ovens', 15000, 0, {}, { costCut: { Utilities: 0.3 } })),
+  ]);
+  add('salon', [
+    U('📅', fix('onlinebook', 'Online booking & reminders', 3000, 120, {}, { demand: 0.05, staffMult: 0.05 })),
+    U('🧴', fix('retail', 'Retail product shelf', 5000, 60, {}, { ticketMult: 1.06 })),
+    U('🎨', fix('color', 'Color specialist training', 8000, 100, { botched: 0.8 }, { ticketMult: 1.05 })),
+    U('📦', fix('proacct', 'Wholesale product account', 1500, 0, {}, { supplyCut: 0.1 })),
+    U('💌', fix('referral', 'Loyalty & referral cards', 2500, 150, {}, { demand: 0.05, hitSoften: 0.4 })),
+  ]);
+  add('carwash', [
+    U('✨', fix('detail', 'Detailing bay', 25000, 300, {}, { ticketMult: 1.1 })),
+    U('♾️', fix('plans', 'Unlimited wash plans', 6000, 200, {}, { demand: 0.04, seasonDamp: 0.4 })),
+    U('💧', fix('reclaim', 'Water reclaim system', 30000, 100, { water: 0.5 }, { costCut: { Utilities: 0.35 } })),
+    U('🚐', fix('fleet', 'Fleet contracts (company cars)', 3000, 100, {}, { demand: 0.07, ticketMult: 0.97 })),
+  ]);
+  add('lawn', [
+    U('🗺️', fix('routes', 'Route-planning app', 2000, 80, {}, { staffMult: 0.08, supplyCut: 0.08 })),
+    U('🌷', fix('landscape', 'Landscaping & planting jobs', 8000, 150, {}, { ticketMult: 1.08 })),
+    U('📝', fix('contracts', 'Prepaid season contracts', 2500, 100, { noshow: 0.8 }, { demand: 0.05 })),
+    U('🍂', fix('leaves', 'Fall clean-up & gutters', 3000, 60, {}, { seasonFloor: 0.25 })),
+  ]);
+  add('auto', [
+    U('🚕', fix('fleetacc', 'Fleet accounts (taxis, vans)', 5000, 150, {}, { demand: 0.08 })),
+    U('🛞', fix('tires', 'Tire storage & seasonal swaps', 9000, 100, {}, { ticketMult: 1.04, seasonDamp: 0.3 })),
+    U('🔋', fix('ev', 'Electric-car repair license', 15000, 200, {}, { ticketMult: 1.06, demand: 0.03 })),
+    U('📦', fix('partsacct', 'Parts distributor account', 2000, 0, {}, { supplyCut: 0.1 })),
+    U('⭐', fix('reviews', 'Review & service-reminder texts', 1500, 80, {}, { demand: 0.04, repTarget: 3 })),
+  ]);
+  add('gym', [
+    U('💪', fix('pt', 'Personal training packages', 6000, 200, {}, { ticketMult: 1.08 })),
+    U('🏢', fix('corp', 'Corporate memberships', 4000, 150, {}, { demand: 0.08, ticketMult: 0.96 })),
+    U('📱', fix('gymapp', 'Member app & class booking', 5000, 150, {}, { demand: 0.04, repTarget: 3 })),
+    U('🥤', fix('juice', 'Smoothie bar', 10000, 120, {}, { ticketMult: 1.05 })),
+    U('💡', fix('ecogym', 'LED & efficient heating', 20000, 0, {}, { costCut: { Utilities: 0.3 } })),
+  ]);
+  add('hotel', [
+    U('🍽️', fix('restaurant', 'Hotel restaurant & bar', 120000, 1500, {}, { ticketMult: 1.08 })),
+    U('💒', fix('events', 'Meeting & wedding rooms', 80000, 800, {}, { demand: 0.06, seasonDamp: 0.15 })),
+    U('📈', fix('revmgmt', 'Revenue-management software', 25000, 600, {}, { ticketMult: 1.05 })),
+    U('🎟️', fix('hloyal', 'Guest loyalty club', 30000, 500, {}, { demand: 0.04, repTarget: 3 })),
+    U('☀️', fix('ecohotel', 'Energy retrofit', 150000, 0, {}, { costCut: { Utilities: 0.3 } })),
+  ]);
+  add('law', [
+    U('🤖', fix('docauto', 'Document automation', 30000, 800, {}, { staffMult: 0.08 })),
+    U('🤝', fix('referrals', 'Referral network', 15000, 500, {}, { demand: 0.06 })),
+    U('📋', fix('flatfee', 'Flat-fee packages', 10000, 200, {}, { demand: 0.08, ticketMult: 0.96 })),
+    U('💳', fix('collect', 'Billing & collections team', 20000, 600, { billing: 0.6 }, { badDebtMult: 0.6 })),
+  ]);
+  add('clinic', [
+    U('💻', fix('telehealth', 'Telehealth visits', 40000, 1200, {}, { demand: 0.06, staffMult: 0.05 })),
+    U('🚑', fix('urgent', 'Walk-in urgent-care hours', 60000, 1500, {}, { demand: 0.08 })),
+    U('📦', fix('groupbuy', 'Group purchasing for supplies', 10000, 0, {}, { supplyCut: 0.1 })),
+    U('🧾', fix('coders', 'Certified billing coders', 25000, 900, { paydelay: 0.7 }, { ticketMult: 1.05 })),
+  ]);
+  add('construction', [
+    U('📐', fix('estimator', 'Estimating software', 40000, 1000, {}, { costCut: { 'Materials & subcontractors': 0.04 } })),
+    U('🚚', fix('yard', 'Own equipment yard & trucks', 150000, 1500, {}, { costCut: { 'Materials & subcontractors': 0.03, 'Equipment lease': 0.3 } })),
+    U('🦺', fix('safetyc', 'Safety program & site cameras', 30000, 800, { injury: 0.6 }, {})),
+    U('🏛️', fix('designbuild', 'In-house design-build team', 120000, 3000, {}, { salesUp: 0.05 })),
+  ]);
+  add('factory', [
+    U('🧭', fix('lean', 'Lean production coaching', 150000, 2000, {}, { staffMult: 0.08 })),
+    U('⚡', fix('motors', 'Energy-efficient motors', 300000, 0, {}, { costCut: { Utilities: 0.35 } })),
+    U('🏷️', fix('ownbrand', 'Own-brand packaging', 200000, 3000, {}, { salesUp: 0.04 })),
+    U('♻️', fix('scrap', 'Scrap recycling', 80000, 500, {}, { supplyCut: 0.04 })),
+  ]);
+  add('tech', [
+    U('🧭', fix('onboard', 'Better sign-up & onboarding', 60000, 1500, {}, { churnCut: 0.008 })),
+    U('🎁', fix('referral', 'Invite-a-friend rewards', 40000, 2000, {}, { organicMult: 1.25 })),
+    U('📆', fix('annual', 'Annual plans (pay for a year)', 20000, 500, {}, { salesUp: 0.04, churnCut: 0.004 })),
+    U('☁️', fix('cloudopt', 'Cloud cost tuning', 50000, 0, {}, { costCut: { Hosting: 0.25 } })),
+  ]);
+  add('franchise', [
+    U('🎓', fix('academy', 'Franchisee training academy', 300000, 5000, {}, { salesUp: 0.04, driftCut: 0.3 })),
+    U('📺', fix('adfund', 'National ad fund', 500000, 8000, {}, { salesUp: 0.06, appMult: 1.2 })),
+    U('📱', fix('orderapp', 'Ordering app for every shop', 400000, 6000, {}, { salesUp: 0.05 })),
+    U('🚛', fix('supplydeal', 'Central supply deals (you take a cut)', 200000, 2000, {}, { salesUp: 0.03 })),
+  ]);
+  add('freight', [
+    U('🌬️', fix('aero', 'Aero kits & tire-pressure checks', 0, 0, {}, { perUnitMonthly: 60, fuelCut: 0.06 })),
+    U('🔁', fix('backhaul', 'Backhaul load board', 8000, 300, {}, { loadMult: 1.06 })),
+    U('📜', fix('lanes', 'Dedicated contract lanes', 15000, 400, {}, { salesUp: 0.04, seasonDamp: 0.3 })),
+    U('🎯', fix('coach', 'Driver coaching telematics', 0, 0, { missed: 0.7 }, { perUnitMonthly: 40, wearMult: 0.9 })),
+  ]);
+  add('brand', [
+    U('🤳', fix('influencer', 'Influencer program', 8000, 1500, {}, { demand: 0.08 })),
+    U('✉️', fix('email', 'Email & text list', 3000, 300, {}, { demand: 0.05 })),
+    U('📏', fix('sizing', 'Size guides & fit photos', 2000, 100, { chargeback: 0.7 }, { salesUp: 0.02 })),
+    U('🛍️', fix('boutiques', 'Wholesale to boutiques', 10000, 400, {}, { demand: 0.1, salesUp: -0.03 })),
+    U('🏭', fix('quotes', 'Second factory quotes', 5000, 0, {}, { costCut: { 'Inventory orders': 0.06 } })),
+  ]);
+  add('farm', [
+    U('🧺', fix('farmstand', "Farm stand & farmers' markets", 15000, 600, {}, { salesUp: 0.04 })),
+    U('🌽', fix('feedmix', 'Mix your own feed (cows)', 40000, 300, {}, { costCut: { 'Feed & hay': 0.15 } })),
+    U('🛰️', fix('precision', 'GPS precision planting', 60000, 400, {}, { costCut: { Seed: 0.12, 'Spray & fertilizer': 0.12, 'Planting fuel': 0.1 } })),
+    U('🤝', fix('coop', 'Join a farm co-op', 5000, 200, {}, { salesUp: 0.03 })),
+    U('☀️', fix('solarbarn', 'Solar barn roofs', 80000, 0, {}, { costCut: { Utilities: 0.4 } })),
+  ]);
+  // labels for fixes that came before v10 (so every card has an icon)
+  for (const t in BZ) for (const f of BZ[t].fixes) if (!f.ic) f.ic = f.demand ? '📣' : f.equipBreak ? '🔧' : f.reduces && Object.keys(f.reduces).length ? '🛡️' : '⬆️';
+
+  // ---------- WHO YOUR CUSTOMERS ARE (shown on the 📣 Ads tab; what brings more of each) ----------
+  const cu = (ic, who, share, wants) => ({ ic, who, share, wants });
+  const CU = {
+    cafe: [cu('🚶', 'Commuters', 0.4, 'speed: enough baristas, mobile ordering'), cu('💻', 'Remote workers', 0.2, 'seats and a patio'), cu('🎓', 'Students', 0.2, 'prices near market'), cu('🥐', 'Food lovers', 0.2, 'pastries and quality')],
+    foodtruck: [cu('👷', 'Lunch crowds', 0.5, 'a good spot and fast service'), cu('🎉', 'Events & festivals', 0.3, 'catering bookings, summer'), cu('🌙', 'Late-night crowd', 0.2, 'social posts so they find you')],
+    bakery: [cu('🏠', 'Neighbours', 0.45, 'fresh bread every morning'), cu('🎂', 'Parties & weddings', 0.2, 'custom cakes'), cu('☕', 'Cafes & shops', 0.2, 'wholesale deals'), cu('🎄', 'Holiday shoppers', 0.15, 'Nov-Dec rush')],
+    salon: [cu('💇', 'Regulars', 0.55, 'the same stylist, easy booking'), cu('🎨', 'Color clients', 0.25, 'trained colorists (pay more)'), cu('👰', 'Weddings & events', 0.2, 'reputation and reviews')],
+    carwash: [cu('🚗', 'Drivers passing by', 0.55, 'a busy road (traffic)'), cu('♾️', 'Members', 0.25, 'unlimited plans'), cu('🚐', 'Company fleets', 0.2, 'fleet contracts')],
+    lawn: [cu('🏡', 'Homeowners', 0.65, 'reliable weekly visits'), cu('🏢', 'Offices & HOAs', 0.25, 'contracts, a big crew'), cu('🌷', 'Garden makeovers', 0.1, 'landscaping jobs (pay more)')],
+    auto: [cu('🚙', 'Local drivers', 0.6, 'honest work, reminders'), cu('🚕', 'Fleets', 0.25, 'fleet accounts'), cu('🔋', 'Electric cars', 0.15, 'an EV license')],
+    gym: [cu('🏃', 'Fitness regulars', 0.5, 'enough machines, not crowded'), cu('🎯', 'New Year joiners', 0.2, 'January ads (they quit by summer)'), cu('🏢', 'Office workers', 0.2, 'corporate deals'), cu('💪', 'Serious lifters', 0.1, 'personal trainers')],
+    farm: [cu('🏭', 'Grain & meat buyers', 0.6, 'price: they pay the market price'), cu('🥛', 'Dairy truck', 0.3, 'milk every day'), cu('🧺', 'Local shoppers', 0.1, 'a farm stand pays a bit more')],
+    freight: [cu('🏭', 'Shippers', 0.6, 'on-time loads and fair rates'), cu('🛒', 'Online retailers', 0.25, 'busy Sep-Dec'), cu('❄️', 'Cold-chain clients', 0.15, 'reefer trailers')],
+    brand: [cu('📱', 'Online shoppers', 0.6, 'ads, influencers, good photos'), cu('❤️', 'Fans & followers', 0.25, 'new drops and emails'), cu('🛍️', 'Boutiques', 0.15, 'wholesale (lower price)')],
+    hotel: [cu('🧳', 'Tourists', 0.5, 'summer, reviews, booking sites'), cu('💼', 'Business travellers', 0.3, 'all year, meeting rooms'), cu('💒', 'Weddings & events', 0.2, 'event rooms')],
+    law: [cu('🏢', 'Companies', 0.5, 'senior attorneys, referrals'), cu('🏠', 'Families', 0.3, 'flat-fee packages'), cu('⚖️', 'Court cases', 0.2, 'winning record (reputation)')],
+    clinic: [cu('👨‍👩‍👧', 'Families', 0.5, 'short waits, enough doctors'), cu('👵', 'Older patients', 0.3, 'winter, regular visits'), cu('🚑', 'Walk-ins', 0.2, 'urgent-care hours')],
+    construction: [cu('🏠', 'Home builders', 0.4, 'small jobs, fair bids'), cu('🏢', 'Developers', 0.4, 'bigger crews, reputation'), cu('🛣️', 'The city', 0.2, 'bonding and heavy machines')],
+    factory: [cu('🏬', 'Wholesale buyers', 0.8, 'price: they pay the market price'), cu('🏷️', 'Store brands', 0.2, 'quality and own-brand packaging')],
+    tech: [cu('🧪', 'Early adopters', 0.3, 'a product that fits'), cu('📈', 'Mainstream users', 0.5, 'ads and referrals once it fits'), cu('🏢', 'Business customers', 0.2, 'annual plans')],
+    franchise: [cu('🧑‍💼', 'Would-be owners', 0.6, 'reputation and an ad fund'), cu('🍔', 'Shoppers at your shops', 0.4, 'training and an ordering app')],
+  };
+  for (const t in CU) BZ[t].customers = CU[t];
+
+  // ---------- v10 knobs ----------
+  C.v10 = {
+    // sales vary: a slow "buzz" that drifts (word of mouth, trends nearby) plus a fresh month-to-month wobble
+    buzz: { keep: 0.8, sd: 0.035, max: 0.25, noise: 0.05 },
+    // machine insurance: monthly premium as a share of what a new machine of the same kind costs; pays that new price on a total loss
+    machineIns: { pct: 0.0011, min: 15, cover: 0.9 },
+    // listings stay on the market this many months, then a new one takes their place
+    listingLife: [3, 7],
+    // bonus: lifts morale and loyalty (loyalty gain shrinks as loyalty gets high)
+    bonusLoyalty: 12, bonusLoyaltyMin: 2,
+    // a struggling business you take over: price as a share of a new one's setup, plus the old owner's debt
+    takeover: { price: 0.4, debt: 0.35, rep: [12, 22], wear: [50, 80], morale: [28, 45], broken: 0.25 },
+    // rentals: down-payment choices for a rental mortgage (bigger down = smaller monthly payment)
+    reDown: [0.2, 0.3, 0.4, 0.5],
+  };
+  C.casino.maxBet = Infinity; // v10: no table limit (odds unchanged)
+  C.finance.insurance.equipment.label = 'Machine insurance';
+})();
+
+</script>
 <script>/* js/world.js */
 /* world.js - economy cycles, interest rates, inflation, weather, world events, supply & demand markets, news. */
 (function () {
@@ -2131,7 +2305,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const lt = C.landTypes[landType];
     const sizeT = Math.pow(R.next(), 1.6);
     const sqft = Math.round(U.lerp(k.sqft[0], k.sqft[1], opts.big ? R.range(0.5, 1) : sizeT) / 10) * 10;
-    let acres = U.lerp(k.acres[0], k.acres[1], opts.big ? R.range(0.5, 1) : Math.pow(R.next(), 1.5));
+    let acres = U.lerp(k.acres[0], k.acres[1], opts.big ? R.range(0.5, 1) : opts.small ? R.range(0.02, 0.2) : Math.pow(R.next(), 1.5)); /* v10: small = a family farm (about 60-200 acres) */
     acres = acres >= 10 ? Math.round(acres) : Math.round(acres * 100) / 100;
     const soil = R.range(lt.soil[0], lt.soil[1]), water = R.range(lt.water[0], lt.water[1]);
     const roadR = { city: [0.85, 1], suburb: [0.7, 0.95], town: [0.5, 0.85], rural: [0.25, 0.7], remote: [0.05, 0.35] }[loc];
@@ -2147,7 +2321,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const p = {
       id: U.uid('p'), kind: kindId, loc, region, landType, sqft, acres, soil, water, road, climate, cond, orchard,
       traffic: R.range(L.traffic[0], L.traffic[1]), labor: R.range(L.labor[0], L.labor[1]),
-      price, tax: L.tax * R.range(0.8, 1.25), listed: g.month || 0,
+      price, tax: L.tax * R.range(0.8, 1.25), listed: g.month || 0, life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]), /* v10: on the market 3-7 months */
       name: `${R.int(10, 9800)} ${R.pick(STREETS)} ${R.pick(['Rd', 'St', 'Ave', 'Ln', 'Way', 'Pike'])}`,
     };
     return p;
@@ -2249,14 +2423,18 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     while (g.listings.length < C.start.listings) g.listings.push(P.gen(g));
     // make sure some cheap starter listings exist
     for (let i = 0; i < 3; i++) g.listings.push(P.gen(g, { kind: 'lot', loc: R.pick(['town', 'rural']) }));
+    for (let i = 0; i < 2; i++) g.listings.push(P.gen(g, { kind: 'farmland', small: true, landType: i ? 'grassland' : undefined })); /* v10: a small farm you can afford is always on offer */
   };
   P.month = (g) => {
     const C = TG.CONFIG;
-    g.listings = g.listings.filter((p) => g.month - p.listed < 14 || R.chance(0.5));
-    for (let i = 0; i < C.start.newListingsPerMonth; i++) {
-      const t = R.pick(Object.keys(C.businesses));
-      g.listings.push(R.chance(0.5) ? P.gen(g, P.idealFor(t)) : P.gen(g));
-    }
+    // v10: every listing stays 3-7 months, then a new one takes its place (the market keeps changing)
+    for (const p of g.listings) if (p.life == null) p.life = R.int(C.v10.listingLife[0], C.v10.listingLife[1]);
+    g.listings = g.listings.filter((p) => g.month - p.listed < p.life);
+    for (const t of Object.keys(C.businesses)) if (!g.listings.some((p) => P.suit(p, t) >= 0.6)) g.listings.push(P.gen(g, P.idealFor(t))); // every business always has a good place on offer
+    if (g.listings.filter((p) => p.kind === 'farmland' && p.acres <= 250).length < 2) g.listings.push(P.gen(g, { kind: 'farmland', small: true, landType: R.chance(0.5) ? 'grassland' : undefined }));
+    if (!g.listings.some((p) => p.kind === 'lot')) g.listings.push(P.gen(g, { kind: 'lot', loc: R.pick(['town', 'rural']) }));
+    let add = Math.max(C.start.newListingsPerMonth, C.start.listings - g.listings.length);
+    while (add-- > 0) { const t = R.pick(Object.keys(C.businesses)); g.listings.push(R.chance(0.5) ? P.gen(g, P.idealFor(t)) : P.gen(g)); }
     if (R.chance(0.08)) g.listings.push(P.gen(g, { kind: R.pick(['farmland', 'warehouse', 'hotelbldg']), big: true }));
     while (g.listings.length > C.start.maxListings) g.listings.shift();
   };
@@ -2774,8 +2952,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     factors.push(`${(it.age / 12).toFixed(1)} yrs old`);
     factors.push(`${Math.round(E.effWear(it))}% wear`);
     factors.push(`${t.label.toLowerCase()} quality`);
-    factors.push(it.maint ? 'on maintenance plan' : 'no maintenance plan');
-    if (cov > 0) factors.push('mechanic on staff'); else factors.push('no mechanic');
+    if (it.leased) factors.push('lease includes servicing');
+    if (cov > 0) factors.push(cov < 0.999 ? `mechanics cover ${Math.round(cov * 100)}% of your machines` : 'mechanic looks after it'); else factors.push('no mechanic');
     if (b.pace === 'rush') factors.push('rushed pace');
     if (blF > 1.01) factors.push(`unfinished work x${blF.toFixed(2)}`);
     return { p, factors };
@@ -2866,7 +3044,6 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const use = it.broken ? 0.2 : (pu != null ? TG.WK.wearMult(pu) : ctx.util == null ? 1 : 0.4 + 0.8 * U.clamp(ctx.util, 0, 1.2)) * (b.pace === 'rush' ? 1.3 : b.pace === 'careful' ? 0.85 : 1);
       let wg = eq.wearPerMonth * use * (it.maint ? eq.maintPlanWearMult : 1) * (1 - (1 - eq.mechanicWearMult) * cov) * wearFix * (120 / d.life);
       it.wear = U.clamp(it.wear + wg * R.range(0.6, 1.4) * (1 - TG.S.perk(b, 'wearCut')), 0, 100);
-      if (it.maint && !it.leased) TG.F.spend(g, Math.round(d.price * eq.maintPlanCostPct * g.world.priceIdx), 'Maintenance plans', b.id);
       if (it.leased) TG.F.spend(g, it.leasePay, 'Equipment lease', b.id);
       if (it.broken) continue;
       if (d.upkeep) TG.F.spend(g, Math.round(d.upkeep * g.world.priceIdx), 'Equipment upkeep', b.id);
@@ -2910,7 +3087,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     let loss = 0;
     if (!it.leased) {
       loss = E.resale(g, b, Object.assign({}, it, { broken: null }));
-      const cov = TG.F.claim(g, b, 'equipment', loss, `${it.label} destroyed`);
+      const insured = b.ins && b.ins.equipment; /* v10 machine insurance pays what a new one of the same kind costs */
+      const cov = TG.F.claim(g, b, 'equipment', insured ? E.price(g, b, it.type, it.tier === 'used' ? 'budget' : it.tier) : loss, `${it.label} destroyed`);
       if (cov) loss -= cov;
     }
     TG.rep.event(g, b, 'major', `${it.label} #${E.num(b, it)} was destroyed in a catastrophic failure`, why, { major: 'breakdown' });
@@ -2927,7 +3105,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     opts.push({ id: 'leave', label: destroyed ? 'Scrap it, no replacement' : 'Leave it broken' });
     TG.D.add(g, { kind: 'broken', bizId: b.id, itemId: it.id, title: `${d.label} ${destroyed ? 'destroyed' : 'broken'}`,
       text: `${it.label} #${E.num(b, it)} (${TG.CONFIG.equipTiers[it.tier].label}, ${(it.age / 12).toFixed(1)} yrs, ${Math.round(E.effWear(it))}% wear) is out of action.${d.critical ? ' It is critical: capacity drops until it is fixed.' : ''}`,
-      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.${destroyed ? '' : E.hasMech(b) ? ' Your mechanic will fix it next month if cash allows.' : ' No mechanic: it stays broken until you repair it.'}`, options: opts, def: destroyed ? 'leave' : null });
+      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.${destroyed ? '' : E.hasMech(b) ? ' Your mechanic will fix it next month if cash allows.' : ' No mechanic: it stays broken until you repair it.'}`, options: opts, def: null }); /* v10: a destroyed machine waits for YOU unless a GM / Ops manager (or CEO) replaces it */
   };
 
   // replace a broken/destroyed item (or add new)
@@ -2940,7 +3118,6 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     b.equip = b.equip.filter((x) => x.id !== itId);
     if (sold) TG.F.earn(g, sold, 'Asset sales', b.id, true);
     const n = E.buy(g, b, typeId, tier);
-    if (n) n.maint = !!(it.maint);
     TG.rep.decision(g, b, by, `Sold the old ${it.label} for ${U.money(sold)} and bought a ${TG.CONFIG.equipTiers[tier].label.toLowerCase()} one (${U.money(price)})`);
     return true;
   };
@@ -4378,6 +4555,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const dm = B().demandMult(g, b, ctx, { noAds: true });
       const r = TG.PR.ratio(g, b);
       let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5) * TG.PR.demandF(r);
+      { const adPart = adVisitors * (flop ? 0.2 : 1) * br.conv * qualF * dm * (1 - share * 0.5) * TG.PR.demandF(r); ctx.adStat = { extraOrders: adPart, share: adPart / Math.max(1e-9, orders), unit: 'orders', flop }; }
       if (R.chance(br.viral * (0.5 + b.rep / 100))) { const x = R.range(br.viralMult[0], br.viralMult[1]); orders *= x; TG.rep.event(g, b, 'good', `Went viral! Orders x${x.toFixed(1)} this month`, 'Rare viral moment'); }
       let packCap = (U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) + d.roles.packer.cap * (ctx.mw || 0)) * (fo.packerMult || 1);
       if (b.equip.some((x) => x.type === 'shelving' && !x.broken)) packCap *= 1.15;
@@ -4511,7 +4689,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     cfg() { return TG.CONFIG.businesses.construction.projects; },
     offers(g, b) {
       const P = this.cfg(); b.proj.offers = b.proj.offers.filter((o) => o.expires > g.month);
-      const n = R.int(P.offers[0], P.offers[1]);
+      const adN = b.ads && b.ads.budget > 0 && !g._pvOff ? (TG.B.projAdOffers ? TG.B.projAdOffers(g, b) : 0) : 0; /* v10: ads bring more bid invitations */
+      const n = R.int(P.offers[0], P.offers[1]) + adN; b.proj.adOffers = adN;
       for (let i = 0; i < n; i++) {
         const sizes = Object.keys(P.sizes).filter((k) => b.rep >= P.sizes[k].minRep || R.chance(0.15));
         const k = R.pick(sizes); const s = P.sizes[k];
@@ -4619,8 +4798,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const adMgr = b.spec.ads; const flop = b.ads.budget > 0 && R.chance(C.reputation.adChannels[b.ads.channel].flop * (adMgr ? 0.5 : 1));
       if (flop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped', 'Campaigns can flop');
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
-      let organic = t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf;
+      let organic = (t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf) * (((b.fixesOn || {}).organicMult) || 1); /* v10: invite-a-friend */
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
+      ctx.adStat = { extra: paid * hit, unit: 'new users', share: paid / Math.max(1e-9, paid + organic), flop };
       let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
@@ -4630,7 +4810,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
-      const churnRate = Math.max(0.01, T.churnBase - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
+      const churnRate = Math.max(0.01, T.churnBase - (((b.fixesOn || {}).churnCut) || 0) - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
       const prevU = t.users;
       const churn = t.users * churnRate;
       t.users = Math.max(0, Math.round(t.users + newU - churn));
@@ -4696,6 +4876,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const C = TG.CONFIG, fr = C.businesses.franchise.franchise, s = b.fr, fo = b.fixesOn || {};
       // applications
       const lam = b.rep * fr.appsPerRep * TG.W.econMult(g, 1) * (fo.appMult || 1) * (b.ads.budget > 0 ? 1 + Math.min(1, b.ads.budget / 20000) : 1);
+      if (b.ads.budget > 0) ctx.adStat = { extra: lam - lam / (1 + Math.min(1, b.ads.budget / 20000)), unit: 'franchise requests', share: 1 - 1 / (1 + Math.min(1, b.ads.budget / 20000)) };
       const n = poisson(lam);
       s.apps = s.apps.filter((a) => a.expires > g.month);
       for (let i = 0; i < n && s.apps.length < 8; i++) {
@@ -5363,8 +5544,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
     pr: ['ads', 'gm'], fund: ['gm', 'accountant'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm'], farm: ['ops', 'gm'], expand: ['ops'],
   };
+  // v10: the GM is the people & sales boss, the Ops manager the machines & running-things boss.
+  // Each makes better calls in their own area and worse ones outside it (shown on the Manager tab).
+  const STRONG = { gm: ['poach', 'theft', 'pr', 'fund', 'hire', 'raise', 'bid', 'franchise'], ops: ['broken', 'stock', 'farm', 'expand'] };
+  D.COVER = COVER; D.STRONG = STRONG;
+  D.roleEdge = (role, kind) => (STRONG[role] ? (STRONG[role].includes(kind) ? 0.08 : -0.06) : 0);
 
   D.add = (g, dec) => {
     const dup = g.decisions.find((d) => d.kind === dec.kind && d.bizId === dec.bizId && ((dec.itemId && d.itemId === dec.itemId) || (dec.empId && d.empId === dec.empId) || (dec.suitId && d.suitId === dec.suitId) || (dec.reId && d.reId === dec.reId && d.unit === dec.unit) || (dec.kind === 'pr' && d.kind === 'pr')));
@@ -5382,7 +5568,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   D.handler = (g, b, kind) => {
     const roles = COVER[kind] || [];
-    if (b && b.spec) for (const r of roles) { const e = b.spec[r]; if (e) return { e, label: `${TG.CONFIG.specialists[r].label} ${e.name}`, role: r, p: D.pGood(g, e) }; }
+    if (b && b.spec) for (const r of roles) { const e = b.spec[r]; if (e) return { e, label: `${TG.CONFIG.specialists[r].label} ${e.name}`, role: r, p: U.clamp(D.pGood(g, e) + D.roleEdge(r, kind), 0.05, 0.97) }; }
     if (g.ceo && (kind !== 'evict')) return { e: g.ceo, label: `CEO ${g.ceo.name}`, role: 'ceo', p: D.pGood(g, g.ceo, true) };
     if (kind === 'evict' && g.re.manager) return { e: g.re.manager, label: `Property manager ${g.re.manager.name}`, role: 'rem', p: D.pGood(g, g.re.manager) };
     return null;
@@ -5763,7 +5949,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     price = Math.round(price / 1000) * 1000;
     const acres = kindId === 'land' ? Math.round(R.range(2, 40)) : 0;
     return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
-      age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month };
+      age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
+      life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
   };
   RE.refill = (g, n) => {
     for (let i = 0; i < n; i++) {
@@ -5778,15 +5965,17 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
-  RE.askRent = (g, h) => Math.round(RE.marketRent(g, h) * (h.rentR || 1));
+  // v10: every unit can have its own rent (h.unitR[u] = share of market rent); otherwise the building's default (h.rentR)
+  RE.unitRentR = (h, u) => (u != null && h.unitR && h.unitR[u] != null ? h.unitR[u] : (h.rentR || 1));
+  RE.askRent = (g, h, u) => Math.round(RE.marketRent(g, h) * RE.unitRentR(h, u));
   RE.estRent = (g, l) => Math.round(RE.marketRent(g, l) * Math.max(1, l.units || 0) * 0.92);
   RE.vacant = (h) => (h.tenants || []).filter((t) => !t).length;
   // v7: ONE tenant per home / unit. Every empty unit is filled by its own search (one applicant at a time).
   const mgrSkill = (g) => (g.re.manager ? (g.re.manager.skill || 50) : null);
   RE.mgrCostMult = (g) => { const s = mgrSkill(g); return s == null ? 1 : U.clamp(1.2 - s / 250, 0.8, 1.2); }; // a skilled manager gets better vendor prices
-  RE.searchCost = (g, h, byMgr) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
-  RE.poolPreview = (g, h, byMgr) => { // what ONE unit's search is likely to bring, shown before you pay
-    const T = TC(), r = h.rentR || 1, k = RC().kinds[h.kind];
+  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h, u)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
+  RE.poolPreview = (g, h, byMgr, unit) => { // what ONE unit's search is likely to bring, shown before you pay
+    const T = TC(), r = RE.unitRentR(h, unit), k = RC().kinds[h.kind];
     const n = Math.min(T.pool.max, T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * (k.lease ? T.pool.commercial : 1));
     const sk = byMgr ? mgrSkill(g) : null;
     const q = U.clamp(T.quality.atMarket + T.quality.slope * (1 - r) + (h.cond - 60) * T.quality.cond + (sk != null ? (sk - 50) / 500 : 0), 0.1, 0.88);
@@ -5813,11 +6002,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (u < 0 || h.tenants[u]) return { ok: false, msg: 'No empty units.' };
     if (RE.unitIssues(h, u).length) return { ok: false, msg: 'Fix the repair in this unit first: nobody signs a lease for a broken home.' };
     const byMgr = !!(by && g.re.manager);
-    const cost = RE.searchCost(g, h, byMgr); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
+    const cost = RE.searchCost(g, h, byMgr, u); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
     TG.F.spend(g, cost, 'Tenant search'); g.re.m.cost = (g.re.m.cost || 0) + cost;
-    const pv = RE.poolPreview(g, h, byMgr); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
+    const pv = RE.poolPreview(g, h, byMgr, u); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
     const list = []; for (let i = 0; i < n; i++) list.push(RE.applicant(g, h, R.normal(pv.q, TC().quality.sd)));
-    h.searches[u] = { m: g.month, rent: RE.askRent(g, h), list, i: 0 };
+    h.searches[u] = { m: g.month, rent: RE.askRent(g, h, u), list, i: 0 };
     if (by) TG.rep.decision(g, null, by, `Paid ${U.money(cost)} for a tenant search for unit ${u + 1} at ${h.name}: ${n} applicant(s)`);
     return { ok: true, n, cost, unit: u };
   };
@@ -5899,11 +6088,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   RE.totalValue = (g) => (g.re ? U.sum(g.re.holdings, (h) => RE.value(g, h)) : 0);
   RE.unitsOwned = (g) => U.sum(g.re.holdings, (h) => h.units || 0);
 
-  RE.buy = (g, listingId, mortgage, term) => {
+  RE.maxLtv = (l) => (RC().kinds[l.kind].commercial ? 0.75 : 0.8);
+  RE.buy = (g, listingId, mortgage, term, downPct) => {
     const C = TG.CONFIG; const l = g.re.listings.find((x) => x.id === listingId); if (!l) return { ok: false, msg: 'Listing gone.' };
     const fees = Math.round(l.price * C.property.buyCostPct);
     if (mortgage) {
-      const ltv = RC().kinds[l.kind].commercial ? 0.75 : 0.8; const down = Math.round(l.price * (1 - ltv));
+      const ltv = Math.min(RE.maxLtv(l), downPct ? 1 - downPct : 1); const down = Math.round(l.price * (1 - ltv)); /* v10: you can put more down for a smaller payment */
       if (g.cash < down + fees) return { ok: false, msg: `Need ${U.money(down + fees)} down.` };
       const ok = TG.CREDIT.apply(g, 'mortgage', l.price - down, { collateral: { kind: 'property', id: l.id }, label: 'Mortgage: ' + l.name, noCash: true, ltv, asset: l.price, extraIncome: RE.estRent(g, l), term });  if (!ok.ok) return ok;
       TG.F.spend(g, down + fees, 'Real estate purchases', null, true); const loan = ok.loan;
@@ -5911,8 +6101,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     } else { if (g.cash < l.price + fees) return { ok: false, msg: `Need ${U.money(l.price + fees)}.` }; TG.F.spend(g, l.price + fees, 'Real estate purchases', null, true); }
     g.re.listings = g.re.listings.filter((x) => x !== l);
     l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
-    l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(R.chance(l.distressed ? 0.2 : 0.6) ? RE.newTenant(g, l, true) : null);
-    l.rentR = 1; l.searches = {}; l.issues = [];
+    l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(null); /* v10: every unit starts EMPTY: you find and pick each tenant (and can set each unit's rent) */
+    l.rentR = 1; l.unitR = {}; l.searches = {}; l.issues = [];
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
     g.re.holdings.push(l);
     return { ok: true, h: l };
@@ -6005,8 +6195,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (g.re.fund && net > 0) spend(net * g.re.fund.share, 'Fund investor distributions');
     g.re.hist.push({ m: g.month, rev: Math.round(g.re.m.rev), cost: Math.round(g.re.m.cost) }); if (g.re.hist.length > 120) g.re.hist.shift();
     // listings
-    g.re.listings = g.re.listings.filter((l) => g.month - l.listed < 10 || R.chance(0.5));
-    RE.refill(g, rc.newPerMonth);
+    // v10: each listing stays 3-7 months, then a new one takes its place, so the market keeps changing
+    for (const l of g.re.listings) if (l.life == null) l.life = R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]);
+    const gone = g.re.listings.filter((l) => g.month - l.listed >= l.life).length;
+    g.re.listings = g.re.listings.filter((l) => g.month - l.listed < l.life);
+    RE.refill(g, Math.max(gone, rc.listingCount - g.re.listings.length));
     while (g.re.listings.length > 20) g.re.listings.shift();
   };
   RE.holdingMonth = (g, h, X) => {
@@ -6059,7 +6252,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
       const held = g.month - t.since;
       if (held >= t.lease && held % 12 === t.lease % 12) {
-        const ask = RE.askRent(g, h), mr = RE.marketRent(g, h);
+        const ask = RE.askRent(g, h, i), mr = RE.marketRent(g, h);
         const leaveP = T.leave.base + T.leave.k * (1 - t.rel) + (ask > mr * 1.08 ? T.leave.overRent * (ask / mr - 1.08) * 5 : 0) + 0.2 * Math.min(2, broken);
         if (R.chance(U.clamp(leaveP, 0, 0.95))) { h.tenants[i] = null; spend(t.rent * T.turnover, 'Unit turnover'); TG.rep.event(g, null, 'info', `A tenant moved out of ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''}`, `Lease ended${ask > mr * 1.08 ? '; your rent is above market' : ''}${broken ? '; repairs were left unfixed' : ''}. ${mgr ? 'Your manager will find a new one.' : 'Run a tenant search to fill it.'}`); continue; }
         t.rent = rentCapOn ? Math.round(Math.min(ask, t.rent * 1.02)) : ask;
@@ -6870,7 +7063,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 9;
+  const VERSION = 10;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -7222,6 +7415,306 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   TG.LB = LB;
   TG.Game = E;
+})();
+
+</script>
+<script>/* js/v10.js */
+/* v10.js - v10 game rules (loaded after engine.js):
+   - upgrades: more of them, new effect keys (staffMult, capMult, supplyCut, salesUp, costCut) and a payback estimate for each
+   - sales that vary: a drifting "buzz" plus a month-to-month wobble, with the reason shown
+   - ads: the measured effect each month (extra customers / orders / users) for every business that can advertise
+   - machines: no maintenance plans (the mechanic keeps things running), machine insurance on replacement cost,
+     a destroyed machine is replaced by the GM / Ops manager (best judgement, or like-for-like if you order it)
+   - GM vs Ops manager: different jobs and perks
+   - bonuses build loyalty; casino without a table limit; struggling-business takeovers for every type; play time across games */
+(function () {
+  const TG = globalThis.TG; const R = TG.R, U = TG.U; const B = TG.B, F = TG.F, E = TG.E, S = TG.S, C = TG.CONFIG;
+  const V = (TG.V10 = {});
+
+  // ================= UPGRADE EFFECTS =================
+  const ADD = ['demand', 'morale', 'cogsAdd', 'revCostPct', 'repTarget', 'payrollAdd', 'materialAdd', 'staffMult', 'capMult', 'supplyCut', 'salesUp', 'fuelCut', 'churnCut'];
+  const MUL = ['ticketMult', 'loadMult', 'appMult', 'badDebtMult', 'wearMult', 'organicMult', 'packerMult'];
+  const MAX = ['skillGrowth', 'seasonFloor', 'seasonDamp', 'hitSoften'];
+  const COMB = ['driftCut', 'scandalCut', 'cannibalCut', 'unitCostCut', 'otaCut', 'workerCut'];
+  const SKIP = ['id', 'label', 'cost', 'monthly', 'reduces', 'note', 'ic', 'perUnitMonthly', 'lockMonths', 'minVolume'];
+  B.fixAgg = (b, extra) => {
+    const d = B.def(b); const o = { equipBreak: {}, demand: 0, morale: 0, cogsAdd: 0, revCostPct: 0, skillGrowth: 1, repTarget: 0, costCut: {} };
+    const list = d.fixes.filter((f) => b.fixes[f.id] || (extra && extra === f.id));
+    for (const f of list) for (const k in f) {
+      if (SKIP.includes(k)) continue; const v = f[k];
+      if (k === 'equipBreak') { for (const t in v) o.equipBreak[t] = (o.equipBreak[t] || 1) * v[t]; }
+      else if (k === 'costCut') { for (const l in v) o.costCut[l] = 1 - (1 - (o.costCut[l] || 0)) * (1 - v[l]); }
+      else if (ADD.includes(k)) o[k] = (o[k] || 0) + v;
+      else if (MUL.includes(k)) o[k] = (o[k] || 1) * v;
+      else if (MAX.includes(k)) o[k] = Math.max(o[k] || 0, v);
+      else if (COMB.includes(k)) o[k] = 1 - (1 - (o[k] || 0)) * (1 - v);
+      else o[k] = v;
+    }
+    if (!extra) b.fixesOn = o;
+    return o;
+  };
+  const fo = (b) => (b && b.fixesOn) || {};
+  // every sale of a business gets salesUp (upgrades + a GM's sales perk); money lines in costCut get cheaper
+  const NOT_SALES = ['Insurance payouts', 'Lucky breaks', 'Clearance sales', 'Asset sales', 'Fire-sale proceeds', 'Refinance cash-out', 'Buy-out payment', 'Investor funding'];
+  V.salesUp = (b) => (fo(b).salesUp || 0) + S.perk(b, 'salesUp');
+  const earn0 = F.earn, spend0 = F.spend;
+  const bizOf = (g, id) => (id && g.businesses ? g.businesses.find((x) => x.id === id) : null);
+  F.earn = (g, amt, label, bizId, capital) => {
+    if (bizId && !capital && amt > 0 && !NOT_SALES.includes(label)) { const b = bizOf(g, bizId); const up = b ? V.salesUp(b) : 0; if (up) amt = amt * (1 + up); }
+    return earn0(g, amt, label, bizId, capital);
+  };
+  F.spend = (g, amt, label, bizId, capital) => {
+    if (bizId && amt > 0) { const b = bizOf(g, bizId); const cc = b && fo(b).costCut; if (cc && cc[label]) amt = amt * (1 - cc[label]); }
+    return spend0(g, amt, label, bizId, capital);
+  };
+  const unit0 = TG.ST.unitCost;
+  TG.ST.unitCost = (g, b) => unit0(g, b) * (1 - (fo(b).supplyCut || 0));
+  const boost0 = E.boost;
+  E.boost = (b, field) => boost0(b, field) + (field === 'staffBoost' ? (fo(b).staffMult || 0) + S.perk(b, 'staffMult') : 0);
+  const cap0 = E.capacity;
+  E.capacity = (b, pool) => cap0(b, pool) * (1 + (fo(b).capMult || 0));
+
+  // ================= MANAGER PERKS: GM = people & sales, Ops = machines & running things =================
+  C.perks.gm = [[0, 'demand', 0.03, '+3% customers (sales & service boss)'], [0, 'morale', 2, '+2 morale for everyone'], [40, 'salesUp', 0.02, '+2% on every sale (upselling)'], [60, 'demand', 0.02, 'another +2% customers'], [80, 'salesUp', 0.02, 'another +2% on every sale']];
+  C.perks.ops = [[0, 'breakCut', 0.1, '-10% breakdown odds'], [0, 'supplyCut', 0.03, '-3% supply costs (better orders)'], [40, 'staffMult', 0.04, '+4% work done (smoother shifts)'], [60, 'wearCut', 0.1, '-10% machine wear'], [80, 'breakCut', 0.1, 'another -10% breakdowns']];
+  C.specialists.gm.desc = 'The people & sales boss: hires and keeps staff (raises, poach offers), runs PR and bids, and brings in customers. Orders supplies and replaces destroyed machines if there is no Ops manager. Works on the job at 25% of a worker.';
+  C.specialists.ops.desc = 'The machines & running-things boss: orders supplies, buys machines when you are full, replaces destroyed ones, fewer breakdowns, cheaper supplies, more work done. Does NOT hire people. Works on the job at 25% of a worker.';
+  const perk0 = S.perk;
+  S.perk = (b, key) => { if (key === 'supplyCut' || key === 'morale' || key === 'salesUp' || key === 'staffMult') { /* applied where they act */ } return perk0(b, key); };
+  // GM morale perk: everyone a bit happier (applied in the staff month)
+  const sMonth0 = S.month;
+  S.month = (g, b, ctx) => { const r = sMonth0(g, b, ctx); const mp = perk0(b, 'morale'); if (mp && !g._pv) for (const e of S.allStaff(b)) e.morale = U.clamp(e.morale + mp * 0.25, 0, 100); return r; };
+
+  // ================= BONUSES BUILD LOYALTY =================
+  V.bonusLoyalty = (e) => Math.max(C.v10.bonusLoyaltyMin, Math.round(C.v10.bonusLoyalty * (1 - (e.loyalty || 0) / 100)));
+  S.bonusPreview = (g, b, e) => { const add = V.bonusLoyalty(e); const now = S.poachOdds(g, b, e, true); const after = S.poachOdds(g, b, Object.assign({}, e, { loyalty: Math.min(100, e.loyalty + add), morale: Math.min(100, e.morale + C.staff.bonusMorale) }), true); return { cost: Math.round(e.wage * 0.5), add, from: Math.round(e.loyalty), to: Math.min(100, Math.round(e.loyalty + add)), pFrom: now.p, pTo: after.p }; };
+  S.bonus = (g, b, empId) => {
+    const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
+    F.spend(g, Math.round(e.wage * 0.5), 'Bonuses', b.id); if (S.spam(g, e, 'bonus')) return { spam: true };
+    const add = V.bonusLoyalty(e); const from = e.loyalty;
+    e.morale = U.clamp(e.morale + C.staff.bonusMorale, 0, 100); e.loyalty = U.clamp(e.loyalty + add, 0, 100);
+    return { loyalty: [Math.round(from), Math.round(e.loyalty)] };
+  };
+
+  // ================= CASINO: no table limit, same odds =================
+  TG.I.betLimit = () => Infinity;
+  TG.I.canBet = (g, amt) => {
+    const c = g.invest.casino;
+    if (!g.settings.gambling) return 'Gambling is turned off in settings.';
+    if (c.banned) return 'The casino has banned you for winning too much.';
+    if (!(amt >= C.casino.minBet)) return `Minimum bet ${U.money(C.casino.minBet)}.`;
+    if (amt > g.cash) return 'Not enough cash.';
+    return null;
+  };
+
+  // ================= MACHINE INSURANCE (pays a new machine's price on a total loss) =================
+  V.machineNew = (g, b) => U.sum(b.equip.filter((x) => x.broken !== 'destroyed' && !x.leased), (x) => E.price(g, b, x.type, x.tier === 'used' ? 'budget' : x.tier));
+  const prem0 = F.premium;
+  F.premium = (g, b, type) => {
+    if (type !== 'equipment') return prem0(g, b, type);
+    const M = C.v10.machineIns; return Math.round(Math.max(M.min * g.world.priceIdx, V.machineNew(g, b) * M.pct) * (b.insHike || 1));
+  };
+  // chance a month that one of your machines is totally destroyed, and what that costs on average (shown before you buy)
+  V.machineRisk = (g, b) => {
+    let p = 0, cost = 0; const sev = C.equipment.severity;
+    for (const it of b.equip) { if (it.broken || it.leased) continue; const bc = E.breakChance(g, b, it); const w = E.effWear(it) / 100; const tot = sev.minor * (1.2 - w) + sev.major + sev.catastrophic * (0.4 + w * 1.6); const pc = bc.p * sev.catastrophic * (0.4 + w * 1.6) / tot; p += pc; cost += pc * E.price(g, b, it.type, it.tier === 'used' ? 'budget' : it.tier); }
+    return { p, exp: cost };
+  };
+
+  // ================= DESTROYED MACHINES: the GM / Ops manager replaces them =================
+  const choose0 = TG.D.choose;
+  TG.D.choose = (g, dec, h) => {
+    if (dec.kind === 'broken') {
+      const b = TG.B.get(g, dec.bizId); const it = b && b.equip.find((x) => x.id === dec.itemId);
+      if (it && it.broken === 'destroyed' && b.orders && b.orders.replaceLike) return { opt: 'replace_' + it.tier, why: 'your order: replace like-for-like', outcome: 'good' };
+    }
+    return choose0(g, dec, h);
+  };
+
+  // ================= SALES THAT VARY =================
+  const BZ = () => C.v10.buzz;
+  V.buzzWhy = (b, x) => { const d = B.def(b); const up = ['word of mouth is good', 'a local event brought people', 'a busy stretch nearby', 'a trend in your favour', 'a good review got shared']; const dn = ['a quiet stretch in town', 'road works nearby', 'a rival ran a big sale', 'people are spending less this month', 'bad weather days']; const L = x >= 0 ? up : dn; return L[Math.abs(Math.round(x * 997 + (d.name || '').length)) % L.length]; };
+  const dm0 = B.demandMult;
+  B.demandMult = (g, b, ctx, opts) => {
+    let m = dm0(g, b, ctx, opts);
+    const swing = (1 + (b.buzz || 0)) * (1 + (b.wob || 0)); m *= swing; ctx.swing = swing;
+    return m;
+  };
+  const month0 = B.month;
+  B.month = (g, b) => {
+    if (!g._pv) { const Z = BZ(); b.buzz = U.clamp((b.buzz || 0) * Z.keep + R.normal(0, Z.sd), -Z.max, Z.max); b.wob = U.clamp(R.normal(0, Z.noise), -0.12, 0.12); }
+    else b.wob = 0; // the preview shows the expected month: today's buzz, no surprise wobble
+    return month0(g, b);
+  };
+  // ================= ADS: what they really did this month =================
+  V.adModel = (b) => { const m = B.def(b).model; return m === 'farm' || m === 'factory' ? null : m; };
+  B.projAdOffers = (g, b) => { const a = b.ads.budget; return Math.min(4, Math.floor(R.range(0, 1) + 3 * (1 - Math.exp(-a / (12000 * g.world.priceIdx))))); };
+  const end0 = B.endMonth;
+  B.endMonth = (g, b, ctx) => {
+    try {
+      const sw = ctx.swing; if (sw && Math.abs(sw - 1) >= 0.03 && TG.FL && !g._pvNoFl) TG.FL.row(b, sw > 1 ? '📈' : '📉', sw > 1 ? 'Busy month' : 'Slow month', Math.round((sw - 1) * 100), '%', sw > 1 ? 'g' : 'y', V.buzzWhy(b, (b.buzz || 0) + (b.wob || 0)));
+      const spent = (b.ads && b.ads.budget) || 0; let st = null;
+      if (spent > 0 && V.adModel(b)) {
+        const mdl = B.def(b).model;
+        if ((mdl === 'service' || mdl === 'freight') && ctx.adBoost != null) {
+          const f0 = fo(b).demand || 0; const dNo = (ctx.demand || 0) * (1 + f0) / (1 + (ctx.adBoost || 0) + f0);
+          const extra = Math.max(0, (ctx.served || 0) - Math.min(ctx.served || 0, dNo)); const tk = (ctx.served || 0) > 0 ? b.m.rev / ctx.served : 0;
+          st = { extra, unit: mdl === 'freight' ? 'loads' : (B.def(b).custWord || 'customers'), boost: ctx.adBoost || 0, extraRev: extra * tk, full: (ctx.demand || 0) > (ctx.cap || 0) * 1.02 && dNo >= (ctx.cap || 0), flop: !!ctx.adFlop };
+        } else if (ctx.adStat) {
+          const a = ctx.adStat; const extra = a.extraOrders != null ? a.extraOrders : a.extra; st = { extra, unit: a.unit, boost: a.share || 0, extraRev: mdl === 'brand' && a.share ? b.m.rev * a.share : null, flop: !!a.flop };
+        } else if (mdl === 'projects') st = { extra: (b.proj && b.proj.adOffers) || 0, unit: 'extra bid invitations', boost: 0, extraRev: null };
+        if (st) { st.spent = spent; st.m = g.month; if (!g._pv) { b.adHist = (b.adHist || []).concat([st]).slice(-6); } b.adLast = st; }
+      } else if (!g._pv) b.adLast = null;
+    } catch (e) { /* never block the month */ }
+    return end0(g, b, ctx);
+  };
+  // what a budget would do, shown BEFORE you save it (service & freight: extra customers at today's demand)
+  V.adPreview = (g, b, budget, channel) => {
+    const a0 = b.ads; b.ads = { budget, channel: channel || (a0 && a0.channel) || 'social' };
+    const r0 = g.rngState; let boost = 0; try { boost = B.adBoost(g, b).boost; } finally { g.rngState = r0; b.ads = a0; }
+    const ch = C.reputation.adChannels[channel || 'social'] || C.reputation.adChannels.social;
+    const lc = b.lastCtx || {}; const dem = lc.demand || 0, cap = lc.cap || 0, cur = lc.adBoost || 0;
+    const base = dem / (1 + cur); const want = base * (1 + boost * (1 - ch.flop * 0.85)); const served = Math.min(want, cap); const served0 = Math.min(base, cap);
+    const tk = lc.served > 0 && b.hist.length ? b.hist[b.hist.length - 1].rev / lc.served : 0;
+    return { boost, expBoost: boost * (1 - ch.flop * 0.85), extra: Math.max(0, served - served0), extraRev: Math.max(0, served - served0) * tk, full: want > cap * 1.02 };
+  };
+
+  // ================= UPGRADE PAYBACK =================
+  // Money: runs next month twice on a throw-away copy (with and without the upgrade, same luck) and compares the profit.
+  // Risks: the odds it cuts x what that kind of trouble usually costs. Shown on every upgrade card before you buy.
+  V.riskCost = (g, b, r) => {
+    const s = r.sev || {}; const rev = Math.max(b.revAvg || 0, 1000); const gm = rev * 0.45; const avg = (a) => (a ? (a[0] + a[1]) / 2 : 0);
+    let c = rev * avg(s.revPct) + avg(s.cash) * g.world.priceIdx + gm * avg(s.down) + avg(s.rep) * gm * 0.06;
+    if (s.demandHit) c += (1 - s.demandHit[0]) * s.demandHit[1] * gm * 0.6;
+    if (s.suit) c += rev * avg(s.suit) * (s.suitChance || 1) * 0.5;
+    if (s.quit) c += 2500 * g.world.priceIdx;
+    if (s.quality) c += gm * 0.05 * s.quality[1];
+    return c;
+  };
+  const GAIN = new Map();
+  V.supLabel = (b) => { const sd = TG.ST.def(b); return (sd && sd.costLabel) || 'Supplies & cost of sales'; };
+  V.fixGain = (g, b, fixId) => {
+    const sig = [b.id, g.month, Object.keys(b.fixes).sort().join(','), b.staff.length, b.equip.length, Math.round(b.rep / 5), (b.ads && b.ads.budget) || 0].join('|');
+    let cache = GAIN.get(b.id); if (!cache || cache.sig !== sig) { cache = { sig, v: {} }; GAIN.set(b.id, cache); }
+    if (cache.v[fixId]) return cache.v[fixId];
+    const d = B.def(b); const f = d.fixes.find((x) => x.id === fixId); if (!f) return null;
+    const on = !!b.fixes[fixId]; const G0 = TG.G; let money = null; const SUP = V.supLabel(b); const MONTHS = 3, SEEDS = [0, 7919];
+    try {
+      const base = JSON.stringify(g);
+      const run = (withFix, seed) => {
+        const g2 = JSON.parse(base); g2._pv = true; g2._pvNoFl = true; g2.rngState = ((g2.rngState || 1) + seed) >>> 0 || 1; const b2 = g2.businesses.find((x) => x.id === b.id);
+        if (withFix) b2.fixes[fixId] = { since: g.month }; else delete b2.fixes[fixId]; TG.G = g2; let t = 0;
+        for (let k = 0; k < MONTHS; k++) { B.month(g2, b2); const h = b2.hist[b2.hist.length - 1]; if (h) t += h.profit - (f.supplyCut && h.lines ? h.lines[SUP] || 0 : 0); g2.month++; }
+        return t / MONTHS;
+      };
+      money = 0; for (const sd of SEEDS) money += (run(true, sd) - run(false, sd)) / SEEDS.length;
+    } catch (e) { money = null; } finally { TG.G = G0; }
+    // supplies bought (by you or a manager) cost less: last 3 months of supply spending x the cut
+    if (f.supplyCut && money != null) { const sp = -U.avg(b.hist.slice(-3), (h) => (h.lines && h.lines[SUP]) || 0); money += Math.max(0, sp) * f.supplyCut / (on ? 1 - f.supplyCut : 1); }
+    let risk = 0; const ctx = B.ctx(g, b);
+    for (const [rid, mult] of Object.entries(f.reduces || {})) { const r = d.risks.find((x) => x.id === rid); if (!r || !r.base) continue; const p = B.riskP(g, b, ctx, r).p; const pOff = on ? p / Math.max(0.01, mult) : p; risk += pOff * (1 - mult) * V.riskCost(g, b, r); }
+    if (f.equipBreak) for (const [t, mult] of Object.entries(f.equipBreak)) for (const it of b.equip.filter((x) => x.type === t && !x.broken)) { const p = E.breakChance(g, b, it).p; const pOff = on ? p / mult : p; risk += pOff * (1 - mult) * (E.repairCost(g, b, Object.assign({}, it, { broken: 'major' })) * 0.5 + (b.revAvg || 0) * 0.08); }
+    if ((f.seasonFloor || f.seasonDamp) && b.revAvg) { const se = d.season || []; const lift = U.avg(se, (x) => Math.max(0, Math.max(x, f.seasonFloor || 0) - x) + (x < 1 ? (1 - x) * (f.seasonDamp || 0) : 0)); money = Math.max(money || 0, b.revAvg * lift * 0.45 - (f.monthly || 0) * g.world.priceIdx); }
+    const cost = Math.round((f.cost || 0) * g.world.priceIdx); const net = (money || 0) + risk;
+    const full = !!(b.lastCtx && b.lastCtx.cap && b.lastCtx.demand >= b.lastCtx.cap * 0.98) && !!(f.demand || f.ticketMult == null && f.salesUp == null && f.demand);
+    const out = { money: money == null ? null : Math.round(money), risk: Math.round(risk), net: Math.round(net), cost, months: net > 1 ? cost / net : Infinity, full: !!(f.demand && b.lastCtx && b.lastCtx.cap && b.lastCtx.demand >= b.lastCtx.cap * 0.98) };
+    void full; cache.v[fixId] = out; return out;
+  };
+
+  // ================= STRUGGLING-BUSINESS TAKEOVER (any type) =================
+  // You buy a business that is failing: cheaper than starting new, but it comes with worn gear, unhappy staff,
+  // a weak reputation and the old owner's debt. Fix it up and it can be worth a lot more.
+  const setup0 = B.setupCost;
+  B.setupCost = (g, type, prop, opts) => (opts && opts._free ? 0 : setup0(g, type, prop, opts));
+  V.takeoverQuote = (g, type, pid, opts) => {
+    const G0 = TG.G; let out = null;
+    try {
+      const g2 = JSON.parse(JSON.stringify(g)); g2._pv = true; TG.G = g2; g2.cash = 1e12;
+      const r = B.start(g2, type, pid, Object.assign({}, opts, { takeover: false })); if (!r.ok) return { ok: false, msg: r.msg };
+      const qs = B.quickSetup(g2, r.biz, false, 'standard'); const gear = U.sum(qs.steps.filter((s) => s.kind === 'equip'), (s) => s.cost || 0);
+      const setup = B.setupCost(g, type, g.properties.find((p) => p.id === pid), opts);
+      const T = C.v10.takeover; const full = setup + gear;
+      out = { ok: true, full, price: Math.round(full * T.price), debt: Math.round(full * T.debt / 1000) * 1000, gear };
+    } catch (e) { out = { ok: false, msg: e.message }; } finally { TG.G = G0; }
+    return out;
+  };
+  V.takeover = (g, type, pid, opts) => {
+    const q = V.takeoverQuote(g, type, pid, opts); if (!q.ok) return q;
+    if (g.cash < q.price) return { ok: false, msg: `Taking it over costs ${U.money(q.price)} in cash.` };
+    const r = B.start(g, type, pid, Object.assign({}, opts, { _free: true }));
+    if (!r.ok) return r; const b = r.biz;
+    F.spend(g, q.price, 'Business takeover', b.id, true);
+    V.distress(g, b, q.debt, `Old owner's debt (${b.name})`);
+    TG.rep.event(g, b, 'major', `You took over a struggling ${B.def(b).name.toLowerCase()}`, `Paid ${U.money(q.price)} (a new one with gear costs about ${U.money(q.full)}), plus ${U.money(q.debt)} of the old owner's debt. Worn used gear${b.equip.some((x) => x.broken) ? ' (some broken)' : ''}, unhappy staff and a weak reputation (${Math.round(b.rep)}). Fix it up and it is worth a lot more.`);
+    return { ok: true, biz: b, quote: q };
+  };
+  // the state a failing business is in: worn used gear (some broken), a team with low morale, weak reputation, old debt
+  V.distress = (g, b, debt, label) => {
+    const T = C.v10.takeover;
+    const qs = B.quickSetup(g, b, false, 'used');
+    for (const st of qs.steps) {
+      if (st.kind === 'equip') { const it = E.buy(g, b, st.type, 'used', { free: true }); if (it) { it.wear = R.range(T.wear[0], T.wear[1]); it.age = Math.max(it.age || 0, R.int(60, 160)); it.warranty = 0; if (R.chance(T.broken)) { it.broken = 'major'; E.queueBroken(g, b, it); } } }
+    }
+    const c0 = g.cash; g.cash = 1e12; try { B.quickSetup(g, b, true, 'used'); } finally { g.cash = c0 + (g.cash - 1e12); } // hires the starting team (gear is already there)
+    if (TG.D) TG.D.syncTargets(b);
+    b.rep = R.range(T.rep[0], T.rep[1]); for (const e of S.allStaff(b)) { e.morale = R.range(T.morale[0], T.morale[1]); e.loyalty = Math.min(e.loyalty || 0, 25); }
+    if (b.stock) b.stock.qty = Math.round((b.stock.qty || 0) * 0.3);
+    b.takeover = { m: g.month, debt };
+    if (debt > 0) F.newLoan(g, 'business', debt, { label, noCash: true, bizId: b.id });
+  };
+  // NEW GAME: take over a failing business of any type
+  C.v10.failTypes = Object.keys(C.businesses);
+  V.startFailing = (g, type) => {
+    const d = C.businesses[type]; const p = TG.P.gen(g, TG.P.idealFor(type));
+    if (d.model === 'farm' && (p.acres > 320 || p.acres < 60)) { const a2 = R.int(80, 300); p.price = Math.round(p.price * a2 / Math.max(1, p.acres)); p.acres = a2; }
+    const own = d.model === 'farm'; const cash0 = g.cash; g.cash = 1e12;
+    if (own) { p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; } else { p.leased = true; p.rent = TG.P.leaseRent(g, p); p.deposit = 0; }
+    g.properties.push(p);
+    const q = V.takeoverQuote(g, type, p.id, {}); const r = B.start(g, type, p.id, { name: 'The ' + d.name });
+    if (!r.ok) { g.cash = cash0; throw new Error('failing start: ' + r.msg); }
+    V.distress(g, r.biz, q.ok ? q.debt : 0, `Inherited debt (${r.biz.name})`);
+    const pay = S.payroll(r.biz); g.cash = Math.round(Math.max(20000, pay * 2.5 + (q.ok ? q.full * 0.08 : 0)) / 1000) * 1000;
+    TG.rep.event(g, r.biz, 'major', `You took over a failing ${d.name.toLowerCase()}`, `Worn used gear, unhappy staff, a weak reputation and ${U.money(q.ok ? q.debt : 0)} of debt. ${U.money(g.cash)} in the bank. Turn it around.`);
+    return r.biz;
+  };
+
+  // ================= PLAY TIME (account age in game years, across restarts) =================
+  const PKEY = 'tycoon_profile_v1';
+  V.profile = () => { try { const t = TG.store.get(PKEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
+  V.playMonths = (g) => (g ? (g.playBefore || 0) + (g.month || 0) : 0);
+  V.savePlay = (g) => { if (!g || g._pv || g._practice) return; try { TG.store.set(PKEY, JSON.stringify({ months: V.playMonths(g), gameId: g.gameId, at: Date.now() })); } catch (e) { /* ignore */ } };
+  V.playText = (months) => { const y = Math.floor(months / 12), mo = months % 12; return y ? `${y} yr${y === 1 ? '' : 's'}${mo ? ' ' + mo + ' mo' : ''}` : `${mo} mo`; };
+  TG.Game.scenarios.failing = { label: 'Take over a failing business', desc: 'Pick any kind of business. It comes with worn gear, unhappy staff, a weak reputation and debt, but it is already open. Turn it around.' };
+  const ng0 = TG.Game.newGame;
+  TG.Game.newGame = (opts) => {
+    const prev = TG.G && !TG.G._pv ? V.playMonths(TG.G) : 0; const pf = V.profile(); const before = Math.max(prev, (pf && pf.months) || 0);
+    let g; if (opts && opts.scenario === 'failing') { g = ng0(Object.assign({}, opts, { scenario: 'classic' })); g.scenario = 'failing'; V.startFailing(g, opts.failType && C.businesses[opts.failType] ? opts.failType : 'cafe'); g.stats.startCash = g.cash; g.lastNW = F.netWorth(g); g.stats.peakNW = g.lastNW; g.acc = F.newAcc(); g.cashMark = g.cash; g.cur = TG.rep.newBuf ? g.cur : g.cur; }
+    else g = ng0(opts);
+    g.playBefore = (opts && opts.keepPlay === false) ? 0 : before; V.savePlay(g); return g;
+  };
+  const nm0 = TG.Game.nextMonth;
+  TG.Game.nextMonth = (g) => { const r = nm0(g); if (g && !g._pv && !g._practice) V.savePlay(g); return r; };
+
+  // ================= MIGRATION v9 -> v10 =================
+  V.migrate = (g) => {
+    const notes = [];
+    let plans = 0; for (const b of g.businesses) for (const it of b.equip || []) if (it.maint && !it.leased) { it.maint = false; plans++; }
+    if (plans) notes.push(`Maintenance plans are gone (${plans} cancelled, no more monthly fee): your mechanic keeps machines running now.`);
+    for (const b of g.businesses) {
+      b.orders = b.orders || {}; if (b.orders.replaceLike == null) b.orders.replaceLike = false; if (b.buzz == null) b.buzz = 0;
+      if (b.ads && b.ads.budget > 0 && !V.adModel(b)) { notes.push(`${b.name}: ads cannot sell at the market price, so the ad budget was stopped.`); b.ads.budget = 0; }
+      for (const dd of g.decisions || []) if (dd.kind === 'broken' && dd.bizId === b.id) dd.def = null;
+      B.fixAgg(b);
+    }
+    for (const h of (g.re && g.re.holdings) || []) if (!h.unitR) h.unitR = {};
+    for (const l of g.listings || []) if (l.life == null) l.life = R.int(C.v10.listingLife[0], C.v10.listingLife[1]);
+    for (const l of (g.re && g.re.listings) || []) if (l.life == null) l.life = R.int(C.v10.listingLife[0], C.v10.listingLife[1]);
+    if (g.playBefore == null) { const pf = V.profile(); g.playBefore = pf && pf.gameId !== g.gameId && pf.months > g.month ? pf.months - g.month : 0; }
+    if (notes.length) { g.v10notes = notes; if (TG.rep) for (const n of notes) TG.rep.event(g, null, 'info', 'Update v10: ' + n, 'Game update'); }
+    g.v = 10; return g;
+  };
+  const mig0 = TG.Game.migrate;
+  TG.Game.migrate = (g) => { mig0(g); if ((g.v || 0) < 10) V.migrate(g); return g; };
 })();
 
 </script>
@@ -7700,7 +8193,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.screens.bizd = () => {
     const g = TG.G, b = biz(); if (!b) { UI.screen = 'biz'; return UI.screens.biz(); }
     const d = TG.B.def(b);
-    const tabs = [['overview', '📋 Now'], ['rep', '📊 Reports'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Extras'], ['mkt', '📣 Ads']];
+    const tabs = [['overview', '📋 Now'], ['rep', '📊 Reports'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Upgrades'], ['mkt', '📣 Ads']];
     if (TG.UI.modelPanel[d.model]) tabs.splice(2, 0, ['model', TG.UI.modelPanel[d.model].label]);
     tabs.push(['own', '🔑 Owner']);
     const t = UI.curTab('biz', 'overview');
@@ -7843,7 +8336,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const who = (kind) => D.handler(g, b, kind);
     const hire = who('hire'), stockH = TG.ST.def(b) ? who('stock') : null; const fh = b.farm ? D.orderTaker(g, b, 'farm') : null;
     const mechs = TG.E.mechs(b), hasEq = b.equip.length > 0 && !!TG.S.roleDef(b, 'mech'); const NOM = '<span class="bad">No manager: you must do this yourself</span>';
-    let o = `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
+    let o = UI.gmOpsCard(g, b) + `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
       ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
       ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out. (Managers order; your crew works the site.)', null, stockH ? esc(stockH.label) : NOM) : ''}
@@ -7885,6 +8378,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     o += `<div class="card"><details><summary>📝 What your managers did</summary>${dec.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> <b>${esc(e.by)}</b>: ${esc(e.text)}</div>`).join('') || '<div class="mute">Nothing yet.</div>'}</details></div>`;
     return o;
   }
+  UI.gmOpsCard = (g, b) => {
+    const C = TG.CONFIG; const gm = b.spec && b.spec.gm, ops = b.spec && b.spec.ops;
+    const perks = (r) => (C.perks[r] || []).map(([lvl, , , t]) => `${lvl ? `<span class="mute">skill ${lvl}+:</span> ` : ''}${esc(t)}`).join(' · ');
+    const row = (r, e, ic, jobs) => UI.irow('go' + r + b.id, ic, C.specialists[r].label, e ? `skill ${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}` : '<span class="mute">not hired</span>', C.specialists[r].desc, e ? null : UI.btn('➕ Hire', 'hireRole', r, 'xs'), `${jobs}<br>🏅 ${perks(r)}`);
+    return `<div class="card"><h3 style="margin-top:0">🧭 GM or Ops manager? ${UI.tipBtn('gmops' + b.id)}</h3>${UI.tipLine('gmops' + b.id, 'Both cost a manager salary. The GM is the people & sales boss; the Ops manager is the machines & running-things boss. Each is better at their own jobs (about +8% right calls) and a bit worse at the other one\'s (−6%). Many businesses hire both once they grow.')}
+      ${row('gm', gm, '👔', '👥 hiring, pay & poach offers · 📣 PR & bids · 🧑‍🤝‍🧑 more customers')}${row('ops', ops, '⚙️', '📦 supplies · 🔧 destroyed machines · 🚜 farm work · ➕ buys machines when full')}</div>`;
+  };
   UI.A.ordSpare = (v) => { biz().orders.spare = Number(v); UI.refresh(); };
   UI.A.ordCow = (k) => { const co = biz().farm.orders.cows; co[k] = !co[k]; UI.refresh(); };
   UI.A.ordFeed = (v) => { biz().farm.orders.cows.feedMonths = Number(v); UI.refresh(); };
@@ -7902,6 +8402,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     }
     const rd = TG.S.roleDef(b, c.role) || {}; const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
     let each, team = '';
+    if (c.role === 'mech') { const capE = TG.E.mechCapOf(est); const now = TG.E.mechCap(b); const have = TG.E.machines(b); each = `cares for ~${Math.round(capE)} machines`; team = ` · team ${Math.round(now)} → ${Math.round(now + capE)} machines (you have ${have})`; return `<div class="small">🔧 ${each}${team} · 🕒 shows up ${rel}${c.revealed.reliability ? '' : ' (check to see)'}</div>`; }
     if (b.farm) { const ef = M.staffEff(est); each = `${Math.round(100 * ef)} work pts (~${Math.round(M.areaE(b, 'crops').acresPerHand * ef)} crop acres, ~${Math.round(M.areaE(b, 'orchard').acresPerHand * ef)} orchard acres or ~${Math.round(M.areaE(b, 'cows').headPerHand * ef)} cows)`; }
     else if (rd.cap > 1) { each = `${Math.round(rd.cap * M.staffEff(est)).toLocaleString()} ${rd.support ? 'covered' : unit}/mo`; const now = U.sum(b.staff.filter((e) => e.role === c.role), (e) => rd.cap * M.staffEff(e)); team = ` · team ${Math.round(now).toLocaleString()} → ${Math.round(now + rd.cap * M.staffEff(est)).toLocaleString()}`; }
     else each = `${U.pct(M.staffEff(est) / M.staffEff({ skill: 50, reliability: 75 }))} of a normal worker`;
@@ -7930,7 +8431,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const isSpec = !!C.specialists[e.role];
     UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
       ${UI.skillInfo(g, b, e)}${UI.payCard(g, b, e)}${UI.trainCard(g, b, e)}
-      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div><div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
+      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div>${(() => { const bp = TG.S.bonusPreview(g, b, e); return `<div class="small" id="bonusPrev">🎁 A bonus: 🤝 loyalty ${bp.from} → <b>${bp.to}</b> · 🎯 chance a rival hires them away ${U.pct(bp.pFrom, 1)} → <b>${U.pct(bp.pTo, 1)}</b>/mo · 😊 morale +${TG.CONFIG.staff.bonusMorale}. Each bonus adds less loyalty the more loyal they already are.</div>`; })()}<div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
       ${UI.btn(`Fire (severance ${m(e.wage * C.staff.severanceMonths)})`, 'empDo', `${id}|fire`, 'sm badb')}</div>
       ${!isSpec ? `<div class="row" style="margin-top:8px"><span class="small">Promote to</span><select id="promRole">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}">${esc(s.label)}${b.spec[k] ? ' (replaces current)' : ''}</option>`).join('')}</select>${UI.btn('Promote', 'empDo', `${id}|promote`, 'sm')}</div><div class="mute">A promoted worker's management skill can surprise you either way.</div>` : ''}</div>`);
   };
@@ -7982,7 +8483,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const g = TG.G, b = biz(); const [id, act] = arg.split('|');
     if (act === 'train' || act === 'trainA') { const r = TG.S.train(g, b, id, act === 'trainA' ? 'advanced' : 'basic'); if (!r) return UI.toast('Not enough cash.', true); UI.toast(r.spam ? 'Too much training this month: burned out (morale down, no skill).' : r.gain > 0 ? `Skill +${r.gain}. They spend ${U.pct(r.away)} of this month training. Market value ${m(r.mv0)} → ${m(r.mv1)}.` : 'Training did not stick (slow learner). Now you know how they learn.', r.gain <= 0); }
     if (act === 'raise' || act === 'raiseM') { const r = TG.S.raise(g, b, id, act === 'raiseM' ? 'market' : 'pct'); UI.toast(r && r.spam ? 'Another raise this month? Payroll said no and it felt like a broken promise (morale down).' : r ? `Raise: ${m(r.from)} → ${m(r.to)}/mo. Morale and loyalty up.` : 'Not found.', r && r.spam); }
-    if (act === 'bonus') { const r = TG.S.bonus(g, b, id); UI.toast(r && r.spam ? 'Another bonus this month means less each time (morale down).' : 'Bonus paid.', r && r.spam); }
+    if (act === 'bonus') { const r = TG.S.bonus(g, b, id); UI.toast(r && r.spam ? 'Another bonus this month means less each time (morale down).' : r && r.loyalty ? `Bonus paid. Loyalty ${r.loyalty[0]} → ${r.loyalty[1]}.` : 'Bonus paid.', r && r.spam); }
     if (act === 'fire') { TG.S.fire(g, b, id, 'fired'); const c = {}; for (const e of b.staff) c[e.role] = (c[e.role] || 0) + 1; for (const r in b.target) b.target[r] = Math.min(b.target[r], Math.max(c[r] || 0, 0)); UI.closeModal(); UI.toast('Let go.'); return UI.refresh(); }
     if (act === 'promote') { const e = TG.S.promote(g, b, id, UI.val('promRole')); if (e) UI.toast(`${e.name} promoted. True manager skill: ${e.skill}.`); UI.closeModal(); return UI.refresh(); }
     UI.A.emp(id); UI.refresh();
@@ -8002,7 +8503,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   function equip(g, b) {
     const d = TG.B.def(b), C = TG.CONFIG; const E = TG.E;
     const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease;
-    let o = `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
+    let o = UI.machinesCard(g, b) + `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
       ${UI.tipLine('eqhow', `${C.equipTiers[tier].label}: price x${C.equipTiers[tier].price}, breaks x${C.equipTiers[tier].brk}, output x${C.equipTiers[tier].out}. Used gear may hide wear. Lease = ${U.pct(C.equipment.leaseMonthlyPct, 1)} of price a month, repairs included.`)}</div>`;
     const cats = []; const byCat = {};
     for (const ed of d.equip) { const c = ed.cat || 'other'; if (!byCat[c]) { byCat[c] = []; cats.push(c); } byCat[c].push(ed); }
@@ -8022,17 +8523,35 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     }
     return o;
   }
+  // v10: who looks after your machines, and the machine insurance (both in one place, on the Gear tab)
+  UI.machinesCard = (g, b) => {
+    const E = TG.E, C = TG.CONFIG; if (!b.equip.length && !TG.B.def(b).equip.length) return '';
+    const mechs = E.mechs(b); const cap = E.mechCap(b); const n = E.machines(b); const canMech = !!TG.S.roleDef(b, 'mech');
+    const broken = b.equip.filter((x) => x.broken && x.broken !== 'destroyed').length; const gone = b.equip.filter((x) => x.broken === 'destroyed').length;
+    const h = TG.D.handler(g, b, 'broken'); const like = !!(b.orders && b.orders.replaceLike);
+    let o = `<div class="card"><h3 style="margin-top:0">🔧 Machine care ${UI.tipBtn('mc' + b.id)}</h3>${UI.tipLine('mc' + b.id, `A mechanic services machines when they need it (less wear, fewer breakdowns) and repairs broken ones for less than an outside repair. Each one cares for about ${C.mechanic.per} machines (more if skilled). Without one: tap 🧰 Service yourself and pay outside repair prices.`)}`;
+    if (canMech) o += UI.irow('mcw' + b.id, '🔧', 'Machines cared for', `${Math.min(n, Math.round(cap))}/${n}`, mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''} can care for about ${Math.round(cap)} machines. You have ${n}.${cap < n ? ' Some machines get no care: hire another mechanic.' : ''}` : 'No mechanic: no machine is cared for. Hire one in 👥 Staff.', mechs.length ? null : UI.btn('➕ Hire', 'hireRole', 'mech', 'xs'), mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''} · skill ${Math.round(E.mechSkill(b))}${cap < n ? ' · <span class="warn">over capacity</span>' : ''}` : '<span class="bad">no mechanic</span>');
+    if (canMech) o += `<div style="margin:0 0 6px 48px">${UI.bar(Math.min(n, cap), Math.max(n, 1))}</div>`;
+    if (broken || gone) o += UI.irow('mcb' + b.id, '⚠️', 'Out of action', `${broken + gone}`, `${broken} broken (fix below or your mechanic fixes it), ${gone} destroyed (replace or scrap below).`, null, gone ? (h ? `${esc(h.label)} replaces destroyed ones` : '<span class="bad">no manager: you must replace destroyed machines</span>') : '');
+    o += UI.irow('mcr' + b.id, '♻️', 'When a machine is destroyed', h ? (like ? 'like-for-like' : 'best judgement') : 'you decide', h ? `${h.label} replaces it at the start of next month (gets it right about ${U.pct(h.p)} of the time). Best judgement = picks used, standard or premium by your cash and whether you have a mechanic. Like-for-like = same kind and quality as before.` : 'No GM or Ops manager: a destroyed machine waits for you (Replace or Scrap in the list below).', h ? UI.btn(like ? '🔁 Like-for-like ✓' : '🔁 Like-for-like', 'ordLike', null, 'xs' + (like ? ' pri' : '')) : UI.btn('➕ Ops manager', 'hireRole', 'ops', 'xs'));
+    if (TG.B.def(b).insurance.includes('equipment')) {
+      const on = !!(b.ins && b.ins.equipment); const pr = TG.F.premium(g, b, 'equipment'); const rk = TG.V10.machineRisk(g, b); const val = TG.V10.machineNew(g, b);
+      o += UI.irow('mci' + b.id, on ? '✅' : '🛡️', 'Machine insurance', `${m(pr)}/mo`, `If a machine you own is DESTROYED (total failure), it pays ${U.pct(C.finance.insCover)} of what a new one costs, after a ${m(C.finance.insDeductible * g.world.priceIdx)} deductible. Normal breakdowns are not covered (that is your mechanic's job). Leased machines are the leasing company's problem. Premium = ${U.pct(C.v10.machineIns.pct, 2)} of the new price of your machines (${m(val)}) a month, and rises after a claim. Right now the odds one of your machines is destroyed this month are about ${U.pct(rk.p, 1)} (expected loss ≈ ${m(rk.exp)}/mo).`, on ? UI.btn('Covered ✓ (cancel)', 'ins', 'equipment', 'xs goodb') : UI.btn('🛒 Buy', 'ins', 'equipment', 'xs'), `odds of a total loss ${U.pct(rk.p, 1)}/mo · ≈ ${m(rk.exp)}/mo expected`);
+    }
+    return o + '</div>';
+  };
+  UI.A.ordLike = () => { const b = biz(); b.orders = b.orders || {}; b.orders.replaceLike = !b.orders.replaceLike; UI.refresh(); };
   function itemRow(g, b, it) {
     const C = TG.CONFIG, E = TG.E; const bc = it.broken ? null : E.breakChance(g, b, it); const w = E.effWear(it);
     const st = it.broken === 'destroyed' ? UI.pill('gone', 'bad') : it.broken ? UI.pill('broken', 'bad') : UI.risk(bc.p);
     const wearShown = it.hidden > 0 && !it.inspected ? `${Math.round(it.wear)}%+?` : `${Math.round(w)}%`;
     const k = 'it' + it.id;
     return `<div class="ev ${it.broken ? 'bad' : w > 70 ? 'warn' : 'good'}"><div class="row sp"><b data-act="tip" data-arg="${k}" data-nosave="1">${esc(it.label)} #${E.num(b, it)}</b>${st}</div>
-      <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased' : ''}${it.maint ? ' · 🛡️ plan' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
+      <div class="row"><span class="small">⏳ ${(it.age / 12).toFixed(1)} yrs · 🔩 wear ${wearShown}${it.leased ? ' · 📄 leased (servicing included)' : ''}</span>${UI.tipBtn(k)}</div>${UI.bar(w, 100, true)}
       ${UI.tipLine(k, `${C.equipTiers[it.tier].label}. Worth ${m(E.resale(g, b, it))}.${it.leased ? ' Lease ' + m(it.leasePay) + '/mo.' : ''}${it.warranty > 0 ? ' Warranty ' + it.warranty + ' mo.' : ''}${bc ? ' Break risk: ' + bc.factors.join(', ') + '.' : ''}`)}
       <div class="btns">${it.broken && it.broken !== 'destroyed' ? UI.btn(`🔧 Fix ${it.warranty > 0 || it.leased ? '(free)' : m(E.repairCost(g, b, it))}`, 'eqDo', `${it.id}|repair`, 'xs goodb') : ''}
       ${!it.broken ? UI.btn(`🧰 Service ${m(E.def(b, it.type).price * C.equipment.serviceCostPct * g.world.priceIdx)}${TG.USES.used(it, 'service', g.month) ? ' ✓' : ''}`, 'eqDo', `${it.id}|service`, 'xs') : ''}
-      ${!it.leased ? UI.btn(it.maint ? '🛡️ Stop plan' : `🛡️ Plan ${m(E.def(b, it.type).price * C.equipment.maintPlanCostPct * g.world.priceIdx)}/mo`, 'eqDo', `${it.id}|maint`, 'xs') : ''}
+      ${it.broken === 'destroyed' ? `${UI.btn(`♻️ Replace like-for-like ${m(E.price(g, b, it.type, it.tier))}`, 'eqDo', `${it.id}|replace`, 'xs goodb')}${UI.btn('🗑️ Scrap', 'eqDo', `${it.id}|scrap`, 'xs')}` : ''}
       ${it.hidden > 0 && !it.inspected ? UI.btn(`🔍 ${m(E.def(b, it.type).price * C.equipment.inspectCost * g.world.priceIdx)}`, 'eqDo', `${it.id}|inspect`, 'xs') : ''}
       ${UI.btn(it.leased ? '↩️ Return' : '💵 Sell', 'eqDo', `${it.id}|sell`, 'xs badb')}</div></div>`;
   }
@@ -8049,7 +8568,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const g = TG.G, b = biz(); const [id, act] = arg.split('|'); const it = b.equip.find((x) => x.id === id); if (!it) return;
     if (act === 'repair') TG.E.repair(g, b, id, 'You');
     if (act === 'service') { const r = TG.E.service(g, b, id); if (r === 'again') UI.toast('Already serviced this month: that visit did nothing (one service a month).', true); }
-    if (act === 'maint') it.maint = !it.maint;
+    if (act === 'replace') { if (!TG.E.replace(g, b, id, it.tier, 'You')) UI.toast(`Not enough cash (${m(TG.E.price(g, b, it.type, it.tier))}).`, true); }
+    if (act === 'scrap') { TG.E.sell(g, b, id); UI.toast('Scrapped.'); }
     if (act === 'inspect') { TG.E.inspect(g, b, id); UI.toast(`True wear: ${Math.round(it.wear)}%`); }
     if (act === 'sell') { const v = TG.E.sell(g, b, id); UI.toast(v ? `Sold for ${m(v)}.` : 'Returned.'); }
     TG.D.removeFor(g, (dd) => dd.itemId === id && !b.equip.some((x) => x.id === id && x.broken));
@@ -8061,7 +8581,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.fixDesc = (g, b, f) => {
     const d = TG.B.def(b), out = [], P = (x, dg) => U.pct(x, dg || 0); const eqL = (id) => { const e = d.equip.find((x) => x.id === id); return e ? e.label.toLowerCase() : id; };
     const risk = (k) => { const r = d.risks.find((x) => x.id === k); return r ? r.label.toLowerCase() : k; };
-    for (const [k, v] of Object.entries(f.reduces || {})) out.push(`${risk(k)} odds ${v === 0 ? 'gone' : '−' + P(1 - v)}`);
+    for (const [k, v] of Object.entries(f.reduces || {})) out.push(`${risk(k)} odds ${v === 0 ? 'gone' : v > 1 ? '+' + P(v - 1) : '−' + P(1 - v)}`);
     if (f.equipBreak) for (const [k, v] of Object.entries(f.equipBreak)) out.push(`${eqL(k)} breakdown odds −${P(1 - v)}`);
     if (f.skillGrowth) out.push(`staff learn ${P(f.skillGrowth - 1)} faster`);
     if (f.cogsAdd) out.push(f.cogsAdd > 0 ? `supplies cost +${P(f.cogsAdd)} of sales` : `supplies cost ${P(-f.cogsAdd)} of sales less`);
@@ -8091,6 +8611,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (f.scandalCut) out.push(`franchisee scandal odds −${P(1 - f.scandalCut)}`);
     if (f.appMult) out.push(`${P(1 - f.appMult)} fewer join requests`);
     if (f.cannibalCut) out.push(`shops steal ${P(f.cannibalCut)} fewer of each other's customers`);
+    if (f.staffMult) out.push(`staff get ${P(f.staffMult)} more done`);
+    if (f.capMult) out.push(`+${P(f.capMult)} room / capacity`);
+    if (f.supplyCut) out.push(`supplies cost ${P(f.supplyCut)} less`);
+    if (f.salesUp) out.push(`+${P(f.salesUp)} on every sale`);
+    if (f.costCut) for (const [l, v] of Object.entries(f.costCut)) out.push(`${l.toLowerCase()} −${P(v)}`);
+    if (f.churnCut) out.push(`${P(f.churnCut, 1)} fewer users quit each month`);
+    if (f.organicMult) out.push(`+${P(f.organicMult - 1)} free sign-ups (word of mouth)`);
     if (f.perUnitMonthly) out.push(`${m(f.perUnitMonthly * g.world.priceIdx)}/mo for each ${b.type === 'tech' ? 'server' : 'truck'}`);
     const S = {
       plant: () => { const v = TG.M.plantVolume ? TG.M.plantVolume(b) : 0; return [`sells grain & fruit for +${P(f.valueMult - 1)} and milk & beef for +20% (you sell flour, juice, cheese and packed meat instead of raw goods)`, `only runs with ${N(f.minVolume)} t a year through it (you had ${N(v)} t in the last 12 months); below that it sits idle`, `${P(0.012, 1)} chance a month it breaks (repair ${m(9000000 * 0.02 * g.world.priceIdx)}, idle that month)`]; },
@@ -8114,35 +8641,63 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   const N = (x) => Math.round(x || 0).toLocaleString();
   function upg(g, b) {
-    const d = TG.B.def(b), C = TG.CONFIG;
-    let o = `<div class="card"><h3 style="margin-top:0">⬆️ Upgrades</h3><div class="mute">Each one says exactly what it changes, in numbers.</div>`;
-    for (const f of d.fixes) {
-      const on = !!b.fixes[f.id]; const what = UI.fixDesc(g, b, f);
-      o += `<div class="ev ${on ? 'good' : ''}"><div class="row sp"><b>${esc(f.label)}</b>${on ? UI.pill('active', 'good') : ''}</div><div class="small">💵 ${f.cost ? `${m(f.cost * g.world.priceIdx)} once` : 'No upfront cost'}${f.monthly ? ` + ${m(f.monthly * g.world.priceIdx)}/mo` : ''}</div>
-        <ul class="fx">${what.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        <div class="btns">${on ? (b.fixes[f.id].until > g.month ? `<span class="mute">Locked in until ${U.dateStr(b.fixes[f.id].until)}</span>` : UI.btn('Drop', 'fix', `${f.id}|0`, 'sm')) : UI.btn('Add', 'fix', `${f.id}|1`, 'sm pri')}</div></div>`;
+    const d = TG.B.def(b), C = TG.CONFIG; const V = TG.V10;
+    let o = `<div class="card"><h3 style="margin-top:0">⬆️ Upgrades ${UI.tipBtn('upgH' + b.id)}</h3>${UI.tipLine('upgH' + b.id, 'Each card says what it changes in numbers. 📈 Payback = what it adds to a month (next month, played twice on a copy of your game: with and without it, same luck), plus the trouble it saves on average. Payback months = upfront cost ÷ that. Estimates, not promises: busy months pay more.')}<div class="mute">${d.fixes.filter((f) => b.fixes[f.id]).length}/${d.fixes.length} active · best payback first</div></div>`;
+    const rows = d.fixes.map((f) => ({ f, gain: b.fixes[f.id] ? null : V.fixGain(g, b, f.id) }));
+    rows.sort((x, y) => (!!b.fixes[x.f.id] - !!b.fixes[y.f.id]) || ((x.gain ? x.gain.months : 1e9) - (y.gain ? y.gain.months : 1e9)));
+    o += '<div class="card">';
+    for (const { f, gain } of rows) {
+      const on = !!b.fixes[f.id]; const what = UI.fixDesc(g, b, f); const cost = Math.round((f.cost || 0) * g.world.priceIdx); const mo = Math.round((f.monthly || 0) * g.world.priceIdx);
+      let pay = '';
+      if (gain) {
+        const net = gain.net; const pm = gain.months;
+        if (!b.revAvg && !(gain.net > 0)) pay = '<div class="small mute">📈 Payback shows once you have sales.</div>'; else
+        pay = `${gain.full ? '<div class="small warn">⚠️ You are full right now: more customers cannot be served. Add staff or gear first, then this pays.</div>' : ''}<div class="small">📈 <b class="${net > 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b> (${gain.money == null ? '?' : (gain.money >= 0 ? '+' : '−') + m(Math.abs(gain.money))} next month${gain.risk > 0 ? ` + ${m(gain.risk)} less trouble on average` : gain.risk < 0 ? ` − ${m(-gain.risk)} more trouble on average` : ''}${mo ? ', after its monthly fee' : ''}) · ⏱️ ${net <= 0 ? '<span class="bad">does not pay back right now</span>' : cost ? `pays back in <b>${pm < 1 ? 'under 1' : pm > 120 ? '10+ yrs' : Math.round(pm)} month${pm >= 1.5 && pm <= 120 ? 's' : ''}</b>` : '<b>pays from month 1</b>'}</div>`;
+      }
+      o += `<div class="ev ${on ? 'good' : ''} upgcard" data-fix="${esc(f.id)}"><div class="row sp"><b>${f.ic || '⬆️'} ${esc(f.label)}</b>${on ? UI.pill('active', 'good') : ''}</div><div class="small">💵 ${cost ? `${m(cost)} once` : 'No upfront cost'}${mo ? ` + ${m(mo)}/mo` : ''}${f.perUnitMonthly ? ` + ${m(f.perUnitMonthly * g.world.priceIdx)}/mo each ${b.type === 'tech' ? 'server' : 'truck'}` : ''}</div>
+        <ul class="fx">${what.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>${pay}
+        <div class="btns">${on ? (b.fixes[f.id].until > g.month ? `<span class="mute">Locked in until ${U.dateStr(b.fixes[f.id].until)}</span>` : UI.btn('Drop', 'fix', `${f.id}|0`, 'sm')) : UI.btn(cost ? `🛒 Add (${m(cost)})` : '🛒 Add', 'fix', `${f.id}|1`, 'sm pri', g.cash < cost)}</div></div>`;
     }
-    o += `</div><div class="card"><h3 style="margin-top:0">Insurance</h3><div class="mute">Insurance pays most of a covered loss. Premiums rise after claims.</div><table>`;
-    for (const t of d.insurance) {
-      const I = C.finance.insurance[t]; if (!I) continue;
-      o += `<tr><td>${esc(I.label)}</td><td class="n">${m(TG.F.premium(g, b, t))}/mo</td><td class="n">${b.ins[t] ? UI.btn('Covered ✓ (cancel)', 'ins', t, 'sm goodb') : UI.btn('Buy', 'ins', t, 'sm')}</td></tr>`;
+    o += '</div>';
+    const ins = d.insurance.filter((t) => t !== 'equipment');
+    if (ins.length) {
+      o += `<div class="card"><h3 style="margin-top:0">🛡️ Insurance</h3><div class="mute">Pays ${U.pct(C.finance.insCover)} of a covered loss after a deductible. Premiums rise after claims. Machine insurance is on the 🛠️ Gear tab.</div>`;
+      for (const t of ins) { const I = C.finance.insurance[t]; if (!I) continue; o += UI.irow('ins' + t + b.id, b.ins[t] ? '✅' : '🛡️', I.label, `${m(TG.F.premium(g, b, t))}/mo`, I.desc || 'Pays most of a covered loss.', b.ins[t] ? UI.btn('Covered ✓ (cancel)', 'ins', t, 'xs goodb') : UI.btn('Buy', 'ins', t, 'xs')); }
+      o += '</div>';
     }
-    return o + `</table></div>`;
+    return o;
   }
   UI.A.fix = (arg) => { const g = TG.G, b = biz(); const [id, on] = arg.split('|'); if (on === '1') UI.res(TG.B.buyFix(g, b, id), 'Added.'); else { TG.B.dropFix(g, b, id); UI.toast('Dropped.'); } UI.refresh(); };
   UI.A.ins = (t) => { const b = biz(); b.ins[t] = !b.ins[t]; UI.refresh(); };
 
   // ---------- marketing ----------
   function mkt(g, b) {
-    const C = TG.CONFIG.reputation; const ab = TG.B.adBoost(g, b);
-    let o = `<div class="card"><h3 style="margin-top:0">Advertising</h3><div class="kv"><span>Monthly budget</span><span><input type="number" id="adBudget" value="${b.ads.budget || 0}" min="0" step="100"></span>
-      <span>Channel</span><span><select id="adCh">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${b.ads.channel === k ? ' selected' : ''}>${c.label} (flop risk ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
-      <div class="btns">${UI.btn('Save ad plan', 'adSave', null, 'pri')}</div>
-      <div class="mute">Current effect: about +${U.pct(ab.boost || 0)} demand. Ads have diminishing returns and work worse with a poor reputation${b.spec.ads ? '; your ads manager makes spend go further' : ''}.</div></div>`;
+    const C = TG.CONFIG.reputation; const V = TG.V10; let o = '';
+    const cu = (TG.CONFIG.businesses[b.type].customers || []);
+    if (cu.length) o += `<div class="card"><h3 style="margin-top:0">🧑‍🤝‍🧑 Your customers</h3>${cu.map((c, i) => UI.irow('cu' + b.id + i, c.ic, c.who, U.pct(c.share), `${c.who}: about ${U.pct(c.share)} of your customers. They want ${c.wants}.`, null, esc(c.wants))).join('')}</div>`;
+    if (!V.adModel(b)) {
+      return o + `<div class="card"><h3 style="margin-top:0">📣 Advertising</h3><div class="ev info">${b.farm ? '🚜 A farm sells to the market at the market price' : '🏭 A factory sells to buyers at the market price'}: ads cannot sell more. Raise output and quality instead (⬆️ Upgrades and 🛠️ Gear).</div></div>`;
+    }
+    const ab = TG.B.adBoost(g, b); const ch = b.ads.channel || 'social'; const budget = b.ads.budget || 0;
+    const L = b.adLast; const H = (b.adHist || []).slice(-6);
+    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Ads bring extra customers, with diminishing returns (each extra dollar does a bit less). A good reputation makes them work better. Each channel has a chance to flop (that month the ads do little). If you are already full, extra customers are turned away: add staff or gear first.')}
+      <div class="kv"><span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span>
+      <span>📺 Channel</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.label} (flop ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
+      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch)}</div>
+      <div class="btns">${UI.btn('💾 Save ad plan', 'adSave', null, 'pri')}${budget ? UI.btn('⏹️ Stop ads', 'adStop', null, 'sm') : ''}</div></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">📏 What your ads really did</h3>${L ? UI.irow('adL' + b.id, L.flop ? '💨' : '📈', `Last month (${m(L.spent)})`, `+${Math.round(L.extra).toLocaleString()} ${esc(L.unit)}`, L.flop ? 'The campaign flopped: it did much less than usual.' : 'Counted from last month: what you sold versus what you would have sold without the ads.', null, `${L.extraRev ? `≈ ${m(L.extraRev)} extra sales` : ''}${L.full ? ' · ⚠️ you were full: more ads cannot sell more' : ''}${L.flop ? ' · flopped' : ''}`) : '<div class="mute">No ads ran last month.</div>'}
+      ${H.length > 1 ? `<table class="small"><tr><th>Month</th><th class="n">Spent</th><th class="n">Extra</th></tr>${H.slice().reverse().map((x) => `<tr><td>${U.dateStr(x.m)}</td><td class="n">${m(x.spent)}</td><td class="n">+${Math.round(x.extra).toLocaleString()}${x.flop ? ' 💨' : ''}</td></tr>`).join('')}</table>` : ''}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Reputation & PR</h3><div>Reputation ${Math.round(b.rep)}/100 ${UI.bar(b.rep, 100)}</div><div class="mute">PR can speed up recovery after a hit, but can flop.</div>${UI.irow('prUse' + b.id, '📣', 'PR left this month', `${TG.USES.left(b, 'pr', g.month, TG.CONFIG.reputation.prPerMonth)}/${TG.CONFIG.reputation.prPerMonth}`, 'You get 2 PR moves a month. The 2nd does half as much. Any more looks spammy or desperate and LOSES reputation.')}<div class="btns">${Object.entries(C.pr).map(([k, p]) => UI.btn(`${p.label} (${p.cost != null ? m(p.cost * g.world.priceIdx) : m(b.revAvg * p.costRev)}, ${U.pct(p.fail)} flop)`, 'pr', k, 'sm')).join('')}</div></div>`;
     return o;
   }
   UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; UI.toast('Ad plan saved.'); UI.refresh(); };
+  UI.A.adStop = () => { biz().ads.budget = 0; UI.toast('Ads stopped.'); UI.refresh(); };
+  UI.adPrevHtml = (g, b, budget, ch) => {
+    if (!(budget > 0)) return '<div class="mute">No ads: type a budget to see what it would do.</div>';
+    const p = TG.V10.adPreview(g, b, budget, ch); const mdl = TG.B.def(b).model; const per = (mdl === 'service' || mdl === 'freight');
+    return `<div class="ev ${p.full ? 'warn' : 'info'}">🔮 <b>${m(budget)}/mo</b> ≈ <b>+${U.pct(p.boost)}</b> more customers wanting you (after flops ≈ +${U.pct(p.expBoost)})${per && b.lastCtx ? ` → about <b>+${Math.round(p.extra).toLocaleString()}</b> served${p.extraRev ? `, ≈ ${m(p.extraRev)} sales` : ''}` : ''}.${p.full ? ' ⚠️ You are already about full: extra customers will be turned away.' : ''}</div>`;
+  };
+  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), UI.val('adCh') || 'social'); };
   UI.A.pr = (k) => { TG.B.doPR(TG.G, biz(), k, 'You'); const d = TG.G.cur.decisions[TG.G.cur.decisions.length - 1]; UI.toast(d ? d.text : 'Done.', d && d.outcome === 'bad'); UI.refresh(); };
 
   // ---------- ownership ----------
@@ -8234,7 +8789,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   // ---- farm: a short summary per area (details live on the 🌄 Land tab) ----
   function farmRows(g, b) {
     const f = TG.M.farmEnsure(b), A = f.areas; let o = '';
-    if (A.cows.acres || A.cows.herd) {
+    if (A.cows.st) TG.M.herdSync(A.cows); /* v10: count the herd BEFORE deciding to show it, so 1 dry cow on a farm with no cow acres still gets its row */
+    if (A.cows.acres || A.cows.herd || (A.cows.st && TG.M.cowStages.some((k) => (A.cows.st[k] || 0) > 0))) {
       const a = A.cows, HC = TG.CONFIG.cows; TG.M.herdSync(a);
       const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
       o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);
@@ -8665,7 +9221,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.A.reBuy = (arg) => {
     const [id, mo, ok] = arg.split('|'); const g = TG.G; const l = g.re.listings.find((x) => x.id === id);
     if (l && mo === '0' && ok !== 'y') { const c = Math.round(l.price * (1 + TG.CONFIG.property.buyCostPct)); if (c > g.cash * 0.4) return UI.confirm(`Pay ${m(c)} cash for ${l.name}? That is ${Math.round(c / Math.max(1, g.cash) * 100)}% of your cash, leaving ${m(g.cash - c)}.`, 'reBuy', `${id}|0|y`); }
-    UI.closeModal(); after(TG.RE.buy(g, id, mo === '1'), 'Bought.');
+    UI.closeModal(); const rb = TG.RE.buy(g, id, mo === '1'); after(rb, rb && rb.ok && rb.h && rb.h.units ? `Bought. ${rb.h.units > 1 ? `All ${rb.h.units} units are` : 'It is'} empty: set each unit's rent and find a tenant for each one (🚪 Units).` : 'Bought.');
   };
   UI.A.reInspect = (id) => { const t = TG.RE.inspect(TG.G, id); if (t) UI.toast(t); UI.refresh(); };
   UI.A.reSet = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (!h) return; const k = el.dataset.k; h[k] = k === 'upkeep' ? v : v === '1'; UI.refresh(); };
@@ -8743,11 +9299,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   function casino(g) {
     const CC = TG.CONFIG.casino, c = g.invest.casino, I = TG.I;
     const amt = UI.S.betAmt || 100;
-    let o = `<div class="card"><div class="kv"><span>Net this month</span><span>${UI.signed(c.net)}</span><span>Lifetime</span><span>${UI.signed(c.lifetimeNet)}</span><span>Bets left this month</span><span>${Math.max(0, CC.betsPerMonth - c.bets)}</span><span>Table limit</span><span>${m(I.betLimit(g))}</span></div>
-      <div class="row" style="margin-top:6px"><span>Bet</span><input type="number" id="betAmt" value="${amt}" min="${CC.minBet}" max="${I.betLimit(g)}"></div>
-      <div class="mute">Every game has a house edge: over time you lose. Limits keep it from becoming a strategy.${g.invest.habit > 40 ? ' <b class="warn">Your gambling habit is growing: you may start chasing losses on your own.</b>' : ''}${c.banned ? ' <b class="bad">You are banned from the casino.</b>' : ''}</div>
+    let o = `<div class="card"><div class="kv"><span>Net this month</span><span>${UI.signed(c.net)}</span><span>Lifetime</span><span>${UI.signed(c.lifetimeNet)}</span><span>Bets this month</span><span>${c.bets || 0}</span><span>Table limit</span><span>none (bet any amount you have)</span></div>
+      <div class="row" style="margin-top:6px"><span>Bet</span><input type="number" id="betAmt" value="${amt}" min="${CC.minBet}"></div>
+      <div class="mute">Every game has a house edge: over time you lose. There is no table limit: big bets lose big just as fast, and the odds are the same at any size.${g.invest.habit > 40 ? ' <b class="warn">Your gambling habit is growing: you may start chasing losses on your own.</b>' : ''}${c.banned ? ' <b class="bad">You are banned from the casino.</b>' : ''}</div>
       ${UI.S.lastBet ? `<div class="ev ${UI.S.lastBet.win ? 'good' : 'bad'}">${esc(UI.S.lastBet.text)}</div>` : ''}</div>`;
-    o += `<div class="card"><h3 style="margin-top:0">🎰 Casino ${UI.tipBtn('csCas')}</h3>${UI.tipLine('csCas', `Pick a game; your bet is the amount above. Roulette red/black wins 18 in 37 (pays 1:1), dozen 12 in 37 (pays 2:1), one number 1 in 37 (pays 35:1). Dice wins 15 in 36 (pays 1.3:1). Slots pay back ${U.pct(CC.games.slots.rtp)} of bets on average. Every game loses a little each bet on average, so the more you play, the surer you lose. Max ${CC.betsPerMonth} bets a month, bets of ${U.money(CC.minBet)}-${U.money(I.betLimit(g))}.`)}<div class="btns">${Object.entries(CC.games).map(([k, gm]) => UI.btn(`${esc(gm.label)}${gm.pays ? ` (pays ${gm.pays}:1)` : ` (${U.pct(gm.rtp)} return)`}`, 'bet', `c|${k}`, 'sm')).join('')}</div></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">🎰 Casino ${UI.tipBtn('csCas')}</h3>${UI.tipLine('csCas', `Pick a game; your bet is the amount above. Roulette red/black wins 18 in 37 (pays 1:1), dozen 12 in 37 (pays 2:1), one number 1 in 37 (pays 35:1). Dice wins 15 in 36 (pays 1.3:1). Slots pay back ${U.pct(CC.games.slots.rtp)} of bets on average. Every game loses a little each bet on average, so the more you play, the surer you lose. No table limit and no bet count: the odds are the same for every bet.`)}<div class="btns">${Object.entries(CC.games).map(([k, gm]) => UI.btn(`${esc(gm.label)}${gm.pays ? ` (pays ${gm.pays}:1)` : ` (${U.pct(gm.rtp)} return)`}`, 'bet', `c|${k}`, 'sm')).join('')}</div></div>`;
     const r = g.invest.race;
     o += `<div class="card"><h3 style="margin-top:0">🏇 Horse race ${UI.tipBtn('csHr')}</h3>${UI.tipLine('csHr', `The number is what you get back per $1 if that horse wins (2.50x = $250 back on a $100 bet). Lower number = more likely to win. The track keeps about ${U.pct(1 - 1 / CC.horses.overround)} of all bets, so on average you lose.`)}${r.horses.map((h, i) => `<div class="row sp small"><span>${esc(h.name)}</span><span>${h.odds.toFixed(2)}x ${UI.btn('Bet', 'bet', `h|${i}`, 'sm')}</span></div>`).join('')}</div>`;
     const gm = g.invest.game;
@@ -9219,7 +9775,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const terms = TG.CONFIG.credit.terms.mortgage;
     const row = (a, b) => `<tr><td>${a}</td><td class="n">${b}</td></tr>`;
     return `<div class="card"><h3>🏦 Your monthly payment</h3><table>
-      ${row('Price', m(p.loan + p.down))}${row('Down payment', `${m(p.down)} (${U.pct(p.down / (p.loan + p.down))})`)}${row('Loan', m(p.loan))}
+      ${row('Price', m(p.loan + p.down))}${row('Down payment', act === 'reFin' ? `<select data-change="finDown" data-id="${id}" data-act2="${act}">${TG.CONFIG.v10.reDown.map((d) => `<option value="${d}"${Math.abs(p.down / (p.loan + p.down) - d) < 0.02 ? ' selected' : ''}>${U.pct(d)} = ${m((p.loan + p.down) * d)}</option>`).join('')}</select>` : `${m(p.down)} (${U.pct(p.down / (p.loan + p.down))})`)}${row('Loan', m(p.loan))}
       ${row('Length', `<select data-change="finTerm" data-id="${id}" data-act2="${act}">${terms.map((t) => `<option value="${t}"${p.q.term === t ? ' selected' : ''}>${t / 12} years</option>`).join('')}</select>`)}
       ${row(`Rate <span class="mute">(score ${p.q.score})</span>`, U.pct(p.q.rate, 2))}${row('Loan payment', `<b>${m(p.q.pay)}/mo</b>`)}${row('Property tax', `${m(p.tax)}/mo`)}${row('Insurance', `${m(p.ins)}/mo`)}
       ${row('<b>Total each month</b>', `<b>${m(p.total)}/mo</b>`)}${row('<b>Cash today</b>', `<b>${m(p.cash)}</b>`)}</table>
@@ -9230,11 +9786,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       ${g.cash < p.cash ? `<div class="ev bad">You need ${m(p.cash - g.cash)} more cash today to apply (you have ${m(g.cash)}).</div>` : ''}
       <div class="mute">Applying counts as a loan application even if the bank says no.</div></div>`;
   };
+  UI.A.finDown = (v, el) => { UI.S.finDown = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
   UI.A.finTerm = (v, el) => { UI.S.finTerm = Number(v); UI.A[el.dataset.act2](el.dataset.id); };
   // real estate listing
   UI.A.reFin = (id) => {
     const g = TG.G; const l = g.re.listings.find((x) => x.id === id); if (!l) return;
-    const k = TG.CONFIG.realEstate.kinds[l.kind]; const ltv = k.commercial ? 0.75 : 0.8; const rc = TG.CONFIG.realEstate;
+    const ltv = Math.min(TG.RE.maxLtv(l), 1 - (UI.S.finDown || 0)); const rc = TG.CONFIG.realEstate; /* v10: pick your down payment */
     const p = UI.finPreview(g, l.price, ltv, { rent: TG.RE.estRent(g, l), taxPct: rc.propertyTax, insPct: rc.insurancePct }, UI.S.finTerm || 300);
     const pu = TG.RE.marketRent(g, l);
     // v9 audit: what a typical month leaves you after ALL running costs and the loan (rentals with a loan often cost you cash each month)
@@ -9243,7 +9800,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     UI.modal(`🏠 ${esc(l.name)}`, finHtml(g, p, 'reFin', id) + flow + `<div class="card"><div class="kv kvl"><span>Rent (est.)</span><span>${l.units ? `${m(pu)}/unit${l.units > 1 ? ` × ${l.units} = ${m(pu * l.units)}/mo when full` : '/mo'}` : 'no rent (land)'}</span></div>${l.units ? `<div class="mute">Lenders count about ${m(TG.RE.estRent(g, l))}/mo of it (some months units sit empty).</div>` : ''}</div>
       <div class="btns">${UI.btn('📝 Apply & buy', 'reFinGo', id, 'sm pri', !!p.q.block || g.cash < p.cash)}${UI.btn('Cancel', 'closeModal', null, 'sm')}</div>`);
   };
-  UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, 'Approved and bought.'); };
+  UI.A.reFinGo = (id) => { const r = TG.RE.buy(TG.G, id, true, UI.S.finTerm || 300, UI.S.finDown || 0); UI.closeModal(); after(r && r.ok === false ? r : { ok: true }, r && r.h && r.h.units ? `Approved and bought. ${r.h.units > 1 ? `All ${r.h.units} units are` : 'It is'} empty: set each unit's rent and find a tenant for each one.` : 'Approved and bought.'); };
   // business property listing
   UI.A.propFin = (id) => {
     const g = TG.G; const p0 = g.listings.find((x) => x.id === id); if (!p0) return; const C = TG.CONFIG;
@@ -9256,26 +9813,27 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.rentRows = (g, h) => {
     const RE = TG.RE, T = TG.CONFIG.tenants; if (!h.units || h.kind === 'land') return '';
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
-    let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
-    if (h.units > 1) o += `<div class="small">Your rent ${m(ask)}/unit × ${h.units} units = <b>${m(ask * h.units)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
+    let o = `<div class="row small" style="margin-top:4px"><span>${h.units > 1 ? 'Rent for every unit' : 'Your rent'}</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
+    const tot = (h.tenants || []).reduce((a, t, u) => a + (t ? t.rent || 0 : RE.askRent(g, h, u)), 0); const diff = Object.keys(h.unitR || {}).length > 0;
+    if (h.units > 1) o += `<div class="small">${diff ? 'Rents set per unit' : `Your rent ${m(ask)}/unit × ${h.units} units`} = <b>${m(tot)}/mo when full</b> · now ${h.units - vac} of ${h.units} rented${h.mode === 'rent' && vac < h.units ? ` paying ${m((h.tenants || []).reduce((a, t) => a + (t ? t.rent || 0 : 0), 0))}/mo (leases keep the rent they signed at)` : ''}</div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
     if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect roughly ${Math.max(1, Math.round(pv.n) - 2)}-${Math.round(pv.n) + 2} applicants per search (it varies), mostly ${pv.label}.</div>`;
     void cur;
     return o;
   };
-  UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) h.rentR = Number(v); UI.refresh(); };
+  UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) { h.rentR = Number(v); h.unitR = {}; } UI.refresh(); }; /* v10: one rent for all; each empty unit can then be changed on its own */
   // v7: every unit has its own search; you see one applicant at a time and cannot go back
   UI.A.reSearch = (arg) => {
     const g = TG.G, RE = TG.RE; const [hid, us] = String(arg).split('|'); const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
     const u = RE.pickUnit(g, h, us != null && us !== '' ? Number(us) : null, true); if (u < 0 || h.tenants[u]) { UI.closeModal(); UI.refresh(); return UI.toast('That unit is rented.'); }
     const a = RE.current(g, h, u); const tag = h.units > 1 ? ` · unit ${u + 1}` : ''; const key = `${hid}|${u}`;
     if (!a) {
-      const pv = RE.poolPreview(g, h); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
+      const pv = RE.poolPreview(g, h, false, u); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
       return UI.modal(`🔎 Tenant search${esc(tag)}`, `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
-        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
+        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h, u))} (${Math.round(RE.unitRentR(h, u) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h, false, u))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
         <div class="mute">One tenant per home. This search is for this unit only. Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
         ${RE.unitIssues(h, u).length ? '<div class="ev bad">Fix the repair in this unit first.</div>' : ''}
-        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h, false, u))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h, false, u) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
     }
     const s = h.searches[u]; const left = s.list.length - s.i; const marks = RE.applicantMarks(a);
     UI.modal(`👤 Applicant${esc(tag)}`, `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left for this unit</span></div>
@@ -9460,14 +10018,16 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const fix = iss.map((it) => `<div class="small bad">🔧 ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
       if (t) { const q = RE.quality(t); return `<div class="unit"><span class="un">🟢 ${u + 1}</span><span class="ub"><b>${esc(t.name)}</b> ${UI.pill('⭐'.repeat(q.stars) + ' ' + q.label, q.tone)}<br>${m(t.rent)}/mo · ${t.evict ? `<span class="bad">eviction: ${t.evict} mo</span>` : `lease ${RE.leaseLeft(g, t)} mo left`}${t.late ? ` · <span class="bad">${t.late} mo behind</span>` : ''}${fix}</span></div>`; }
       const cur = RE.current(g, h, u); const s = h.searches[u];
-      const act = h.mode !== 'rent' ? '<span class="mute">not renting</span>' : iss.length ? '<span class="mute">fix first</span>' : mgr ? '<span class="mute">manager is on it</span>' : cur ? UI.btn(`👤 Applicants (${s.list.length - s.i})`, 'reSearch', `${h.id}|${u}`, 'xs pri') : UI.btn(`🔎 Search ${m(RE.searchCost(g, h))}`, 'reSearch', `${h.id}|${u}`, 'xs');
-      return `<div class="unit"><span class="un">🔴 ${u + 1}</span><span class="ub"><b>Empty</b> · would rent for ${m(RE.askRent(g, h))}/mo${fix}</span>${act}</div>`;
+      const act = h.mode !== 'rent' ? '<span class="mute">not renting</span>' : iss.length ? '<span class="mute">fix first</span>' : mgr ? '<span class="mute">manager is on it</span>' : cur ? UI.btn(`👤 Applicants (${s.list.length - s.i})`, 'reSearch', `${h.id}|${u}`, 'xs pri') : UI.btn(`🔎 Search ${m(RE.searchCost(g, h, false, u))}`, 'reSearch', `${h.id}|${u}`, 'xs');
+      const ur = RE.unitRentR(h, u); const mr = RE.marketRent(g, h); const rsel = `<select class="usel" data-change="reUnitR" aria-label="rent for unit ${u + 1}">${TG.CONFIG.tenants.rentSteps.map((r) => `<option value="${h.id}|${u}|${r}"${Math.abs(ur - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select>`;
+      return `<div class="unit" data-unit="${u}"><span class="un">🔴 ${u + 1}</span><span class="ub"><b>Empty</b> · rent ${rsel}${fix}</span>${act}</div>`;
     });
     const big = h.tenants.length > 8; const lim = UI.S['units' + h.id] ? UI.S['units' + h.id] : 40;
     const shown = UL.slice(0, lim).join('') + (UL.length > lim ? `<div class="btns">${UI.btn(`Show ${Math.min(40, UL.length - lim)} more units`, 'unitsMore', h.id, 'xs')}</div>` : '');
     const whole = (h.issues || []).filter((x) => x.unit == null).map((it) => `<div class="ev bad">🔧 Building: ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
     return `${whole}<details class="grp"${big ? '' : ' open'}><summary><span class="gl"><span class="car"></span>🚪 Units: ${occ}/${h.tenants.length} rented</span><span class="gv">${h.tenants.length - occ ? `<span class="bad">${h.tenants.length - occ} empty</span>` : '<span class="good">full</span>'}</span></summary>${shown}</details>`;
   };
+  UI.A.reUnitR = (v) => { const [hid, u, r] = String(v).split('|'); const h = TG.G.re.holdings.find((x) => x.id === hid); if (!h) return; h.unitR = h.unitR || {}; h.unitR[u] = Number(r); UI.refresh(); };
   UI.A.unitsMore = (hid) => { UI.S['units' + hid] = (UI.S['units' + hid] || 40) + 40; UI.refresh(); };
   UI.A.reFix = (arg) => { const [hid, iid] = arg.split('|'); const r = TG.RE.fixIssue(TG.G, hid, iid); if (UI.res(r, r.ok ? `Fixed for ${m(r.cost)}.` : null)) UI.refresh(); };
 
@@ -9790,6 +10350,126 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const out = sw0(g);
     for (const b of g.businesses) { const d = b.farm && TG.M.dryPile && TG.M.dryPile(g, b); if (d && d.pile) out.push({ b, q: 0, bad: false, dry: d, text: `has ${N(d.n)} dry / old cows piling up (${d.why}): they make no milk and eat up to ${m(d.feed)} of feed a month. Sell them for about ${m(d.meat)} (farm Now tab).` }); }
     return out;
+  };
+})();
+
+</script>
+<script>/* js/ui/ui-v10.js */
+/* ui-v10.js - v10 screens: cost before you buy (each + total, live), play time, version label, takeover starts,
+   "take over a failing business" new game, and the v10 update note. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI, U = TG.U; const m = U.money, esc = UI.esc || ((s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+  const V = TG.V10; const N = (x) => Math.round(x || 0).toLocaleString();
+  const biz = () => TG.B.get(TG.G, UI.bizId);
+
+  // ================= COST BEFORE YOU BUY =================
+  // every "how many" box next to a Buy/Sell button shows the price of one and the total, and updates as you type
+  const PRICE = {
+    qSup: (g, b) => { const s = TG.ST.def(b); return s ? { each: TG.ST.unitCost(g, b), unit: (s.unitWord || 'unit'), buy: true } : null; },
+    qFeed: (g) => ({ each: TG.M.feedPrice(g), unit: 't of feed', buy: true }),
+    qSeed: (g, b) => ({ each: TG.M.models.farm.seedCost(g, b), unit: "acre's seed", buy: true }),
+    qRdy: (g) => ({ each: TG.M.cowValue(g, 'ready'), unit: 'steer', buy: false }),
+    qDry: (g) => ({ each: TG.M.cowValue(g, 'dry') * TG.CONFIG.cows.sellDrop, unit: 'cow', buy: false }),
+    qgrain: (g) => ({ each: TG.W.price(g, 'grain', 0), unit: 't', buy: false }),
+    qfruit: (g) => ({ each: TG.W.price(g, 'fruit', 0), unit: 't', buy: false }),
+  };
+  const priceFor = (id, g, b) => {
+    if (PRICE[id]) return PRICE[id](g, b);
+    if (/^qc_/.test(id) && b && b.farm) { const k = id.slice(3); return { each: TG.M.cowPrice(g, b, k), sell: TG.M.cowValue(g, k) * TG.CONFIG.cows.sellDrop, unit: 'head', buy: true }; }
+    return null;
+  };
+  UI.costLine = (id) => {
+    const g = TG.G, b = biz(); const el = document.getElementById(id); if (!el || !g) return '';
+    const p = priceFor(id, g, b); if (!p) return ''; const n = Math.max(0, Math.round(UI.num(id, 0)));
+    const me = (x) => (x < 10 ? "$" + x.toFixed(2) : m(x)); const a = `${N(n)} × ${me(p.each)} = <b>${m(n * p.each)}</b>`;
+    return p.buy ? `🧾 Buy: ${a}${p.sell ? ` · 💵 sell: ${N(n)} × ${me(p.sell)} = ${m(n * p.sell)}` : ''}${n * p.each > g.cash ? ' <span class="bad">(more than your cash)</span>' : ''}` : `💵 Sell: ${a}`;
+  };
+  const decorate = () => {
+    if (typeof document === 'undefined' || !TG.G) return;
+    for (const el of document.querySelectorAll('input[type="number"][id]')) {
+      const id = el.id; if (!priceFor(id, TG.G, biz())) continue;
+      const row = el.closest('.irow') || el.parentElement; if (!row) continue;
+      let line = document.getElementById('cl_' + id);
+      if (!line) { line = document.createElement('div'); line.className = 'small costline'; line.id = 'cl_' + id; line.style.margin = '0 0 6px 48px'; row.insertAdjacentElement('afterend', line); }
+      line.innerHTML = UI.costLine(id);
+    }
+  };
+  if (typeof document !== 'undefined') {
+    document.addEventListener('input', (e) => {
+      const el = e.target; if (!el || !el.id) return;
+      const line = document.getElementById('cl_' + el.id); if (line) line.innerHTML = UI.costLine(el.id);
+      const f = el.dataset && el.dataset.input && UI.A[el.dataset.input]; if (f) f(el.value, el);
+    });
+  }
+
+  // ================= PLAY TIME + VERSION =================
+  UI.playLine = (g) => `<div class="small mute playtime" id="playTime">⏱️ Play time: <b>${V.playText(V.playMonths(g))}</b> (all your games, in game time) · this game ${V.playText(g.month || 0)} · v${TG.VERSION}</div>`;
+  const home0 = UI.screens.home;
+  UI.screens.home = () => home0() + UI.playLine(TG.G);
+  const more0 = UI.screens.more;
+  UI.screens.more = () => { const o = more0(); return UI.curTab('more', 'mgr') === 'set' ? o + `<div class="card"><h3 style="margin-top:0">⏱️ Play time</h3>${UI.playLine(TG.G)}<div class="mute">Counts every month you have played, across new games and selling everything. Saved with your game and on this device.</div></div>` : o; };
+
+  // ================= RENDER HOOK =================
+  const render0 = UI.render;
+  UI.render = () => {
+    render0(); try { decorate(); } catch (e) { console.error(e); }
+    const g = TG.G; if (!g || !g.v10notes || !g.v10notes.length || document.getElementById('modal')) return;
+    const notes = g.v10notes; g.v10notes = null; UI.save();
+    UI.modal('🆕 Game updated (v10)', `<div class="card">${notes.map((t) => `<div class="ev info">${esc(t)}</div>`).join('')}
+      <div class="small" style="margin-top:6px">⬆️ More upgrades, each with its payback · 📣 ads show what they really did · 🔧 machine insurance and machine care on the Gear tab · 🏠 new rentals start empty: pick each tenant and each unit's rent · 🎁 bonuses build loyalty · ⏱️ play time on Home.</div>
+      <div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
+  };
+  const modal0 = UI.modal;
+  UI.modal = (t, h) => { const r = modal0(t, h); try { decorate(); } catch (e) { /* ignore */ } return r; };
+
+  // ================= START: NEW OR TAKE OVER A STRUGGLING ONE =================
+  const sd0 = UI.startDialog;
+  UI.startDialog = (pid, type) => {
+    sd0(pid, type);
+    const box = document.querySelector('#modal .box'); const q = document.getElementById('stQuick'); if (!box || !q) return;
+    const qrow = q.closest('.kv');
+    qrow.insertAdjacentHTML('beforebegin', `<div class="kv" style="margin-top:6px"><span>🧭 How to start</span><span><select id="stHow" data-change="stHow"><option value="new">🆕 Open a new one</option><option value="take">🏚️ Take over a struggling one (cheaper, needs fixing)</option></select></span></div><div id="stTakeBox"></div>`);
+  };
+  UI.A.stHow = (v) => {
+    const bx = document.getElementById('stTakeBox'); const pv = document.getElementById('stPrevBox'); const q = document.getElementById('stQuick'); const qrow = q && q.closest('.kv');
+    const go = document.querySelector('#modal [data-act="startGo"]'); if (!bx) return;
+    if (v !== 'take') { bx.innerHTML = ''; if (pv) pv.style.display = ''; if (qrow) qrow.style.display = ''; if (go) go.textContent = 'Open the business'; return; }
+    const [pid, type] = (go ? go.dataset.arg : '|').split('|'); const g = TG.G;
+    const t = V.takeoverQuote(g, type, pid, { ent: UI.val('stEnt') || undefined });
+    if (pv) pv.style.display = 'none'; if (qrow) qrow.style.display = 'none'; if (go) go.textContent = '🏚️ Take it over';
+    const T = TG.CONFIG.v10.takeover;
+    bx.innerHTML = t.ok ? `<div class="card"><h3 style="margin-top:0">🏚️ A struggling ${esc(TG.CONFIG.businesses[type].name.toLowerCase())}</h3><table>
+      <tr><td>💵 Price (cash today)</td><td class="n"><b>${m(t.price)}</b></td></tr><tr><td>🆕 A new one with gear would cost</td><td class="n">${m(t.full)}</td></tr>
+      <tr><td>🧾 Old owner's debt you take on (a loan)</td><td class="n">${m(t.debt)}</td></tr><tr><td>💵 Your cash after</td><td class="n ${g.cash - t.price < 0 ? 'bad' : ''}">${m(g.cash - t.price)}</td></tr></table>
+      <div class="small">Comes with: ♻️ worn used gear (${T.wear[0]}-${T.wear[1]}% wear, about ${U.pct(T.broken)} of machines broken) · 👥 a team with low morale · ⭐ reputation ${T.rep[0]}-${T.rep[1]} · 📦 little stock. Already open, so no waiting.</div>
+      <div class="mute">Good move if you can fix it: repair or replace the worst gear, buy supplies, raise morale. Reputation climbs back as quality improves. Bad move if you have no cash left to fix things.</div></div>` : `<div class="ev bad">${esc(t.msg || 'Not possible here.')}</div>`;
+  };
+  const go0 = UI.A.startGo;
+  UI.A.startGo = (arg) => {
+    if (UI.val('stHow') !== 'take') return go0(arg);
+    const [pid, type] = String(arg).split('|'); const g = TG.G; const d = TG.CONFIG.businesses[type];
+    const opts = { name: UI.val('stName') || d.name }; if (d.model === 'farm') opts.ent = UI.val('stEnt') || undefined;
+    if (d.model === 'franchise') { const v = UI.val('stFrom'); if (v.startsWith('biz:')) opts.fromBiz = v.slice(4); else opts.concept = v.slice(2); }
+    const r = V.takeover(g, type, pid, opts); if (!UI.res(r)) return;
+    UI.toast(`You took over ${r.biz.name} for ${m(r.quote.price)}. Fix the gear and buy supplies!`);
+    UI.closeModal(); UI.bizId = r.biz.id; UI.tab.biz = 'overview'; UI.go('bizd');
+  };
+
+  // ================= NEW GAME: take over a failing business of any type =================
+  const ng0 = UI.newGameScreen;
+  UI.newGameScreen = (first) => {
+    ng0(first);
+    const btn = document.querySelector('[data-act="newGame"][data-arg="failing"]'); if (!btn) return;
+    const C = TG.CONFIG; const opts = Object.entries(C.businesses).map(([k, d]) => `<option value="${k}">${d.icon} ${esc(d.name)}</option>`).join('');
+    btn.closest('.card').querySelector('.grow').insertAdjacentHTML('beforeend', `<div class="row small" style="margin-top:4px"><span>Which business?</span><select id="ngFail">${opts}</select></div>`);
+  };
+  const ngA0 = UI.A.newGame;
+  UI.A.newGame = (scenario) => {
+    if (scenario !== 'failing') return ngA0(scenario);
+    const raw = String(UI.val('ngSeed') || '').trim(); const seedV = /^\d+$/.test(raw) ? Number(raw) : NaN;
+    const g = TG.Game.newGame({ scenario, failType: UI.val('ngFail') || 'cafe', name: UI.val('ngName') || 'You', money: UI.val('ngMoney'), seed: Number.isFinite(seedV) ? seedV : undefined, settings: { eventFreq: UI.val('ngFreq') || 'normal', gambling: UI.val('ngGamble') !== '0', crime: UI.val('ngCrime') === '1' } });
+    TG.G = g; UI.closeModal(); UI.save(); UI.bizId = g.businesses[0] && g.businesses[0].id; UI.tab.biz = 'overview'; UI.go(UI.bizId ? 'bizd' : 'home');
+    UI.toast('You took over a failing business. Turn it around!');
   };
 })();
 
