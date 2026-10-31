@@ -396,7 +396,7 @@
       const a = f.areas[from]; soil = a.soil; const keep = (a.acres - acres) / a.acres;
       if (from === 'crops') { a.planted *= keep; a.toHarvest *= keep; }
       a.acres -= acres;
-      if (from === 'cows' && a.herd > M.farmHeadCap(b) * 1.05) TG.rep.event(g, b, 'bad', 'Less grass than cows now', `${Math.round(a.herd)} cows, room for ${M.farmHeadCap(b)}: sell some or they eat expensive feed`);
+      if (from === 'cows' && a.herd > M.farmHeadCap(b) * 1.05) TG.rep.event(g, b, 'bad', 'Less grass than cows now', `${Math.round(a.herd)} cows, room for ${M.farmHeadCap(b)}: sell some or they eat expensive feed and give ${Math.round((1 - M.crowdMilk(a.herd / Math.max(1, M.farmHeadCap(b)))) * 100)}% less milk`);
     } else { /* free soil stays as it was */ }
     if (c.cost) TG.F.spend(g, c.cost, 'Land conversion', b.id, true);
     if (to === 'free') { const fr = M.farmFree(f) - acres; f.freeSoil = (f.freeSoil * Math.max(0, fr) + soil * acres) / Math.max(1, fr + acres); }

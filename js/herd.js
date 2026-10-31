@@ -72,12 +72,13 @@
     const room = a.herd / Math.max(1, M.farmHeadCap(b)); const bullF = M.bullF(a);
     const births = M.breeders(a) * M.breedRate(a.herd) * bullF * M.roomF(room) * Math.pow(Math.min(1, M.feedMonths(g, b) > 1 ? 1 : 0.6), 2) * (a.health || 0.9);
     const deaths = U.sum(ST, (k) => a.st[k] * c.stages[k].death);
-    const need = M.feedNeed(a), grass = M.grass(g, b, null, U.moy(g.month + 1));
+    const need = M.feedNeed(a) * (1 + 2 * Math.max(0, room - 1)), grass = M.grass(g, b, null, U.moy(g.month + 1));
     return { births, deaths, culls: 0, matured: a.st.steer * c.grow.steer, ready: a.st.ready + a.st.steer * c.grow.steer, need, grass, buy: Math.max(0, need - grass), feed: Math.max(0, need - grass) * M.feedPrice(g), months: M.feedMonths(g, b) };
   };
   M.bullF = (a) => { const br = M.breeders(a); if (br < 0.5) return 0; return a.st.bull >= 0.5 ? Math.min(1, a.st.bull * HC().breed.bullPer / br) : HC().breed.noBull; };
   M.roomF = (room) => U.clamp((1 - room) / (1 - HC().breed.roomFull), 0, 1); // full rate up to 85% of room, none when full
 
+  M.crowdMilk = (room) => U.clamp(1 - 0.8 * Math.max(0, room - 1), 0.4, 1); // v10: crowded cows are stressed and give less milk
   M.models.farm.feedCost = (g, b) => M.herdForecast(g, b).feed;
   M.models.farm.herdMonth = function (g, b, ctx, cov, q) {
     const f = b.farm, a = f.areas.cows, c = HC(), m = a.m;
@@ -87,7 +88,7 @@
     if (!a.herd) { m.feedEaten = 0; return; }
     const cap = M.farmHeadCap(b), room = a.herd / Math.max(1, cap);
     // 1) eat: grass first, then feed from storage
-    const need = M.feedNeed(a) * (1 + Math.max(0, room - 1)), grass = Math.min(need, M.grass(g, b, ctx.weather));
+    const need = M.feedNeed(a) * (1 + 2 * Math.max(0, room - 1)), grass = Math.min(need, M.grass(g, b, ctx.weather));
     const fromStore = Math.min(f.feed || 0, need - grass); f.feed = (f.feed || 0) - fromStore;
     const fed = need > 0 ? (grass + fromStore) / need : 1; m.grass = grass; m.feedEaten = fromStore; m.fed = fed;
     const work = 0.6 + 0.4 * cov.hcov; // farmhands do the feeding and care
@@ -109,8 +110,8 @@
     a.st.calf += births; m.born = births;
     // 5) milk: milking cows that fit in the parlors, every day (collected and sold for you at your milk price)
     const milked = Math.min(a.st.milker, M.farmParlorCap(b));
-    const milk = milked * E().milkPerCow * (0.4 + 0.6 * a.health) * Math.min(1, 0.5 + 0.5 * fed) * work * q;
-    m.milk = milk; m.notMilked = Math.max(0, a.st.milker - milked);
+    const milk = milked * E().milkPerCow * (0.4 + 0.6 * a.health) * Math.min(1, 0.5 + 0.5 * fed) * work * q * M.crowdMilk(room);
+    m.milk = milk; m.crowd = room; m.notMilked = Math.max(0, a.st.milker - milked);
     if (milk > 0) { const o = this.offer(g, b, 'cows', milk, 'Milk sales'); m.lost = (m.lost || 0) + o.unsold; TG.M.logVolX(g, f, o.sold); }
     // 6) manager orders: sell market-ready, cull dry cows, keep within room, keep feed topped up
     TG.D.farmCowOrders(g, b);

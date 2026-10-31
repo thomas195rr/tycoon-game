@@ -16,7 +16,7 @@
     // selling more per customer is not free: extra product, ingredients and time cost part of it (shown as "costs X% of sales")
     const extra = (r.ticketMult > 1 ? (r.ticketMult - 1) * k * C.v10upg.ticketCost : 0) + (r.salesUp > 0 ? r.salesUp * k * C.v10upg.salesCost : 0);
     f.revCostPct = (r.revCostPct || 0) + (extra ? Math.round(extra * 1000) / 1000 : 0); if (!f.revCostPct) delete f.revCostPct; } };
-  C.v10upg = { k: 0.7, ticketCost: 0.5, salesCost: 0.4, kBy: { tech: 0.5, construction: 0.7, lawn: 0.6 } };
+  C.v10upg = { k: 0.7, ticketCost: 0.5, salesCost: 0.4, kBy: { tech: 0.5, construction: 0.7, lawn: 0.6, farm: 0.4 } };
   const U = (ic, f) => Object.assign(f, { ic });
   // ---------- MORE UPGRADES (every business gets at least 4 new ones) ----------
   add('cafe', [
