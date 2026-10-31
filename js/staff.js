@@ -14,12 +14,29 @@
       return Object.assign({ specialist: true }, sp, { wage: [Math.round(sp.wage[0] * k), Math.round(sp.wage[1] * k)] });
     }
     if (role === 'ceo') return { label: 'CEO', wage: TG.CONFIG.ceo.wage, specialist: true };
-    if (role === 'rem') return { label: 'Property manager', wage: [3500, 8000], specialist: true };
+    if (role === 'rem') return { label: 'Property manager', wage: [900, 2800], specialist: true };
     return TG.CONFIG.businesses[b.type].roles[role];
   };
 
+  // v7: an HR manager negotiates lower wages for the same skill and screens out some bad fits. Odds, not magic:
+  // the cheapest deals are the likeliest duds, and people paid under the going rate are less happy.
+  S.hrOf = (b) => (b && b.spec && b.spec.hr) || null;
+  S.hrDisc = (hr) => U.clamp(0.02 + 0.13 * (hr.skill || 50) / 100, 0.02, 0.15); // average wage cut
+  S.hrScreen = (hr) => U.clamp(0.2 + 0.6 * (hr.skill || 50) / 100, 0.2, 0.8);  // share of unreliable / dishonest applicants spotted
+  S.candidate = (g, b, role, labor, noHR) => {
+    const e = S.candidate0(g, b, role, labor); const hr = !noHR && S.hrOf(b);
+    if (!hr || TG.CONFIG.specialists[role] || role === 'ceo' || role === 'rem' || !b.type) return e;
+    let c = e;
+    if ((c.reliability < 50 || c.honesty < 40) && R.chance(S.hrScreen(hr))) { c = S.candidate0(g, b, role, labor); c.screened = true; }
+    const disc = U.clamp(S.hrDisc(hr) + R.normal(0, 0.035), 0, 0.22);
+    c.listWage = c.wage; c.wage = Math.round(c.wage * (1 - disc) / 10) * 10; c.hrDisc = disc;
+    if (disc > S.hrDisc(hr) && R.chance(0.15 + (disc - S.hrDisc(hr)) * 3)) { // a bargain that is a bargain for a reason
+      c.reliability = U.clamp(c.reliability - R.int(15, 35), 5, 99); c.attitude = U.clamp(c.attitude - R.int(5, 20), 5, 99); c.dud = true;
+    }
+    return c;
+  };
   // Generate a candidate. labor = property labor pool (0..1)
-  S.candidate = (g, b, role, labor) => {
+  S.candidate0 = (g, b, role, labor) => {
     const C = TG.CONFIG, rd = S.roleDef(b, role);
     labor = U.clamp(labor == null ? 0.5 : labor, 0.02, 1);
     const quals = U.clamp(Math.pow(R.next(), 1.25 - labor * 0.6), 0, 1);

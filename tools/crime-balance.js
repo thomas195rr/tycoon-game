@@ -14,7 +14,8 @@ for (const [name, P] of Object.entries(plans)) {
     const g = TG.Game.newGame({ seed: s * 7349 + name.length }); g.cash = START; g.lastNW = TG.F.netWorth(g);
     const b = P.biz ? bots.startBiz(g, P.biz) : null; let jail = 0, peak = 0;
     for (let i = 0; i < MONTHS; i++) {
-      if (b && g.businesses.includes(b)) bots.careful(g, b); else bots.resolveSmart(g);
+      // v7: in jail you cannot run your shop yourself (the UI blocks it); only managers act
+      if (!TG.CR.jailed(g)) { if (b && g.businesses.includes(b)) bots.careful(g, b); else bots.resolveSmart(g); }
       if (P.crime) CB[P.crime](g, P.opt);
       TG.Game.nextMonth(g); if (TG.CR.jailed(g)) jail++; peak = Math.max(peak, g.lastNW);
     }

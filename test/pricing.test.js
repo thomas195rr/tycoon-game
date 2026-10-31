@@ -5,7 +5,7 @@
 // node test/pricing.test.js [--seeds 6] [--months 60]
 const load = require('./load');
 const args = process.argv.slice(2); const arg = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? Number(args[i + 1]) : d; };
-const SEEDS = arg('seeds', 10), MONTHS = arg('months', 60); // 10 seeds: medians near the ruin line are noisy with fewer
+const SEEDS = arg('seeds', 20), MONTHS = arg('months', 60); // v7: 20 seeds (10 was too noisy: bakery 1x median swung 287k-347k between seed sets)
 const TG = load(); const bots = require('./bots')(TG); const U = TG.U;
 const CAP = { small: 250000, between: 600000, corp: 5000000 };
 const RATIOS = [0.6, 0.85, 1, 1.15, 1.4, 2, 4];

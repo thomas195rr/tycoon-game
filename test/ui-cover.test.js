@@ -77,6 +77,24 @@ const fs = require('fs'); const shot = async (page, n) => { if (SHOTS) { fs.mkdi
     const r = RE.search(g, h.id); if (r.n) { RE.decide(g, h.id, true); out.push('accepted:' + (h.tenants.filter((t) => t).length === 1)); } else out.push('accepted:true');
     TG.UI.render(); return out; });
   if (v6.some((x) => /:false$/.test(x))) errors.push('v6 flows failed: ' + v6.join(' '));
+  // v7: money report reconciles on screen, loan detail + extra payment, units with per-unit search, closed shop banner -> buy supplies reopens, HR hiring panel, skip report
+  const v7 = await page.evaluate(() => { const g = TG.G, out = []; TG.UI.closeModal(); g.cash = 5e6; g.cashMark = g.cash; g.acc.led = {}; // test cheat: mark it so the report can reconcile
+    const r = TG.Game.nextMonth(g); TG.UI.closeModal(); TG.UI.A.lastReport(); const mt = (document.getElementById('modal') || {}).innerText || ''; out.push('report:' + /Money in/i.test(mt) + /Bottom line|LEFT WITH|left with/i.test(mt)); out.push('reconciles' + Math.round(r.money.diff) + ':' + (Math.abs(r.money.diff) < 1 && /Matches your real cash change/.test(mt))); TG.UI.closeModal();
+    const l = TG.F.takeLoan(g, 'business', 40000); TG.UI.tab.money = 'fin'; TG.UI.go('money'); const lv = document.querySelector('#loansCard [data-act="loanView"]'); out.push('loanRow:' + !!lv); if (lv) lv.click(); const lt = (document.getElementById('modal') || {}).innerText || '';
+    out.push('loanDetail:' + (/interest/i.test(lt) && /principal/i.test(lt) && /payoff|paid off/i.test(lt) && /month/i.test(lt)));
+    if (l.ok) { const n0 = TG.F.loanInfo(g, g.loans.find((x) => x.id === l.loan.id)).monthsLeft; TG.UI.A.loanView(l.loan.id); document.getElementById('xPay').value = '5000'; document.querySelector(`#modal [data-act="loanExtra"][data-arg="${l.loan.id}"]`).click(); const ln = g.loans.find((x) => x.id === l.loan.id); out.push('extraPay:' + (!ln || TG.F.loanInfo(g, ln).monthsLeft < n0)); } TG.UI.closeModal();
+    g.cash = 2e7; const L = TG.RE.gen(g, 'smallapt', { distressed: false }); g.re.listings.unshift(L); TG.RE.buy(g, L.id, false); const h = g.re.holdings.find((x) => x.id === L.id); h.tenants = h.tenants.map(() => null); h.issues = []; g.re.manager = null; TG.UI.tab.money = 're'; TG.UI.go('money');
+    const units = document.querySelectorAll(`[data-act="reSearch"][data-arg^="${h.id}|"]`).length; out.push('unitButtons:' + (units >= Math.min(h.units, 4)));
+    const b2 = document.querySelector(`[data-act="reSearch"][data-arg="${h.id}|1"]`); if (b2) b2.click(); const go = document.querySelector('#modal [data-act="reSearchGo"]'); if (go) go.click(); const acc = document.querySelector('#modal [data-act="reDecide"][data-arg$="|1"]'); if (acc) acc.click();
+    out.push('unitFilled:' + (!acc || (!!h.tenants[1] && h.tenants.filter((t) => t).length === 1))); TG.UI.closeModal();
+    g.cash = 5e6; const pr = TG.P.gen(g, TG.P.idealFor('bakery')); g.listings.unshift(pr); TG.P.acquire(g, pr.id, 'cash'); const b = TG.B.start(g, 'bakery', pr.id, {}).biz; TG.B.quickSetup(g, b, true, 'standard'); TG.ST.ensure(b); b.stock.qty = 0; b.stock.lots = []; b.stock.auto = false; for (const k in b.spec) b.spec[k] = null; const ceo = g.ceo; g.ceo = null;
+    TG.Game.nextMonth(g); TG.UI.closeModal(); TG.UI.bizId = b.id; TG.UI.screen = 'bizd'; TG.UI.tab.biz = 'overview'; TG.UI.render(); const ct = document.body.innerText; out.push('closedBanner:' + /Closed: no supplies, no manager/.test(ct));
+    const buy = document.querySelector('[data-act="stBuyN"]'); if (buy) buy.click(); out.push('buyReopens:' + (!!buy && b.stock.qty > 0)); g.ceo = ceo;
+    b.spec.hr = Object.assign(TG.S.candidate(g, b, 'hr', 0.6), { skill: 80 }); TG.UI.tab.biz = 'staff'; TG.UI.render(); out.push('hrPanel:' + /HR/.test((document.getElementById('hireCard') || document.body).innerText));
+    const sk = TG.Game.skip(g, 3); TG.UI.closeModal(); TG.UI.showSkip(sk); const st = (document.getElementById('modal') || {}).innerText || ''; out.push('skipReport:' + (/Money in/i.test(st) && /month by month|each month|Month by month/i.test(st))); TG.UI.closeModal(); TG.UI.render();
+    return out; });
+  console.log('v7 flows:', v7.join(' ')); if (v7.some((x) => /false/.test(x))) errors.push('v7 flows failed: ' + v7.join(' '));
+  await check('v7'); await shot(page, 'v7 bakery');
   // v6 item 12: INSTANT UPDATES. Hire, fire and buy a machine by clicking the real buttons; the Work card must change at once (same month).
   {
     const setup = await page.evaluate(() => { TG.UI.closeModal(); const g = TG.G; g.cash = 5e6; const pr = TG.P.gen(g, TG.P.idealFor('cafe')); g.listings.unshift(pr); TG.P.acquire(g, pr.id, 'cash');

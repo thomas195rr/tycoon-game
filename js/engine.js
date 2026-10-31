@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 6;
+  const VERSION = 7;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -64,6 +64,7 @@
       rep.event(g, b, 'major', 'You inherited a struggling farm', 'Old, worn equipment, unhappy workers, a weak reputation and $140,000 of debt. Your call.');
     }
     g.stats.startCash = g.cash; g.lastNW = TG.F.netWorth(g); g.stats.peakNW = g.lastNW;
+    g.acc = TG.F.newAcc(); g.cashMark = g.cash; // v7: the money report counts every dollar from here
     return g;
   };
 
@@ -73,12 +74,15 @@
     TG.G = g;
     const C = TG.CONFIG; const m = g.month;
     TG.D.autoResolve(g);
-    const cashStart = g.cash, nwStart = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
+    const nwStart = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
     const pre = g.acc || TG.F.newAcc(); // money moved by the player's own actions between months
+    // v7: the month starts where last month ended, so money you moved between months is in this report too
+    const cashStart = g.cashMark != null ? g.cashMark : g.cash - TG.LG.net(pre.led);
     // v6: running costs you paid between months (supplies, feed, seed, repairs) belong to this month's profit and tax
     g.acc = TG.F.newAcc(); g.acc.inc = Object.assign({}, pre.inc); g.acc.exp = Object.assign({}, pre.exp);
+    g.acc.led = JSON.parse(JSON.stringify(pre.led || {})); g.acc.names = Object.assign({}, pre.names || {});
     TG.W.month(g); TG.P.month(g);
-    for (const p of g.properties) if (!p.bizId) { if (p.leased) TG.F.spend(g, p.rent, 'Rent (unused property)'); else TG.F.spend(g, TG.P.monthlyTax(g, p), 'Property tax (unused property)'); }
+    for (const p of g.properties) if (!p.bizId) TG.LG.within(g, 'p:' + p.id, () => { if (p.leased) TG.F.spend(g, p.rent, 'Rent (unused property)'); else TG.F.spend(g, TG.P.monthlyTax(g, p), 'Property tax (unused property)'); });
     TG.RE.month(g); TG.I.month(g);
     const bizRows = [];
     for (const b of g.businesses.slice()) {
@@ -97,6 +101,11 @@
     TG.F.monthEnd(g);
     const inc = Object.assign({}, g.acc.inc), exp = Object.assign({}, g.acc.exp);
     const profit = sumObj(inc) - sumObj(exp);
+    // v7: who made or lost money, counting EVERYTHING (machines bought, loan payments, damage...); adds up to the cash change
+    const led = g.acc.led || {}; const money = TG.LG.summary(g, led, g.acc.names, cashStart, g.cash); const nets = TG.LG.ownerNets(led);
+    for (const b of g.businesses) { const h = b.hist[b.hist.length - 1]; if (h && h.m === m) h.cash = nets['b:' + b.id] || 0; }
+    for (const h of g.re.holdings) { h.lastNet = nets['r:' + h.id] || 0; h.lastNetM = m; }
+    for (const b of bizRows) b.cash = nets['b:' + b.id] || 0;
     const nw = TG.F.netWorth(g);
     g.history.push({ m, cash: Math.round(g.cash), nw: Math.round(nw), profit: Math.round(profit), inc: Math.round(sumObj(inc)), exp: Math.round(sumObj(exp)), phase: g.world.phase });
     if (g.history.length > C.maxHistory) g.history.shift();
@@ -106,7 +115,7 @@
     const report = {
       m, date: U.dateStr(m), cashStart, cashEnd: g.cash, nwStart, nw, profit, tax, inc, exp, capIn: g.acc.capIn, capOut: g.acc.capOut,
       pre: { inc: sumObj(pre.capIn), exp: sumObj(pre.capOut) },
-      biz: bizRows, re: g.re.holdings.length ? { rev: g.re.m.rev, cost: g.re.m.cost, units: TG.RE.unitsOwned(g) } : null,
+      biz: bizRows, re: g.re.holdings.length ? { rev: g.re.m.rev, cost: g.re.m.cost, units: TG.RE.unitsOwned(g) } : null, money, led, names: Object.assign({}, g.acc.names),
       events: b0.events, staff: b0.staff, decisions: b0.decisions, news: b0.news, warns: b0.warns, ach,
       world: { phase: TG.W.phaseLabel(g), econ: g.world.econ, rate: g.world.baseRate, inflation: g.world.priceIdx },
       majors: b0.events.filter((e) => e.major).map((e) => ({ kind: e.major, text: e.text })),
@@ -116,11 +125,11 @@
     g.lastReport = report;
     g.month++;
     g.cur = rep.newBuf(g.month);
-    g.acc = TG.F.newAcc();
+    g.acc = TG.F.newAcc(); g.cashMark = g.cash;
     TG.LB.record(g);
     return report;
   };
-  E.slimReport = (r) => ({ m: r.m, date: r.date, profit: r.profit, nw: r.nw, cashEnd: r.cashEnd, events: r.events.slice(0, 40), decisions: r.decisions.slice(0, 30), news: r.news, majors: r.majors, biz: r.biz.map((x) => ({ name: x.name, profit: x.profit })) });
+  E.slimReport = (r) => ({ m: r.m, date: r.date, profit: r.profit, nw: r.nw, cashEnd: r.cashEnd, events: r.events.slice(0, 40), decisions: r.decisions.slice(0, 30), news: r.news, majors: r.majors, biz: r.biz.map((x) => ({ name: x.name, profit: x.profit, cash: x.cash })), net: r.money ? Math.round(r.money.net) : null });
 
   // explain WHY a business did what it did this month, with numbers
   E.bizWhy = (g, b, ctx, repBefore) => {
@@ -147,6 +156,7 @@
     n = Math.max(1, Math.floor(n));
     const startM = g.month, cash0 = g.cash, nw0 = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
     const inc = {}, exp = {}; const majors = [], decisions = [], bizTot = {}; let profit = 0, done = 0, stopped = null, events = 0;
+    const ledAll = {}, names = {}, months = []; const cashStart0 = g.cashMark != null ? g.cashMark : g.cash - TG.LG.net((g.acc || {}).led);
     const stopOn = opts.stopOnMajor != null ? opts.stopOnMajor : g.settings.stopOnMajor;
     const types = opts.majorTypes || g.settings.majorTypes;
     for (let i = 0; i < n; i++) {
@@ -154,7 +164,9 @@
       profit += r.profit; events += r.events.length;
       for (const k in r.inc) inc[k] = (inc[k] || 0) + r.inc[k];
       for (const k in r.exp) exp[k] = (exp[k] || 0) + r.exp[k];
-      for (const b of r.biz) { const t = bizTot[b.name] || (bizTot[b.name] = { rev: 0, cost: 0, profit: 0 }); t.rev += b.rev; t.cost += b.cost; t.profit += b.profit; }
+      for (const b of r.biz) { const t = bizTot[b.name] || (bizTot[b.name] = { rev: 0, cost: 0, profit: 0, cash: 0 }); t.rev += b.rev; t.cost += b.cost; t.profit += b.profit; t.cash += b.cash || 0; }
+      TG.LG.add(ledAll, r.led); Object.assign(names, r.names);
+      months.push({ m: r.m, date: r.date, in: Math.round(r.money.tin), out: Math.round(r.money.tout), net: Math.round(r.money.net), cash: Math.round(r.cashEnd), own: TG.LG.ownerNets(r.led) });
       for (const e of r.events) if (e.type === 'major') majors.push(Object.assign({ date: r.date }, e));
       for (const d of r.decisions) if (d.by && d.by !== 'You') decisions.push(Object.assign({ date: r.date }, d));
       if (stopOn && i < n - 1) {
@@ -163,7 +175,8 @@
       }
       if (opts.onProgress) opts.onProgress(i + 1, n);
     }
-    return { months: done, asked: n, from: U.dateStr(startM), to: U.dateStr(g.month - 1), cash0, cash1: g.cash, nw0, nw1: g.lastNW, profit, inc, exp, majors: majors.slice(-60), majorCount: majors.length, decisions: decisions.slice(-60), decisionCount: decisions.length, bizTot, stopped, events, pending: g.decisions.length };
+    const money = TG.LG.summary(g, ledAll, names, cashStart0, g.cash);
+    return { money, perMonth: months, names, months: done, asked: n, from: U.dateStr(startM), to: U.dateStr(g.month - 1), cash0: cashStart0, cash1: g.cash, nw0, nw1: g.lastNW, profit, inc, exp, majors: majors.slice(-60), majorCount: majors.length, decisions: decisions.slice(-60), decisionCount: decisions.length, bizTot, stopped, events, pending: g.decisions.length };
   };
 
   // ================= ACHIEVEMENTS =================
@@ -244,6 +257,14 @@
     for (const h of (g.re && g.re.holdings) || []) { if (h.rentR == null) h.rentR = 1; for (const t of h.tenants || []) if (t && t.rel == null) { t.rel = t.bad ? 0.3 : 0.72; delete t.bad; } }
     TG.CREDIT.ensure(g); if (!hadCr) TG.CREDIT.sync(g);
     if ((g.v || 1) < 6) g.v = 6;
+    // v7: money ledger, per-unit tenant searches and repairs, loan history, closed shops, HR wage deals
+    delete g._own;
+    if (g.acc && !g.acc.led) { g.acc.led = {}; g.acc.names = {}; }
+    if (g.cashMark == null) g.cashMark = g.cash - TG.LG.net((g.acc || {}).led);
+    for (const h of (g.re && g.re.holdings) || []) { TG.RE.ensureUnits(h); if (h.mgrSearchM != null && typeof h.mgrSearchM !== 'object') h.mgrSearchM = {}; }
+    for (const l of g.loans || []) { if (l.intPaid == null) { l.intPaid = 0; l.prinPaid = Math.max(0, (l.principal || l.balance) - l.balance); l.histUnknown = true; } }
+    for (const b of g.businesses) if (b.shut == null) b.shut = 0;
+    if ((g.v || 1) < 7) g.v = 7;
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };

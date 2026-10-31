@@ -21,8 +21,7 @@
       ${g.cash < 0 ? `<div class="ev bad">Cash is negative: ${C.bankruptcyMonths - g.negMonths} month(s) until creditors force a fire sale. Interest and fees pile up.</div>` : ''}
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
     o += UI.creditCards(g); // v6: score with its reasons, loan applications with odds, credit line
-    o += `<div class="card"><h3 style="margin-top:0">Loans (${g.loans.length})</h3>${g.loans.map((l) => `<div class="ev ${l.missed ? 'bad' : ''}"><div class="row sp"><b>${esc(l.label)}</b><span>${m(l.balance)} left</span></div><div class="small">${U.pct(l.rate, 2)} · ${m(l.payment)}/mo · ${l.left} months left${l.missed ? ` · ${l.missed} missed payment(s)!` : ''}</div>
-      <div class="btns">${UI.btn(`Pay off ${m(l.balance)}`, 'loanDo', `${l.id}|off`, 'sm', g.cash < l.balance)}${UI.btn('Prepay 10k', 'loanDo', `${l.id}|10000`, 'sm', g.cash < 10000)}</div></div>`).join('') || '<div class="mute">No loans.</div>'}</div>`;
+    o += UI.loansCard(g); // v7: amortizing loans, tap one for its schedule
     if (g.lawsuits.length) o += `<div class="card"><h3 style="margin-top:0">Lawsuits</h3>${g.lawsuits.map((ls) => `<div class="ev bad"><b>${esc(ls.label)}</b> ${m(ls.amount)} · ${ls.status === 'fighting' ? `in court (${U.pct(ls.win || 0)} win odds)` : 'awaiting your decision'} · ${ls.left} mo left<div class="why">${esc(ls.why || '')}</div></div>`).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Last resort</h3><div class="btns">${UI.btn('Declare personal bankruptcy', 'bk', null, 'sm badb')}</div><div class="mute">Wipes everything: you keep ${m(C.bankruptcy.keepCash)}, credit drops, no loans for ${C.bankruptcy.noLoanMonths} months. The game continues.</div></div>`;
     return o;
@@ -44,21 +43,20 @@
     let o = `<div class="card"><div class="kv"><span>Portfolio value</span><span>${m(RE.totalValue(g))}</span><span>Units</span><span>${RE.unitsOwned(g)}</span><span>Last month</span><span>rent ${m(r.m.rev)} · costs ${m(r.m.cost)}</span><span>Housing market</span><span>x${g.world.housing.toFixed(2)}</span>
       <span>Flips done</span><span>${r.flipsDone} (${r.flipsProfit} profitable)</span></div>
       ${r.hist.length > 2 ? UI.spark(r.hist.slice(-48).map((x) => x.rev - x.cost), '#1d4ed8') : ''}
-      <div class="kv" style="margin-top:6px"><span>Property manager</span><span>${r.manager ? `${esc(r.manager.name)} (skill ${r.manager.skillSeen}) ${UI.btn('Fire', 'reMgrFire', null, 'sm')}` : UI.btn('Hire one', 'reMgr', null, 'sm')}</span>
-      <span>Handyman on call</span><span>${UI.btn(r.handyman ? 'Yes' : 'No', 'reHandy', null, 'sm')}</span></div>
-      <div class="mute">Self-managing more than ${RC.selfManageLimit} units gets sloppy. A manager runs tenant searches, picks tenants, handles evictions, and takes ${U.pct(RC.managerFeePct)} of rent plus wage.</div>
+      ${UI.reMgrCard(g)}
       ${RE.totalValue(g) >= RC.fund.minPortfolio && !r.fund ? `<div class="btns">${UI.btn(`Raise a fund (${U.pct(RC.fund.raisePct)} of value, investors get ${U.pct(RC.fund.investorShare)} of rent)`, 'reFund', null, 'sm')}</div>` : ''}</div>`;
     o += `<h3>Your properties (${r.holdings.length})</h3>`;
     for (const h of r.holdings) {
       const k = RC.kinds[h.kind]; const occ = h.tenants.filter((t) => t).length; const v = RE.value(g, h);
       const loan = h.mortgageId ? g.loans.find((l) => l.id === h.mortgageId) : null;
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
-        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)}` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
+        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)} (${m(loan.payment)}/mo)` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
+        ${h.lastNetM != null ? `<div class="small">Last month, after every cost${loan ? ' and the mortgage' : ''}: <b>${UI.signed(Math.round(h.lastNet))}</b></div>` : ''}
         ${h.flip ? `<div class="ev info">Renovation: ${esc(RC.flip.levels[h.flip.level].label)} by ${esc(RC.flip.contractors[h.flip.contractor].label.toLowerCase())}, ${h.flip.left} month(s) left, budget ${m(h.flip.budget)}${h.flip.overrun ? `, overrun ${m(h.flip.overrun)}` : ''}</div>` : ''}
         ${h.dev ? `<div class="ev info">Development: ${h.dev.units} units, stage ${esc(h.dev.stage)}, ${h.dev.left} month(s) left, ${m(h.dev.paid)} of ~${m(h.dev.cost)} spent</div>` : ''}
         <div class="row small" style="margin-top:4px"><span>Upkeep</span><select data-change="reSet" data-k="upkeep" data-h="${h.id}">${['low', 'normal', 'high'].map((x) => `<option${h.upkeep === x ? ' selected' : ''}>${x}</option>`).join('')}</select>
         <span>Insured</span><select data-change="reSet" data-k="insured" data-h="${h.id}"><option value="1"${h.insured ? ' selected' : ''}>yes</option><option value="0"${!h.insured ? ' selected' : ''}>no</option></select></div>
-        ${UI.rentRows(g, h)}
+        ${UI.rentRows(g, h)}${UI.unitsHtml(g, h)}
         <div class="btns">${!h.flip && !h.dev && h.kind !== 'land' ? UI.btn('Renovate…', 'reFlip', h.id, 'sm') : ''}${h.kind === 'land' && !h.dev ? UI.btn('Develop…', 'reDev', h.id, 'sm') : ''}
         ${h.mode === 'sale' ? UI.btn('Unlist', 'reDo', `${h.id}|unlist`, 'sm') : !h.flip && !h.dev ? UI.btn('List at value', 'reDo', `${h.id}|list`, 'sm') + UI.btn('List +10%', 'reDo', `${h.id}|list110`, 'sm') : ''}
         ${h.mode === 'hold' && h.units && !h.flip ? UI.btn('Start renting', 'reDo', `${h.id}|rent`, 'sm') : ''}
@@ -103,7 +101,7 @@
   UI.A.reDevGo = (id) => { const r = TG.RE.develop(TG.G, id, UI.num('devU', 10)); UI.closeModal(); after(r, r.ok ? `Development of ${r.dev.units} units started.` : null); };
   UI.A.reMgr = () => {
     const pool = TG.RE.managerPool(TG.G);
-    UI.modal('Hire a property manager', pool.map((c) => `<div class="card"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs</div><div class="btns">${UI.btn('Hire', 'reMgrGo', c.id, 'sm pri')}</div></div>`).join(''));
+    UI.modal('Hire a property manager', pool.map((c) => `<div class="card"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs · tenants ${c.skillSeen >= 60 ? '👍 better' : c.skillSeen >= 40 ? '≈ average' : '👎 worse'} · searches & repairs x${U.clamp(1.2 - c.skillSeen / 250, 0.8, 1.2).toFixed(2)}</div><div class="mute">Plus ${U.pct(TG.CONFIG.realEstate.managerFeePct)} of the rent they collect.</div><div class="btns">${UI.btn('Hire', 'reMgrGo', c.id, 'sm pri')}</div></div>`).join(''));
   };
   UI.A.reMgrGo = (id) => { const c = TG.G.re.pool.list.find((x) => x.id === id); if (c) TG.RE.hireManager(TG.G, c); UI.closeModal(); UI.refresh(); };
   UI.A.reMgrFire = () => { TG.G.re.manager = null; UI.refresh(); };

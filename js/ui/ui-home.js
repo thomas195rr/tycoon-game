@@ -15,7 +15,7 @@
     }
     out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
       ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
-      ${UI.tile('h_pf', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', 'Profit after costs and tax.')}
+      ${(() => { const lr = g.lastReport && g.lastReport.money; const v = lr ? lr.net : last ? last.profit : null; return UI.tile('h_pf', '💰', v != null ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Left with last month', v == null ? '' : v >= 0 ? 'g' : 'r', 'Cash change last month: everything in minus everything out (sales, rent, wages, machines, loan payments, tax...). Tap 📄 Last month for the full report.'); })()}
       ${UI.tile('h_cr', '🏦', TG.CREDIT.score(g).score, 'Credit score', TG.CREDIT.score(g).score >= 700 ? 'g' : TG.CREDIT.score(g).score >= 620 ? 'y' : 'r', 'Higher = better loan odds and cheaper rates. Details in Money → Finance.')}</div>`;
     { const L = TG.IN.list(g); const mine = new Set(g.businesses.map((b) => TG.IN.ofBiz(b))); const sh = L.filter((x) => mine.has(x.k)); const show = (sh.length ? sh : L.sort((a, c) => c.s.x - a.s.x).slice(0, 3)).slice(0, 4);
       out += `<div class="card"><div class="row sp"><h3 style="margin:0">📈 Industry outlook</h3>${UI.btn('See all', 'go', 'ind', 'xs')}</div>${show.map((x) => `<div class="small">${x.d.icon} ${esc(x.d.label)} ${UI.pill(x.st.label, x.st.tone)} ${TG.IN.arrow(x.s)}</div>`).join('')}</div>`; }
@@ -30,7 +30,7 @@
     if (g.lastReport && g.lastReport.warns) for (const w of g.lastReport.warns.slice(0, 3)) al.push(`<div class="ev warn">⚠️ ${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}</div>`);
     if (al.length) out += `<div class="card"><h3>🔔 Look at these</h3>${al.join('')}</div>`;
     if (g.businesses.length) { out += `<h3>🏪 My businesses</h3>`; for (const b of g.businesses) out += UI.bizCard(b); }
-    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row"><span class="ico">🏘️</span><b class="grow">Houses & flats</b><b>${TG.RE.unitsOwned(g)} 🚪</b></div><div class="mute">Rent ${m(g.re.m.rev)} · costs ${m(g.re.m.cost)}</div></div>`;
+    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row"><span class="ico">🏘️</span><b class="grow">Houses & flats</b><b>${TG.RE.unitsOwned(g)} 🚪</b></div><div class="mute">Last month: ${UI.signed(Math.round(U.sum(g.re.holdings, (h) => h.lastNet || 0)))} after every cost and mortgage payment · ${g.re.holdings.reduce((a, h) => a + (h.tenants || []).filter((t) => !t).length, 0)} empty units</div></div>`;
     out += `<div class="card">${h.length > 2 ? `<div class="mute">📈 Worth</div>${UI.spark(h.slice(-60).map((x) => x.nw))}<div class="mute">💰 Profit each month</div>${UI.spark(h.slice(-60).map((x) => x.profit), '#2563eb')}` : ''}
       <div class="btns">${g.lastReport ? UI.btn('📄 Last month', 'lastReport') : ''}${UI.btn('📰 News', 'goMoreTab', 'news')}${UI.btn('📜 History', 'goMoreTab', 'log')}</div></div>`;
     const risks = [];
@@ -43,9 +43,10 @@
     const g = TG.G, d = TG.CONFIG.businesses[b.type]; const h = b.hist[b.hist.length - 1];
     const lc = UI.lc(b); const fl = b.flow && b.flow.rows ? b.flow.rows : [];
     const bad = fl.filter((x) => x.c === 'r').length, warn = fl.filter((x) => x.c === 'y').length;
-    const tone = !h ? '' : h.profit < 0 || bad ? 'r' : warn > 2 ? 'y' : 'g';
+    const res = h ? (h.cash != null ? h.cash : h.profit) : 0; const shut = lc.closed || (b.lastCtx && b.lastCtx.closed);
+    const tone = !h ? '' : res < 0 || bad || shut ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
-    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(h.profit) : '<span class="mute">new</span>'}</span></div>
+    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(Math.round(res)) : '<span class="mute">new</span>'}</span></div>${shut ? `<div class="closed small">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}</div>` : ''}
       <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you' : b.spec.gm ? ' · 👔 boss' : ' · ⚠️ no boss'}${lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}%` : ''}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };

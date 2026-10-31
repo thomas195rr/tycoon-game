@@ -3,17 +3,17 @@
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
   const F = {};
   const acc = (g) => (g.acc = g.acc || F.newAcc());
-  F.newAcc = () => ({ inc: {}, exp: {}, capIn: {}, capOut: {} });
+  F.newAcc = () => ({ inc: {}, exp: {}, capIn: {}, capOut: {}, led: {}, names: {} });
 
   F.earn = (g, amt, label, bizId, capital) => {
     amt = U.num(amt); if (!amt) return;
-    g.cash += amt; const a = acc(g);
+    g.cash += amt; const a = acc(g); if (TG.LG) TG.LG.rec(g, amt, label, bizId);
     const bucket = capital ? a.capIn : a.inc; bucket[label] = (bucket[label] || 0) + amt;
     if (bizId && !capital) { const b = g.businesses.find((x) => x.id === bizId); if (b && b.m) { b.m.rev += amt; b.m.lines[label] = (b.m.lines[label] || 0) + amt; } }
   };
   F.spend = (g, amt, label, bizId, capital) => {
     amt = U.num(amt); if (!amt) return;
-    g.cash -= amt; const a = acc(g);
+    g.cash -= amt; const a = acc(g); if (TG.LG) TG.LG.rec(g, -amt, label, bizId);
     const bucket = capital ? a.capOut : a.exp; bucket[label] = (bucket[label] || 0) + amt;
     if (bizId && !capital) { const b = g.businesses.find((x) => x.id === bizId); if (b && b.m) { b.m.cost += amt; b.m.lines[label] = (b.m.lines[label] || 0) - amt; } }
   };
@@ -47,11 +47,13 @@
     const rate = opts.rate || F.rateFor(g, type);
     const term = opts.term || L.term;
     const loan = { id: U.uid('l'), type, label: opts.label || L.label, principal: Math.round(amount), balance: Math.round(amount), rate, term, left: term,
-      payment: Math.round(F.payment(amount, rate, term)), missed: 0, collateral: opts.collateral || null, bizId: opts.bizId || null, start: g.month };
+      payment: Math.round(F.payment(amount, rate, term)), missed: 0, collateral: opts.collateral || null, bizId: opts.bizId || null, start: g.month, intPaid: 0, prinPaid: 0 };
     g.loans.push(loan);
-    if (!opts.noCash) F.earn(g, amount, 'Loan proceeds', null, true);
+    if (!opts.noCash) F.own(g, loan, () => F.earn(g, amount, 'Loan proceeds', null, true));
     return loan;
   };
+  // v7: money for a loan lands on the line of whatever it pays for (a business, a rental, a building), else on "You"
+  F.own = (g, l, fn) => (TG.LG && !g._own ? TG.LG.within(g, TG.LG.loanOwner(g, l), fn) : fn());
   F.takeLoan = (g, type, amount, opts) => {
     amount = Math.round(amount);
     if (!(amount > 0)) return { ok: false, msg: 'Enter an amount.' };
@@ -59,15 +61,45 @@
   };
   F.payoff = (g, loanId, fromSale) => {
     const l = g.loans.find((x) => x.id === loanId); if (!l) return;
-    F.spend(g, l.balance, 'Loan payoff', null, true);
+    F.own(g, l, () => F.spend(g, l.balance, 'Loan payoff', null, true));
+    l.prinPaid = (l.prinPaid || 0) + l.balance;
     g.loans = g.loans.filter((x) => x !== l);
   };
+  // v7: an extra payment goes straight to principal; the monthly payment stays the same, so the loan ends sooner
+  // and you skip the interest on those months (like a real mortgage).
   F.prepay = (g, loanId, amt) => {
-    const l = g.loans.find((x) => x.id === loanId); if (!l) return;
-    amt = Math.min(Math.round(amt), l.balance, Math.max(0, g.cash)); if (amt <= 0) return;
-    F.spend(g, amt, 'Loan prepayment', null, true); l.balance -= amt;
+    const l = g.loans.find((x) => x.id === loanId); if (!l) return 0;
+    amt = Math.min(Math.round(amt), l.balance, Math.max(0, g.cash)); if (amt <= 0) return 0;
+    F.own(g, l, () => F.spend(g, amt, 'Loan prepayment', null, true)); l.balance -= amt; l.prinPaid = (l.prinPaid || 0) + amt;
     if (l.balance <= 1) g.loans = g.loans.filter((x) => x !== l);
-    else { l.payment = Math.round(F.payment(l.balance, l.rate, Math.max(1, l.left))); }
+    else l.left = Math.max(1, F.nper(l.balance, l.rate, l.payment));
+    return amt;
+  };
+  // months needed to repay P at a fixed payment A
+  F.nper = (P, rate, A) => { const r = rate / 12; if (P <= 0) return 0; if (r === 0) return Math.ceil(P / Math.max(1, A)); if (A <= P * r) return 999; return Math.ceil(-Math.log(1 - r * P / A) / Math.log(1 + r) - 1e-9); };
+  // the full amortization schedule from now: each payment = interest on what is left + the rest off the balance
+  F.schedule = (g, l, max) => {
+    const rows = []; let bal = l.balance; const r = l.rate / 12; let left = Math.max(1, l.left || 1); max = max || 600;
+    for (let n = 1; bal > 0.5 && n <= max; n++) {
+      const int = bal * r; const pay = left <= 1 ? bal + int : Math.min(l.payment, bal + int);
+      const prin = pay - int; bal = Math.max(0, bal - prin); left--;
+      rows.push({ n, m: g.month + n - 1, pay, int, prin, bal });
+    }
+    return rows;
+  };
+  F.loanInfo = (g, l) => {
+    const S = F.schedule(g, l); const int0 = l.balance * l.rate / 12;
+    return { original: l.principal, balance: l.balance, rate: l.rate, term: l.term, payment: l.payment, thisInt: int0, thisPrin: Math.max(0, Math.min(l.payment, l.balance + int0) - int0),
+      intPaid: l.intPaid || 0, prinPaid: l.prinPaid || 0, intLeft: U.sum(S, (x) => x.int), monthsLeft: S.length, payoffM: S.length ? S[S.length - 1].m : g.month, schedule: S, owner: TG.LG ? TG.LG.loanOwner(g, l) : 'you' };
+  };
+  // credit line as a loan: interest on what you owe + a minimum share of the balance each month
+  F.locInfo = (g) => {
+    const C = TG.CONFIG.finance.loc; const rate = g.loc.balance > 0 ? (g.loc.rate || F.rateFor(g, 'loc')) : F.rateFor(g, 'loc');
+    const rows = []; let bal = g.loc.balance; const r = rate / 12;
+    for (let n = 1; bal > 0.5 && n <= 600; n++) { const int = bal * r; const prin = Math.max(Math.min(bal, 25), Math.round(bal * C.minPayPct)); const pr = Math.min(bal, prin); bal -= pr; rows.push({ n, m: g.month + n - 1, pay: int + pr, int, prin: pr, bal }); }
+    const int0 = g.loc.balance * r;
+    return { original: g.loc.limit || 0, balance: g.loc.balance, rate, term: null, payment: rows.length ? rows[0].pay : 0, thisInt: int0, thisPrin: rows.length ? rows[0].prin : 0,
+      intPaid: g.loc.intPaid || 0, prinPaid: g.loc.prinPaid || 0, intLeft: U.sum(rows, (x) => x.int), monthsLeft: rows.length, payoffM: rows.length ? rows[rows.length - 1].m : g.month, schedule: rows, owner: 'you' };
   };
   F.totalPayments = (g) => U.sum(g.loans, (l) => l.payment) + (g.loc ? Math.round(g.loc.balance * TG.CONFIG.finance.loc.minPayPct) : 0);
   F.debt = (g) => U.sum(g.loans, (l) => l.balance) + (g.loc ? g.loc.balance : 0) + (g.invest ? g.invest.marginDebt : 0);
@@ -78,37 +110,42 @@
   F.locDraw = (g, amt, by) => {
     const lim = F.locLimit(g); amt = Math.min(Math.round(amt), lim - g.loc.balance);
     if (amt <= 0) return 0;
-    g.loc.balance += amt; F.earn(g, amt, 'Credit line draw', null, true);
+    g.loc.balance += amt; const go = () => F.earn(g, amt, 'Credit line draw', null, true); if (TG.LG) TG.LG.within(g, 'you', go); else go();
     return amt;
   };
-  F.locRepay = (g, amt) => { amt = Math.min(Math.round(amt), g.loc.balance, Math.max(0, g.cash)); if (amt <= 0) return 0; g.loc.balance -= amt; F.spend(g, amt, 'Credit line repayment', null, true); return amt; };
+  F.locRepay = (g, amt) => { amt = Math.min(Math.round(amt), g.loc.balance, Math.max(0, g.cash)); if (amt <= 0) return 0; g.loc.balance -= amt; g.loc.prinPaid = (g.loc.prinPaid || 0) + amt; const go = () => F.spend(g, amt, 'Credit line repayment', null, true); if (TG.LG) TG.LG.within(g, 'you', go); else go(); return amt; };
 
   // ---------- monthly debt service ----------
   F.monthLoans = (g) => {
     const C = TG.CONFIG.finance; TG.CREDIT.month(g); let paidAll = g.loans.length > 0 || g.loc.balance > 0;
-    for (const l of g.loans.slice()) {
+    for (const l of g.loans.slice()) F.own(g, l, () => {
       const interest = l.balance * l.rate / 12;
-      const pay = Math.min(l.payment, l.balance + interest);
+      // v7: amortizing like a real mortgage. The last payment clears whatever is left (nothing is ever forgiven).
+      const pay = l.left <= 1 ? l.balance + interest : Math.min(l.payment, l.balance + interest);
       if (g.cash >= pay || F.autoCredit(g, pay - g.cash)) {
-        F.spend(g, Math.round(interest), 'Loan interest');
-        F.spend(g, Math.round(pay - interest), 'Loan principal', null, true);
+        const ri = Math.round(interest), rp = Math.round(pay - interest);
+        F.spend(g, ri, 'Loan interest');
+        F.spend(g, rp, 'Loan principal', null, true);
         l.balance = Math.max(0, l.balance - (pay - interest)); l.left--; l.missed = 0;
-        if (l.balance < 1 || l.left <= 0) { g.loans = g.loans.filter((x) => x !== l); TG.rep.event(g, null, 'good', `Paid off ${l.label}`, 'All payments made'); }
+        l.intPaid = (l.intPaid || 0) + ri; l.prinPaid = (l.prinPaid || 0) + rp; l.lastInt = ri; l.lastPrin = rp; l.lastM = g.month;
+        if (l.balance < 1 || l.left <= 0) { g.loans = g.loans.filter((x) => x !== l); TG.rep.event(g, null, 'good', `Paid off ${l.label}`, `All payments made. Interest paid over the loan: ${U.money(l.intPaid)}`); }
       } else {
         l.missed++; l.balance += Math.round(interest + pay * C.lateFeePct);
+        l.payment = Math.round(F.payment(l.balance, l.rate, Math.max(1, l.left))); // missed interest is added on; payments rise to stay on schedule
+        l.lastInt = 0; l.lastPrin = 0; l.lastM = g.month;
         paidAll = false; TG.CREDIT.late(g, 1);
         TG.rep.event(g, null, 'major', `Missed a payment on ${l.label}`, `Cash ${U.money(g.cash)} was below the ${U.money(pay)} payment; credit score now ${Math.round(g.player.credit)}. ${l.collateral ? `After ${C.repoAfterMissed} missed payments the lender takes the ${l.collateral.kind === 'equip' ? 'machine' : 'property'}.` : `After ${TG.CONFIG.credit.collectionsAfter} it goes to collections.`}`, { major: 'cash' });
         if (l.missed >= C.repoAfterMissed && l.collateral) { F.repossess(g, l); TG.CREDIT.derog(g, 'repo'); }
         else if (!l.collateral && l.missed >= TG.CONFIG.credit.collectionsAfter && !l.coll) { l.coll = true; TG.CREDIT.derog(g, 'collections'); TG.rep.event(g, null, 'major', `${l.label} was sent to collections`, `${l.missed} missed payments in a row: a big hit to your credit score for years`, { major: 'cash' }); }
       }
-    }
+    });
     // credit line
     if (g.loc.balance > 0) {
       g.loc.rate = F.rateFor(g, 'loc');
       const interest = Math.round(g.loc.balance * g.loc.rate / 12);
-      const minPay = Math.round(g.loc.balance * C.loc.minPayPct);
-      F.spend(g, interest, 'Credit line interest');
-      if (g.cash >= minPay) { F.spend(g, minPay, 'Credit line repayment', null, true); g.loc.balance -= minPay; }
+      const minPay = Math.min(Math.round(g.loc.balance), Math.max(25, Math.round(g.loc.balance * C.loc.minPayPct)));
+      F.spend(g, interest, 'Credit line interest'); g.loc.intPaid = (g.loc.intPaid || 0) + interest;
+      if (g.cash >= minPay) { F.spend(g, minPay, 'Credit line repayment', null, true); g.loc.balance -= minPay; g.loc.prinPaid = (g.loc.prinPaid || 0) + minPay; }
       else { paidAll = false; TG.CREDIT.late(g, 0.6); TG.rep.event(g, null, 'bad', 'Missed the credit line minimum payment', `Cash ${U.money(g.cash)}`); }
     }
     if (paidAll) TG.CREDIT.onTime(g); // on-time record counts once a month, however many loans you have
@@ -227,7 +264,7 @@
     if (o.cash < 10000) return { ok: false, msg: 'Investors are not interested yet (valuation too low).' };
     if ((b.outside || 0) + pct > 0.9) return { ok: false, msg: 'You would give away almost everything.' };
     b.outside = (b.outside || 0) + pct;
-    F.earn(g, o.cash, 'Investor funding', null, true);
+    F.earn(g, o.cash, 'Investor funding', b.id, true);
     TG.rep.event(g, b, 'info', `Sold ${U.pct(pct)} of ${b.name} to investors for ${U.money(o.cash)}`, `Valuation ${U.money(o.valuation)}; investors now own ${U.pct(b.outside)}`);
     return { ok: true, cash: o.cash };
   };
@@ -237,7 +274,7 @@
     if (b.public) return { ok: false, msg: 'Already public.' };
     const cash = Math.round(v * C.ipoPct * C.ipoPremium);
     b.outside = (b.outside || 0) + C.ipoPct; b.public = true;
-    F.earn(g, cash, 'IPO proceeds', null, true);
+    F.earn(g, cash, 'IPO proceeds', b.id, true);
     TG.rep.event(g, b, 'good', `${b.name} went public, raising ${U.money(cash)}`, `Valuation ${U.money(v)}`);
     return { ok: true, cash };
   };
@@ -245,7 +282,7 @@
     if (!b.outside) return { ok: false, msg: 'No outside owners.' };
     const cost = Math.round(F.bizValue(g, b) * b.outside * 1.2);
     if (g.cash < cost) return { ok: false, msg: `Need ${U.money(cost)}.` };
-    F.spend(g, cost, 'Share buy-back', null, true); b.outside = 0; b.public = false;
+    F.spend(g, cost, 'Share buy-back', b.id, true); b.outside = 0; b.public = false;
     return { ok: true, cost };
   };
 
@@ -292,6 +329,7 @@
     for (const b of g.businesses.slice()) TG.B.close(g, b, 'bankruptcy', true);
     g.properties = []; g.re.holdings = []; g.loans = []; g.loc.balance = 0;
     TG.I.wipe(g); g.lawsuits = []; g.decisions = []; g.ceo = null;
+    { const d = C.keepCash - g.cash; if (d > 0) F.earn(g, d, 'Debts wiped in bankruptcy', null, true); else if (d < 0) F.spend(g, -d, 'Cash taken in bankruptcy', null, true); }
     g.cash = C.keepCash; g.negMonths = 0;
     g.loc.limit = 0; g.player.bankruptcies++; TG.CREDIT.derog(g, 'bankruptcy'); g.player.noLoanUntil = g.month + C.noLoanMonths;
     g.player.ownerBiz = null;

@@ -111,35 +111,38 @@
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
     let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
-    if (vac && h.mode === 'rent') o += `<div class="ev warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}. ${g.re.manager ? 'Your property manager is searching.' : 'No manager: you must find tenants yourself.'}<div class="btns">${UI.btn(cur ? `👤 See applicants (${h.search.list.length - h.search.i} left)` : `🔎 Tenant search ${m(RE.searchCost(g, h))}`, 'reSearch', h.id, 'sm pri')}</div><div class="mute">Expect about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}.</div></div>`;
-    const T2 = h.tenants.filter((t) => t); if (T2.length) { const avg = U.avg(T2, (t) => t.rel); o += `<div class="small">👥 ${T2.length} tenant(s) · ${avg >= 0.65 ? '<span class="good">mostly reliable</span>' : avg >= 0.45 ? '<span class="warn">mixed</span>' : '<span class="bad">risky</span>'}${T2.some((t) => t.late) ? ` · <span class="bad">${T2.filter((t) => t.late).length} behind on rent</span>` : ''}</div>`; }
+    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect about ${Math.max(0, Math.round(pv.n))} applicant(s) per search, mostly ${pv.label}.</div>`;
+    void cur;
     return o;
   };
   UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) h.rentR = Number(v); UI.refresh(); };
-  UI.A.reSearch = (hid) => {
-    const g = TG.G, RE = TG.RE; const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
-    const a = RE.current(g, h); const vac = RE.vacant(h);
+  // v7: every unit has its own search; you see one applicant at a time and cannot go back
+  UI.A.reSearch = (arg) => {
+    const g = TG.G, RE = TG.RE; const [hid, us] = String(arg).split('|'); const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
+    const u = RE.pickUnit(g, h, us != null && us !== '' ? Number(us) : null, true); if (u < 0 || h.tenants[u]) { UI.closeModal(); UI.refresh(); return UI.toast('That unit is rented.'); }
+    const a = RE.current(g, h, u); const tag = h.units > 1 ? ` · unit ${u + 1}` : ''; const key = `${hid}|${u}`;
     if (!a) {
-      const pv = RE.poolPreview(g, h); const had = h.search && h.search.m >= g.month - TG.CONFIG.tenants.search.expires;
-      return UI.modal('🔎 Tenant search', `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
-        <div class="kv kvl"><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Empty units</span><span>${vac}</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
-        <div class="mute">Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
-        <div class="btns">${vac ? UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', hid, 'sm pri', g.cash < RE.searchCost(g, h)) : '<span class="mute">No empty units.</span>'}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+      const pv = RE.poolPreview(g, h); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
+      return UI.modal(`🔎 Tenant search${esc(tag)}`, `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
+        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
+        <div class="mute">One tenant per home. This search is for this unit only. Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
+        ${RE.unitIssues(h, u).length ? '<div class="ev bad">Fix the repair in this unit first.</div>' : ''}
+        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
     }
-    const left = h.search.list.length - h.search.i; const marks = RE.applicantMarks(a);
-    UI.modal('👤 Applicant', `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left · ${vac} empty</span></div>
+    const s = h.searches[u]; const left = s.list.length - s.i; const marks = RE.applicantMarks(a);
+    UI.modal(`👤 Applicant${esc(tag)}`, `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left for this unit</span></div>
       <table>${marks.map((x) => `<tr><td>${mark(x.mark)} ${esc(x.label)}</td><td class="n">${esc(x.val)}</td></tr>`).join('')}</table>
-      <div class="small">Rent ${m(h.search.rent)}/mo. Rule of thumb: income at least 3x rent, no evictions, credit 650+.</div>
+      <div class="small">Rent ${m(s.rent)}/mo. Rule of thumb: income at least 3x rent, no evictions, credit 650+.</div>
       <div class="mute">These are clues, not guarantees: good tenants can still lose a job, and risky ones sometimes pay fine.</div>
-      <div class="btns">${UI.btn('✅ Accept', 'reDecide', hid + '|1', 'sm goodb')}${UI.btn('❌ Decline', 'reDecide', hid + '|0', 'sm badb')}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+      <div class="btns">${UI.btn('✅ Accept', 'reDecide', key + '|1', 'sm goodb')}${UI.btn('❌ Decline', 'reDecide', key + '|0', 'sm badb')}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
   };
-  UI.A.reSearchGo = (hid) => { const r = TG.RE.search(TG.G, hid); if (!r.ok) return UI.toast(r.msg, true); UI.toast(r.n ? `${r.n} applicant(s) came.` : 'Nobody applied at this rent.', !r.n); UI.A.reSearch(hid); };
+  UI.A.reSearchGo = (key) => { const [hid, u] = String(key).split('|'); const r = TG.RE.search(TG.G, hid, null, u != null ? Number(u) : null); if (!r.ok) return UI.toast(r.msg, true); UI.toast(r.n ? `${r.n} applicant(s) came.` : 'Nobody applied at this rent.', !r.n); UI.A.reSearch(`${hid}|${r.unit}`); UI.refresh(); };
   UI.A.reDecide = (arg) => {
-    const [hid, acc] = arg.split('|'); const g = TG.G; const r = TG.RE.decide(g, hid, acc === '1'); if (!r.ok) return UI.toast(r.msg || 'Not possible.', true);
+    const [hid, u, acc] = arg.split('|'); const g = TG.G; const r = TG.RE.decide(g, hid, acc === '1', Number(u)); if (!r.ok) return UI.toast(r.msg || 'Not possible.', true);
     UI.toast(acc === '1' ? `Signed a lease with ${r.tenant.name}.` : 'Declined.');
-    const h = g.re.holdings.find((x) => x.id === hid); if (h && TG.RE.vacant(h) > 0) UI.A.reSearch(hid); else { UI.closeModal(); } UI.refresh();
+    if (acc === '1') UI.closeModal(); else UI.A.reSearch(`${hid}|${u}`);
+    UI.refresh();
   };
-
   // ================= ✋ "NO MANAGER: YOU MUST DO THIS YOURSELF" =================
   UI.todoCard = (g, b) => {
     const D = TG.D, out = [];

@@ -30,12 +30,13 @@
   function overview(g, b) {
     const d = TG.B.def(b), lc = UI.lc(b); const h = b.hist; const last = h[h.length - 1];
     let o = `<div class="tiles">
-      ${UI.tile('t_profit', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Profit last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', last ? `Money in ${m(last.rev)} − money out ${m(last.cost)}.` : 'Not open a full month yet.')}
+      ${(() => { const v = last ? (last.cash != null ? last.cash : last.profit) : null; return UI.tile('t_profit', '💰', last ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'True result last month', last ? (v >= 0 ? 'g' : 'r') : '', last ? `Everything this business really cost and made last month, including machines bought, repairs, damage and its loan payments. Profit on paper (without buying machines or paying down loans): ${UI.signed(last.profit).replace(/<[^>]+>/g, '')}.` : 'Not open a full month yet.'); })()}
       ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
       ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
       ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
-    if (lc.note) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
+    const cb = UI.closedBanner(g, b); o += cb;
+    if (lc.note && !cb) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
     o += UI.todoCard(g, b); // v6: jobs nobody does for you (no manager)
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
@@ -137,8 +138,9 @@
     const pool = TG.S.poolFor(g, b, hr);
     o += `<div class="card" id="hireCard"><h3 style="margin-top:0">➕ Hire</h3><div class="row"><select data-change="hireRole">${roles.map((r) => `<option value="${r}"${r === hr ? ' selected' : ''}>${esc(d.roles[r].label)}</option>`).join('')}<optgroup label="Managers & specialists">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}"${k === hr ? ' selected' : ''}>${esc(s.label)}${b.spec[k] ? ' (filled)' : ''}</option>`).join('')}</optgroup></select></div>
       <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
+      ${UI.hrHiring(g, b, hr)}
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
-    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}
+    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}${UI.hrCand(c)}
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;
     if (!pool.length) o += `<div class="ev warn">Nobody applied this month. Small labor pools make hiring slow; try next month or move to a bigger town.</div>`;
     o += `</div>`;

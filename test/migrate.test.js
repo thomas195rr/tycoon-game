@@ -36,7 +36,7 @@ for (const ent of ['crops', 'cattle', 'dairy', 'orchard']) {
   s.re.holdings = s.re.holdings || []; if (!s.re.holdings.length) { const l = TG.RE.gen(g, 'house', { distressed: false }); s.re.holdings.push(Object.assign({}, l, { id: 'reX', mode: 'rent', tenants: [{ name: 'T', bad: true, rent: 1200, late: 0 }, null] })); }
   let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v5 save failed to load: ' + e.message); }
   if (g2) { TG.G = g2;
-    ok(g2.v === 6, 'version bumped to 6'); ok(g2.player.cr && TG.CREDIT.score(g2).score >= 300 && TG.CREDIT.score(g2).score <= 850, 'credit record built'); ok(g2.loc.limit >= 0 && !('autoCredit' in g2.settings), 'credit line limit set, auto-credit gone');
+    ok(g2.v >= 6, 'version bumped'); ok(g2.player.cr && TG.CREDIT.score(g2).score >= 300 && TG.CREDIT.score(g2).score <= 850, 'credit record built'); ok(g2.loc.limit >= 0 && !('autoCredit' in g2.settings), 'credit line limit set, auto-credit gone');
     ok(g2.world.ind && Object.keys(g2.world.ind).length === Object.keys(TG.CONFIG.industries).length, 'industries added');
     const b2 = g2.businesses.find((x) => x.id === b.id); ok(!b2.spec.mechanic && b2.staff.some((e) => e.role === 'mech'), 'old mechanic specialist became a staff mechanic');
     ok(!('maint' in (b2.orders || {})) && !('fixNow' in (b2.orders || {})) && !('svcAt' in (b2.orders || {})) && !('autoFix' in g2.settings), 'auto-fix and auto-service orders removed: ' + JSON.stringify(b2.orders) + JSON.stringify(g2.settings));
@@ -45,5 +45,21 @@ for (const ent of ['crops', 'cattle', 'dairy', 'orchard']) {
     const h = g2.re.holdings.find((x) => (x.tenants || []).some((t) => t)); if (h) ok(h.tenants.filter((t) => t).every((t) => typeof t.rel === 'number'), 'tenants got a reliability');
     ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), 'v5->v6 save round-trips');
     try { for (let i = 0; i < 24; i++) { bots.careful(g2, b2); TG.Game.nextMonth(g2); } } catch (e) { ok(false, 'crash after v6 migration ' + e.stack.split('\n').slice(0, 3).join(' | ')); }
+  } }
+// ---- v7: v6 saves -> per-unit searches, ledger, amortizing loan fields, closed-shop counter ----
+{ const TG = load(); const bots = require('./bots')(TG); const g = TG.Game.newGame({ seed: 88 }); g.cash = 3e6; TG.G = g;
+  const b = bots.startBiz(g, 'cafe'); for (let i = 0; i < 2; i++) TG.Game.nextMonth(g);
+  const l = TG.RE.gen(g, 'smallapt', { distressed: false }); g.re.listings = [l]; TG.RE.buy(g, l.id, true); TG.F.takeLoan(g, 'business', 30000);
+  const s = JSON.parse(TG.Game.serialize(g)); s.v = 6; delete s.cashMark; delete s.acc.led; delete s.acc.names;
+  const sh = s.re.holdings[0]; sh.tenants = sh.tenants.map((t, i) => (i === 0 ? t : null)); delete sh.searches; delete sh.issues; sh.search = { m: s.month, rent: 1500, list: [{ name: 'A', income: 3, credit: 700, evictions: 0, rel: 0.9 }], i: 0 };
+  for (const x of s.loans) { delete x.intPaid; delete x.prinPaid; } for (const x of s.businesses) delete x.shut;
+  let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v6 save failed to load: ' + e.message); }
+  if (g2) { TG.G = g2; ok(g2.v === 7, 'version bumped to 7');
+    const h = g2.re.holdings[0]; ok(!h.search && h.searches && Object.keys(h.searches).length === 1 && Array.isArray(h.issues), 'old building-wide search moved to one empty unit');
+    const u = Number(Object.keys(h.searches)[0]); ok(!h.tenants[u], 'search sits on a vacant unit');
+    ok(typeof g2.cashMark === 'number' && g2.acc.led, 'ledger + cash mark added'); ok(g2.loans.every((x) => typeof x.intPaid === 'number' && typeof x.prinPaid === 'number'), 'loan interest/principal counters added');
+    ok(g2.businesses.every((x) => typeof x.shut === 'number'), 'closed counter added');
+    ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), 'v6->v7 save round-trips');
+    try { for (let i = 0; i < 12; i++) { bots.careful(g2, g2.businesses[0]); const r = TG.Game.nextMonth(g2); ok(Math.abs(r.money.diff) < 1, `month ${i} after migration does not reconcile (${r.money.diff})`); } } catch (e) { ok(false, 'crash after v7 migration ' + e.stack.split('\n').slice(0, 3).join(' | ')); }
   } }
 console.log(fails ? `${fails} MIGRATION CHECK(S) FAILED` : 'ALL MIGRATION CHECKS PASSED'); process.exit(fails ? 1 : 0);

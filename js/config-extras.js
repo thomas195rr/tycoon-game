@@ -18,7 +18,7 @@
     maxBoost: 1.5,                       // most extra demand from cutting price
     collapseAt: 1.25, collapseK: 5,      // beyond 25% over market buyers walk away
     commodityUp: 4.5,                    // commodity buyers (crops, cattle, goods) have many other sellers
-    fairUp: 70, fairFreeBand: 0.08,      // reputation target lost per 100% over market (beyond an 8% band)
+    fairUp: 160, fairFreeBand: 0.05,     // v7: reputation target lost per 100% over market (beyond a 5% band): regulars notice overcharging
     fairDown: 12, fairDownMax: 4,        // small goodwill from being cheap
     techChurnPerOver: 0.035,             // tech: extra monthly churn per 100% over market
   };

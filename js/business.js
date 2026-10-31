@@ -25,18 +25,21 @@
     if (d.model === 'farm' && !opts.ent) opts.ent = TG.M.bestEnterprise(prop);
     const cost = B.setupCost(g, type, prop, opts);
     if (g.cash < cost) return { ok: false, msg: `Setup costs ${U.money(cost)}.` };
-    TG.F.spend(g, cost, 'Business setup', null, true);
     const n = g.businesses.filter((x) => x.type === type).length;
+    const bid = U.uid('b'), bname = opts.name || (d.name + (n ? ' #' + (n + 1) : ''));
+    if (TG.LG) TG.LG.setName(g, 'b:' + bid, { n: bname, i: d.icon, grp: 'biz' });
+    TG.F.spend(g, cost, 'Business setup', bid, true);
     const b = {
-      id: U.uid('b'), type, name: opts.name || (d.name + (n ? ' #' + (n + 1) : '')), propId, region: prop.region, loc: prop.loc,
+      id: bid, type, name: bname, propId, region: prop.region, loc: prop.loc,
       labor: prop.labor, traffic: prop.traffic, sqft: prop.sqft, acres: prop.acres, founded: g.month,
       rep: d.startRep != null ? d.startRep : C.reputation.start, staff: [], spec: {}, equip: [], fixes: {}, ins: {},
       ads: { budget: 0, channel: 'social' }, pace: 'normal', ask: null, hits: [], boost: null, recv: [], hist: [],
       m: { rev: 0, cost: 0, lines: {} }, revAvg: 0, outside: 0, closed: 0, licensePending: d.license ? d.license.months : 0,
-      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost, orders: {}, backlog: 0,
+      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost, orders: {}, backlog: 0, shut: 0,
     };
     prop.bizId = b.id;
     TG.M.init(g, b, prop, opts);
+    if (TG.ST) TG.ST.ensure(b); // v7: the supplies shelf exists from day one, so you can stock it before the first month
     g.businesses.push(b);
     TG.rep.event(g, b, 'info', `Opened ${b.name}`, `Setup cost ${U.money(cost)}${d.license ? `; license takes ${d.license.months} months before opening` : ''}`);
     return { ok: true, biz: b };
@@ -60,6 +63,8 @@
       else { const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); } }
     }
     if (TG.D) TG.D.syncTargets(b);
+    // v7: a first supplies order (you pay for it); after this, no manager = you reorder yourself
+    if (TG.ST && TG.ST.def(b)) { TG.ST.ensure(b); const q = TG.ST.suggest(b, g); if (q > 0 && g.cash > q * TG.ST.unitCost(g, b) * 2) TG.ST.buy(g, b, q, 0); }
     for (const t of d.insurance) if (t === 'liability' || t === 'malpractice' || (t === 'property' && g.properties.find((p) => p.id === b.propId && p.owned))) b.ins[t] = true;
     return { cost, steps };
   };
@@ -257,7 +262,7 @@
   B.lawsuit = (g, b, label, amount, insType, why) => {
     const C = TG.CONFIG.lawsuits;
     amount = Math.round(amount);
-    const ls = { id: U.uid('s'), bizId: b ? b.id : null, label, amount, ins: insType || null, left: R.int(C.months[0], C.months[1]), status: 'open', why };
+    const ls = { id: U.uid('s'), bizId: b ? b.id : null, own: b ? null : (g._own || null), label, amount, ins: insType || null, left: R.int(C.months[0], C.months[1]), status: 'open', why };
     g.lawsuits.push(ls);
     const win = B.winChance(g, b);
     TG.rep.event(g, b, 'major', `${label}: sued for ${U.money(amount)}`, why || 'See risk factors', { major: 'lawsuit' });
@@ -274,6 +279,7 @@
   B.resolveSuit = (g, suitId, how, by) => {
     const C = TG.CONFIG.lawsuits; const ls = g.lawsuits.find((x) => x.id === suitId); if (!ls || ls.status !== 'open') return;
     const b = ls.bizId ? B.get(g, ls.bizId) : null;
+    if (!b && ls.own && TG.LG && !g._own) return TG.LG.within(g, ls.own, () => B.resolveSuit(g, suitId, how, by));
     if (how === 'settle') {
       const amt = Math.round(ls.amount * R.range(C.settleShare[0], C.settleShare[1]));
       TG.F.spend(g, amt, 'Legal settlements', b && b.id); if (b) TG.F.claim(g, b, ls.ins, amt, ls.label);
@@ -291,6 +297,8 @@
       ls.left--;
       if (ls.left > 0) continue;
       const b = ls.bizId ? B.get(g, ls.bizId) : null;
+      const prevOwn = g._own; if (!b && ls.own) g._own = ls.own;
+      try {
       if (ls.status === 'open') {
         const amt = Math.round(ls.amount * C.defaultMult);
         TG.F.spend(g, amt, 'Court judgments', b && b.id); if (b) TG.F.claim(g, b, ls.ins, amt, ls.label);
@@ -301,6 +309,7 @@
         else { TG.F.spend(g, ls.amount, 'Court judgments', b && b.id); if (b) { TG.F.claim(g, b, ls.ins, ls.amount, ls.label); b.rep = U.clamp(b.rep - 4, 0, 100); } TG.rep.event(g, b, 'major', `Lost the lawsuit: ${ls.label} (${U.money(ls.amount)})`, `Had ${U.pct(ls.win)} odds to win`, { major: 'lawsuit' }); }
       }
       g.lawsuits = g.lawsuits.filter((x) => x !== ls);
+      } finally { g._own = prevOwn; }
     }
   };
 
@@ -420,13 +429,41 @@
     TG.E.month(g, b, ctx);
     B.rollRisks(g, b, ctx);
     TG.M.month(g, b, ctx);
+    B.shutCheck(g, b, ctx);
     B.fixedCosts(g, b, ctx);
     TG.S.month(g, b, ctx);
+    B.shutStaff(g, b, ctx);
     B.repMonth(g, b, ctx);
     B.goodEvents(g, b, ctx);
     if (ctx.adFlop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped this month', `${TG.CONFIG.reputation.adChannels[b.ads.channel].label} campaigns flop ${U.pct(TG.CONFIG.reputation.adChannels[b.ads.channel].flop)} of the time${b.spec.ads ? '' : '; no ads manager'}`);
     B.endMonth(g, b, ctx);
     return ctx;
+  };
+  // ---------- v7: no supplies = the doors stay shut ----------
+  // Without a manager, staff never buy supplies or run the shop for you. If nobody bought any, there is nothing to sell:
+  // the business is CLOSED (no sales) but wages, rent and bills keep coming. Idle staff may quit or stick around.
+  B.shutCheck = (g, b, ctx) => {
+    const st = b.stock; if (!TG.ST.def(b) || !st) { b.shut = 0; ctx.closed = null; return; }
+    const empty = (st.qty || 0) < 1 && (st.usedM || 0) < 0.5 && (st.inM || 0) < 0.5;
+    const wanted = (ctx.demand || 0) > 0.5 && !b.licensePending; // off-season with no customers is not 'closed'
+    if (empty && wanted) {
+      const h = TG.D.handler(g, b, 'stock'); const mgrTried = !!(h && st.auto);
+      b.shut = (b.shut || 0) + 1; ctx.closed = mgrTried ? 'nocash' : 'nomgr';
+      ctx.note = mgrTried ? `Closed: no supplies (${st.short === 'room' ? 'no storage room' : 'not enough cash'} for your manager to buy any)` : 'Closed: no supplies, no manager';
+      ctx.served = 0; ctx.busy = 0;
+      b.rep = U.clamp(b.rep - 1.5, 0, 100); // customers find the doors shut
+      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'cash' });
+    } else { b.shut = 0; ctx.closed = null; }
+  };
+  // idle staff while closed: each closed month the odds they walk out rise, more if unhappy; the rest stay (and get paid)
+  B.shutQuitP = (b, e) => U.clamp(0.05 * (b.shut || 0) + (e.morale < 50 ? (50 - e.morale) / 200 : 0), 0, 0.6);
+  B.shutStaff = (g, b, ctx) => {
+    if (!ctx.closed) return;
+    for (const e of b.staff.slice()) {
+      e.morale = U.clamp(e.morale - 5, 0, 100);
+      const p = B.shutQuitP(b, e);
+      if (R.chance(p)) TG.S.leave(g, b, e, `the shop has been closed ${b.shut} month${b.shut > 1 ? 's' : ''} with nothing to do (${U.pct(p)} chance)`, true);
+    }
   };
   // ---------- next-month forecast: known costs exactly, the rest from recent months and the season ----------
   B.forecast = (g, b) => {
@@ -498,7 +535,7 @@
     const last3 = b.hist.slice(-3);
     b.revAvg = U.avg(last3, (x) => x.rev);
     b.fcPrev = b.fc || null; b.fc = B.forecast(g, b); // forecast for next month; last month's kept to compare with what happened
-    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
+    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', closed: ctx.closed || null, shut: b.shut || 0, limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
     for (const w of ctx.warnings) TG.rep.warn(g, b, w.text, w.why, w.p);
     // takeover by investors
     const C = TG.CONFIG.finance;
@@ -526,7 +563,7 @@
 
   B.close = (g, b, why, forced, keepProp) => {
     const fs = forced ? TG.CONFIG.finance.bankruptcy.fireSale : 1;
-    for (const it of b.equip) { const v = Math.round(TG.E.resale(g, b, it) * fs); if (v && !forced) TG.F.earn(g, v, 'Asset sales', null, true); else if (v && forced) TG.F.earn(g, v, 'Fire-sale proceeds', null, true); }
+    for (const it of b.equip) { const v = Math.round(TG.E.resale(g, b, it) * fs); if (v && !forced) TG.F.earn(g, v, 'Asset sales', b.id, true); else if (v && forced) TG.F.earn(g, v, 'Fire-sale proceeds', b.id, true); }
     b.equip = [];
     const prop = g.properties.find((p) => p.id === b.propId); if (prop) prop.bizId = null;
     g.businesses = g.businesses.filter((x) => x !== b);
@@ -545,9 +582,10 @@
     const prop = g.properties.find((p) => p.id === b.propId);
     const v = Math.round(B.saleValue(g, b) * (mult || 1));
     b.equip = [];
+    TG.F.earn(g, v, forced ? 'Fire-sale proceeds' : 'Business sales', b.id, true);
+    if (prop && prop.mortgageId) { const own = () => TG.F.payoff(g, prop.mortgageId); if (TG.LG) TG.LG.within(g, 'b:' + b.id, own); else own(); }
     B.close(g, b, forced ? 'sold in a forced liquidation' : `sold for ${U.money(v)}`, false);
-    TG.F.earn(g, v, forced ? 'Fire-sale proceeds' : 'Business sales', null, true);
-    if (prop) { if (prop.mortgageId) TG.F.payoff(g, prop.mortgageId); g.properties = g.properties.filter((p) => p !== prop); }
+    if (prop) g.properties = g.properties.filter((p) => p !== prop);
     return v;
   };
   // ---------- v6: instant updates ----------

@@ -1,43 +1,43 @@
 Capital: small $250k, in-between $600k, corporation $5M. 8 seeds x 120 months each.
 type          tier     style     medCAGR  best  ruin closed  good-start  bad-start  med biz profit/mo (yr3+)  median NW
-cafe          small    careful       11%   19%    0%     0%         10%        13%       $6,802          $737.7k
-cafe          small    reckless     -31%  -31%  100%   100%        -31%       -31%           $0           $6,000
-foodtruck     small    careful        6%   13%   13%    13%          5%         6%       $5,277          $450.9k
-foodtruck     small    reckless     -29%  -16%   50%   100%        -31%       -19%           $0           $7,668
-bakery        small    careful       11%   15%    0%     0%         11%         2%       $6,439          $694.6k
-bakery        small    reckless     -31%  -31%  100%   100%        -31%       -31%           $0           $6,000
-salon         small    careful        8%   15%    0%     0%          9%         7%       $3,767          $557.7k
-salon         small    reckless     -31%  -31%   88%   100%        -31%       -31%           $0           $6,000
-carwash       small    careful       15%   18%    0%     0%         15%        15%       $11.3k          $973.4k
-carwash       small    reckless     -31%  -19%   38%   100%        -31%       -31%           $0           $6,000
-lawn          small    careful       11%   14%   25%    25%         11%       -31%       $9,844          $710.6k
-lawn          small    reckless     -31%  -22%   88%   100%        -31%       -31%           $0           $6,000
-auto          small    careful       14%   15%    0%     0%         13%        14%       $8,465          $932.7k
-auto          small    reckless     -31%  -20%   88%   100%        -31%       -31%           $0           $6,000
-gym           small    careful        7%   16%    0%     0%          7%         7%       $5,152          $509.8k
-gym           small    reckless     -31%  -31%  100%   100%        -31%       -31%           $0           $6,000
+cafe          small    careful       11%   19%   13%    13%          6%        13%       $6,365          $690.0k
+cafe          small    reckless     -31%  -23%   63%   100%        -31%       -31%           $0           $6,000
+foodtruck     small    careful        7%   10%   25%    25%          7%         5%       $6,730          $482.8k
+foodtruck     small    reckless     -31%  -17%   63%   100%        -24%       -31%           $0           $6,000
+bakery        small    careful        9%   14%    0%     0%         12%         0%       $6,565          $608.5k
+bakery        small    reckless     -31%  -19%   63%   100%        -31%       -22%           $0           $6,000
+salon         small    careful        8%   15%    0%     0%         13%         7%       $3,651          $562.3k
+salon         small    reckless     -31%  -31%  100%   100%        -31%       -31%           $0           $6,000
+carwash       small    careful       16%   22%    0%     0%         18%        16%       $12.3k           $1.12M
+carwash       small    reckless     -31%  -23%   75%   100%        -31%       -31%           $0           $6,000
+lawn          small    careful        7%   16%   25%    38%          7%       -16%       $7,516          $486.5k
+lawn          small    reckless     -31%  -24%   75%   100%        -31%       -31%           $0           $6,000
+auto          small    careful       14%   18%   13%    13%         15%        14%       $9,021          $914.3k
+auto          small    reckless     -31%  -24%   63%   100%        -31%       -26%           $0           $6,000
+gym           small    careful        8%   15%    0%     0%          7%         8%       $5,706          $534.9k
+gym           small    reckless     -31%  -31%   88%   100%        -31%       -31%           $0           $6,000
 farm          between  careful        4%    7%    0%    25%          7%         2%       $13.2k          $855.1k
 farm          between  reckless     -16%  -12%   25%   100%        -16%       -16%           $0          $102.7k
-freight       between  careful        6%    7%    0%     0%          6%         4%       $10.8k           $1.04M
-freight       between  reckless     -21%   -9%   50%   100%        -12%       -37%           $0           $55.6k
+freight       between  careful        7%    9%    0%     0%          6%         9%       $12.7k           $1.15M
+freight       between  reckless     -23%  -10%   13%   100%        -11%       -23%           $0           $43.7k
 brand         between  careful        6%    7%    0%     0%          6%         6%       $7,142           $1.10M
-brand         between  reckless     -15%  -10%   50%   100%        -11%       -37%           $0          $111.6k
-hotel         corp     careful        5%   12%    0%     0%          5%         2%       $39.8k           $7.93M
-hotel         corp     reckless     -49%  -37%   75%   100%        -49%       -49%     -$121.6k           $6,000
-law           corp     careful        6%   11%    0%     0%          8%         5%       $40.9k           $8.83M
-law           corp     reckless     -49%  -22%   63%   100%        -37%       -49%     -$152.7k           $6,000
-clinic        corp     careful        9%   16%   13%    13%          6%        15%       $92.3k          $11.52M
-clinic        corp     reckless     -49%  -13%   75%   100%        -49%       -49%           $0           $6,000
-construction  corp     careful       11%   24%    0%     0%          9%        14%      $107.3k          $14.61M
+brand         between  reckless     -14%  -10%   50%   100%        -11%       -37%           $0          $135.6k
+hotel         corp     careful        5%   11%    0%     0%          5%        -1%       $46.2k           $8.26M
+hotel         corp     reckless     -33%  -27%   50%   100%        -31%       -49%      -$84.2k           $91.5k
+law           corp     careful        8%   11%    0%     0%          9%         8%       $68.8k          $11.18M
+law           corp     reckless     -25%  -22%   25%   100%        -24%       -25%      -$65.8k          $273.4k
+clinic        corp     careful       14%   15%    0%    13%         10%        15%      $170.2k          $18.45M
+clinic        corp     reckless     -49%  -20%   75%   100%        -49%       -49%           $0           $6,000
+construction  corp     careful       11%   26%    0%     0%         10%        11%       $94.7k          $13.84M
 construction  corp     reckless     -26%  -21%   38%   100%        -26%       -25%      -$55.9k          $233.9k
-factory       corp     careful        7%    8%    0%     0%          7%         8%      $102.7k          $10.25M
-factory       corp     reckless     -20%  -17%   38%   100%        -49%       -20%           $0          $556.2k
+factory       corp     careful        7%   10%    0%     0%          7%         8%       $95.8k           $9.72M
+factory       corp     reckless     -23%  -18%   13%   100%        -26%       -23%           $0          $388.5k
 tech          corp     careful       -2%   34%    0%    38%        -14%        -2%       $3,693           $4.13M
-tech          corp     reckless     -49%    3%   88%   100%        -49%       -49%     -$113.8k           $6,000
+tech          corp     reckless     -49%    3%   88%   100%        -49%       -49%     -$107.5k           $6,000
 franchise     corp     careful       12%   13%    0%     0%         11%        13%      $141.8k          $15.40M
 franchise     corp     reckless     -49%    7%   63%   100%          5%       -49%      -$32.1k           $6,000
-careful: best carwash   15%, worst tech   -2%, spread   16%
-industry cycle effect (start in good vs bad times, careful): median    0% CAGR, range  -12% to   42%
+careful: best carwash   16%, worst tech   -2%, spread   18%
+industry cycle effect (start in good vs bad times, careful): median    0% CAGR, range  -12% to   23%
 
 Industry swings over 10-year worlds (margin index: demand x price / cost; 1.00 = normal):
   tech         worst 0.57  best 1.57  swing 172%  half-cycle ~30 months

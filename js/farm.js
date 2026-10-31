@@ -368,8 +368,8 @@
       const down = Math.round(cost * TG.CONFIG.property.mortgageDown);
       if (g.cash < down) return { ok: false, msg: `Need ${U.money(down)} down.` };
       const ok = TG.CREDIT.apply(g, 'mortgage', cost - down, { collateral: { kind: 'property', id: prop.id }, label: `Land mortgage (${acres} ac)`, bizId: b.id, noCash: true, ltv: (cost - down) / cost, asset: cost }); if (!ok.ok) return ok;
-      TG.F.spend(g, down, 'Land purchases', null, true);
-    } else { if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Land purchases', null, true); }
+      TG.F.spend(g, down, 'Land purchases', b.id, true);
+    } else { if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Land purchases', b.id, true); }
     const free = M.farmFree(f); f.freeSoil = (f.freeSoil * free + f.baseSoil * acres) / Math.max(1, free + acres);
     f.acres += acres; b.acres = f.acres;
     if (prop) { prop.acres += acres; if (prop.owned) prop.baseValue = (prop.baseValue || prop.price) + cost * (prop.housingAtBuy || 1) / g.world.housing; else prop.landOwned = (prop.landOwned || 0) + cost / g.world.housing; }

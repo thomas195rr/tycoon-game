@@ -126,6 +126,23 @@ ul.fx li { margin: 1px 0; }
 .arealine { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 2px; font-size: 15px; font-weight: 700; }
 .arealine .warn { color: var(--warn, #b45309); }
 .card.area h3 { font-size: 16px; }
+/* v7: money report groups, loans, units */
+details.grp > summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; font-weight: 700; font-size: 16px; padding: 7px 0; border-bottom: 1px solid #e5e7eb; }
+details.grp > summary::-webkit-details-marker { display: none; }
+details.grp > summary .car::before { content: '▸'; display: inline-block; width: 1em; color: #6b7280; }
+details.grp[open] > summary .car::before { content: '▾'; }
+details.grp > summary .gl { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+details.grp > summary .gv { flex: 0 0 auto; white-space: nowrap; }
+details.grp .in1 { margin-left: 14px; }
+.tot { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; font-size: 17px; padding: 8px 0 2px; border-top: 2px solid #111827; margin-top: 4px; }
+.mtab td, .mtab th { padding: 3px 4px; font-size: 14px; }
+.mtab th { text-align: right; color: #6b7280; font-weight: 600; }
+.mtab th:first-child { text-align: left; }
+.unit { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eee; }
+.unit .un { flex: 0 0 auto; font-weight: 800; min-width: 2.2em; }
+.unit .ub { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.closed { background: #fee2e2; border: 2px solid #dc2626; color: #991b1b; border-radius: 10px; padding: 8px 10px; font-weight: 800; }
+.sched td { font-size: 13px; padding: 2px 3px; }
 
 </style>
 </head>
@@ -1103,7 +1120,7 @@ ul.fx li { margin: 1px 0; }
     maxBoost: 1.5,                       // most extra demand from cutting price
     collapseAt: 1.25, collapseK: 5,      // beyond 25% over market buyers walk away
     commodityUp: 4.5,                    // commodity buyers (crops, cattle, goods) have many other sellers
-    fairUp: 70, fairFreeBand: 0.08,      // reputation target lost per 100% over market (beyond an 8% band)
+    fairUp: 160, fairFreeBand: 0.05,     // v7: reputation target lost per 100% over market (beyond a 5% band): regulars notice overcharging
     fairDown: 12, fairDownMax: 4,        // small goodwill from being cheap
     techChurnPerOver: 0.035,             // tech: extra monthly churn per 100% over market
   };
@@ -2250,12 +2267,29 @@ ul.fx li { margin: 1px 0; }
       return Object.assign({ specialist: true }, sp, { wage: [Math.round(sp.wage[0] * k), Math.round(sp.wage[1] * k)] });
     }
     if (role === 'ceo') return { label: 'CEO', wage: TG.CONFIG.ceo.wage, specialist: true };
-    if (role === 'rem') return { label: 'Property manager', wage: [3500, 8000], specialist: true };
+    if (role === 'rem') return { label: 'Property manager', wage: [900, 2800], specialist: true };
     return TG.CONFIG.businesses[b.type].roles[role];
   };
 
+  // v7: an HR manager negotiates lower wages for the same skill and screens out some bad fits. Odds, not magic:
+  // the cheapest deals are the likeliest duds, and people paid under the going rate are less happy.
+  S.hrOf = (b) => (b && b.spec && b.spec.hr) || null;
+  S.hrDisc = (hr) => U.clamp(0.02 + 0.13 * (hr.skill || 50) / 100, 0.02, 0.15); // average wage cut
+  S.hrScreen = (hr) => U.clamp(0.2 + 0.6 * (hr.skill || 50) / 100, 0.2, 0.8);  // share of unreliable / dishonest applicants spotted
+  S.candidate = (g, b, role, labor, noHR) => {
+    const e = S.candidate0(g, b, role, labor); const hr = !noHR && S.hrOf(b);
+    if (!hr || TG.CONFIG.specialists[role] || role === 'ceo' || role === 'rem' || !b.type) return e;
+    let c = e;
+    if ((c.reliability < 50 || c.honesty < 40) && R.chance(S.hrScreen(hr))) { c = S.candidate0(g, b, role, labor); c.screened = true; }
+    const disc = U.clamp(S.hrDisc(hr) + R.normal(0, 0.035), 0, 0.22);
+    c.listWage = c.wage; c.wage = Math.round(c.wage * (1 - disc) / 10) * 10; c.hrDisc = disc;
+    if (disc > S.hrDisc(hr) && R.chance(0.15 + (disc - S.hrDisc(hr)) * 3)) { // a bargain that is a bargain for a reason
+      c.reliability = U.clamp(c.reliability - R.int(15, 35), 5, 99); c.attitude = U.clamp(c.attitude - R.int(5, 20), 5, 99); c.dud = true;
+    }
+    return c;
+  };
   // Generate a candidate. labor = property labor pool (0..1)
-  S.candidate = (g, b, role, labor) => {
+  S.candidate0 = (g, b, role, labor) => {
     const C = TG.CONFIG, rd = S.roleDef(b, role);
     labor = U.clamp(labor == null ? 0.5 : labor, 0.02, 1);
     const quals = U.clamp(Math.pow(R.next(), 1.25 - labor * 0.6), 0, 1);
@@ -2781,17 +2815,17 @@ ul.fx li { margin: 1px 0; }
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
   const F = {};
   const acc = (g) => (g.acc = g.acc || F.newAcc());
-  F.newAcc = () => ({ inc: {}, exp: {}, capIn: {}, capOut: {} });
+  F.newAcc = () => ({ inc: {}, exp: {}, capIn: {}, capOut: {}, led: {}, names: {} });
 
   F.earn = (g, amt, label, bizId, capital) => {
     amt = U.num(amt); if (!amt) return;
-    g.cash += amt; const a = acc(g);
+    g.cash += amt; const a = acc(g); if (TG.LG) TG.LG.rec(g, amt, label, bizId);
     const bucket = capital ? a.capIn : a.inc; bucket[label] = (bucket[label] || 0) + amt;
     if (bizId && !capital) { const b = g.businesses.find((x) => x.id === bizId); if (b && b.m) { b.m.rev += amt; b.m.lines[label] = (b.m.lines[label] || 0) + amt; } }
   };
   F.spend = (g, amt, label, bizId, capital) => {
     amt = U.num(amt); if (!amt) return;
-    g.cash -= amt; const a = acc(g);
+    g.cash -= amt; const a = acc(g); if (TG.LG) TG.LG.rec(g, -amt, label, bizId);
     const bucket = capital ? a.capOut : a.exp; bucket[label] = (bucket[label] || 0) + amt;
     if (bizId && !capital) { const b = g.businesses.find((x) => x.id === bizId); if (b && b.m) { b.m.cost += amt; b.m.lines[label] = (b.m.lines[label] || 0) - amt; } }
   };
@@ -2825,11 +2859,13 @@ ul.fx li { margin: 1px 0; }
     const rate = opts.rate || F.rateFor(g, type);
     const term = opts.term || L.term;
     const loan = { id: U.uid('l'), type, label: opts.label || L.label, principal: Math.round(amount), balance: Math.round(amount), rate, term, left: term,
-      payment: Math.round(F.payment(amount, rate, term)), missed: 0, collateral: opts.collateral || null, bizId: opts.bizId || null, start: g.month };
+      payment: Math.round(F.payment(amount, rate, term)), missed: 0, collateral: opts.collateral || null, bizId: opts.bizId || null, start: g.month, intPaid: 0, prinPaid: 0 };
     g.loans.push(loan);
-    if (!opts.noCash) F.earn(g, amount, 'Loan proceeds', null, true);
+    if (!opts.noCash) F.own(g, loan, () => F.earn(g, amount, 'Loan proceeds', null, true));
     return loan;
   };
+  // v7: money for a loan lands on the line of whatever it pays for (a business, a rental, a building), else on "You"
+  F.own = (g, l, fn) => (TG.LG && !g._own ? TG.LG.within(g, TG.LG.loanOwner(g, l), fn) : fn());
   F.takeLoan = (g, type, amount, opts) => {
     amount = Math.round(amount);
     if (!(amount > 0)) return { ok: false, msg: 'Enter an amount.' };
@@ -2837,15 +2873,45 @@ ul.fx li { margin: 1px 0; }
   };
   F.payoff = (g, loanId, fromSale) => {
     const l = g.loans.find((x) => x.id === loanId); if (!l) return;
-    F.spend(g, l.balance, 'Loan payoff', null, true);
+    F.own(g, l, () => F.spend(g, l.balance, 'Loan payoff', null, true));
+    l.prinPaid = (l.prinPaid || 0) + l.balance;
     g.loans = g.loans.filter((x) => x !== l);
   };
+  // v7: an extra payment goes straight to principal; the monthly payment stays the same, so the loan ends sooner
+  // and you skip the interest on those months (like a real mortgage).
   F.prepay = (g, loanId, amt) => {
-    const l = g.loans.find((x) => x.id === loanId); if (!l) return;
-    amt = Math.min(Math.round(amt), l.balance, Math.max(0, g.cash)); if (amt <= 0) return;
-    F.spend(g, amt, 'Loan prepayment', null, true); l.balance -= amt;
+    const l = g.loans.find((x) => x.id === loanId); if (!l) return 0;
+    amt = Math.min(Math.round(amt), l.balance, Math.max(0, g.cash)); if (amt <= 0) return 0;
+    F.own(g, l, () => F.spend(g, amt, 'Loan prepayment', null, true)); l.balance -= amt; l.prinPaid = (l.prinPaid || 0) + amt;
     if (l.balance <= 1) g.loans = g.loans.filter((x) => x !== l);
-    else { l.payment = Math.round(F.payment(l.balance, l.rate, Math.max(1, l.left))); }
+    else l.left = Math.max(1, F.nper(l.balance, l.rate, l.payment));
+    return amt;
+  };
+  // months needed to repay P at a fixed payment A
+  F.nper = (P, rate, A) => { const r = rate / 12; if (P <= 0) return 0; if (r === 0) return Math.ceil(P / Math.max(1, A)); if (A <= P * r) return 999; return Math.ceil(-Math.log(1 - r * P / A) / Math.log(1 + r) - 1e-9); };
+  // the full amortization schedule from now: each payment = interest on what is left + the rest off the balance
+  F.schedule = (g, l, max) => {
+    const rows = []; let bal = l.balance; const r = l.rate / 12; let left = Math.max(1, l.left || 1); max = max || 600;
+    for (let n = 1; bal > 0.5 && n <= max; n++) {
+      const int = bal * r; const pay = left <= 1 ? bal + int : Math.min(l.payment, bal + int);
+      const prin = pay - int; bal = Math.max(0, bal - prin); left--;
+      rows.push({ n, m: g.month + n - 1, pay, int, prin, bal });
+    }
+    return rows;
+  };
+  F.loanInfo = (g, l) => {
+    const S = F.schedule(g, l); const int0 = l.balance * l.rate / 12;
+    return { original: l.principal, balance: l.balance, rate: l.rate, term: l.term, payment: l.payment, thisInt: int0, thisPrin: Math.max(0, Math.min(l.payment, l.balance + int0) - int0),
+      intPaid: l.intPaid || 0, prinPaid: l.prinPaid || 0, intLeft: U.sum(S, (x) => x.int), monthsLeft: S.length, payoffM: S.length ? S[S.length - 1].m : g.month, schedule: S, owner: TG.LG ? TG.LG.loanOwner(g, l) : 'you' };
+  };
+  // credit line as a loan: interest on what you owe + a minimum share of the balance each month
+  F.locInfo = (g) => {
+    const C = TG.CONFIG.finance.loc; const rate = g.loc.balance > 0 ? (g.loc.rate || F.rateFor(g, 'loc')) : F.rateFor(g, 'loc');
+    const rows = []; let bal = g.loc.balance; const r = rate / 12;
+    for (let n = 1; bal > 0.5 && n <= 600; n++) { const int = bal * r; const prin = Math.max(Math.min(bal, 25), Math.round(bal * C.minPayPct)); const pr = Math.min(bal, prin); bal -= pr; rows.push({ n, m: g.month + n - 1, pay: int + pr, int, prin: pr, bal }); }
+    const int0 = g.loc.balance * r;
+    return { original: g.loc.limit || 0, balance: g.loc.balance, rate, term: null, payment: rows.length ? rows[0].pay : 0, thisInt: int0, thisPrin: rows.length ? rows[0].prin : 0,
+      intPaid: g.loc.intPaid || 0, prinPaid: g.loc.prinPaid || 0, intLeft: U.sum(rows, (x) => x.int), monthsLeft: rows.length, payoffM: rows.length ? rows[rows.length - 1].m : g.month, schedule: rows, owner: 'you' };
   };
   F.totalPayments = (g) => U.sum(g.loans, (l) => l.payment) + (g.loc ? Math.round(g.loc.balance * TG.CONFIG.finance.loc.minPayPct) : 0);
   F.debt = (g) => U.sum(g.loans, (l) => l.balance) + (g.loc ? g.loc.balance : 0) + (g.invest ? g.invest.marginDebt : 0);
@@ -2856,37 +2922,42 @@ ul.fx li { margin: 1px 0; }
   F.locDraw = (g, amt, by) => {
     const lim = F.locLimit(g); amt = Math.min(Math.round(amt), lim - g.loc.balance);
     if (amt <= 0) return 0;
-    g.loc.balance += amt; F.earn(g, amt, 'Credit line draw', null, true);
+    g.loc.balance += amt; const go = () => F.earn(g, amt, 'Credit line draw', null, true); if (TG.LG) TG.LG.within(g, 'you', go); else go();
     return amt;
   };
-  F.locRepay = (g, amt) => { amt = Math.min(Math.round(amt), g.loc.balance, Math.max(0, g.cash)); if (amt <= 0) return 0; g.loc.balance -= amt; F.spend(g, amt, 'Credit line repayment', null, true); return amt; };
+  F.locRepay = (g, amt) => { amt = Math.min(Math.round(amt), g.loc.balance, Math.max(0, g.cash)); if (amt <= 0) return 0; g.loc.balance -= amt; g.loc.prinPaid = (g.loc.prinPaid || 0) + amt; const go = () => F.spend(g, amt, 'Credit line repayment', null, true); if (TG.LG) TG.LG.within(g, 'you', go); else go(); return amt; };
 
   // ---------- monthly debt service ----------
   F.monthLoans = (g) => {
     const C = TG.CONFIG.finance; TG.CREDIT.month(g); let paidAll = g.loans.length > 0 || g.loc.balance > 0;
-    for (const l of g.loans.slice()) {
+    for (const l of g.loans.slice()) F.own(g, l, () => {
       const interest = l.balance * l.rate / 12;
-      const pay = Math.min(l.payment, l.balance + interest);
+      // v7: amortizing like a real mortgage. The last payment clears whatever is left (nothing is ever forgiven).
+      const pay = l.left <= 1 ? l.balance + interest : Math.min(l.payment, l.balance + interest);
       if (g.cash >= pay || F.autoCredit(g, pay - g.cash)) {
-        F.spend(g, Math.round(interest), 'Loan interest');
-        F.spend(g, Math.round(pay - interest), 'Loan principal', null, true);
+        const ri = Math.round(interest), rp = Math.round(pay - interest);
+        F.spend(g, ri, 'Loan interest');
+        F.spend(g, rp, 'Loan principal', null, true);
         l.balance = Math.max(0, l.balance - (pay - interest)); l.left--; l.missed = 0;
-        if (l.balance < 1 || l.left <= 0) { g.loans = g.loans.filter((x) => x !== l); TG.rep.event(g, null, 'good', `Paid off ${l.label}`, 'All payments made'); }
+        l.intPaid = (l.intPaid || 0) + ri; l.prinPaid = (l.prinPaid || 0) + rp; l.lastInt = ri; l.lastPrin = rp; l.lastM = g.month;
+        if (l.balance < 1 || l.left <= 0) { g.loans = g.loans.filter((x) => x !== l); TG.rep.event(g, null, 'good', `Paid off ${l.label}`, `All payments made. Interest paid over the loan: ${U.money(l.intPaid)}`); }
       } else {
         l.missed++; l.balance += Math.round(interest + pay * C.lateFeePct);
+        l.payment = Math.round(F.payment(l.balance, l.rate, Math.max(1, l.left))); // missed interest is added on; payments rise to stay on schedule
+        l.lastInt = 0; l.lastPrin = 0; l.lastM = g.month;
         paidAll = false; TG.CREDIT.late(g, 1);
         TG.rep.event(g, null, 'major', `Missed a payment on ${l.label}`, `Cash ${U.money(g.cash)} was below the ${U.money(pay)} payment; credit score now ${Math.round(g.player.credit)}. ${l.collateral ? `After ${C.repoAfterMissed} missed payments the lender takes the ${l.collateral.kind === 'equip' ? 'machine' : 'property'}.` : `After ${TG.CONFIG.credit.collectionsAfter} it goes to collections.`}`, { major: 'cash' });
         if (l.missed >= C.repoAfterMissed && l.collateral) { F.repossess(g, l); TG.CREDIT.derog(g, 'repo'); }
         else if (!l.collateral && l.missed >= TG.CONFIG.credit.collectionsAfter && !l.coll) { l.coll = true; TG.CREDIT.derog(g, 'collections'); TG.rep.event(g, null, 'major', `${l.label} was sent to collections`, `${l.missed} missed payments in a row: a big hit to your credit score for years`, { major: 'cash' }); }
       }
-    }
+    });
     // credit line
     if (g.loc.balance > 0) {
       g.loc.rate = F.rateFor(g, 'loc');
       const interest = Math.round(g.loc.balance * g.loc.rate / 12);
-      const minPay = Math.round(g.loc.balance * C.loc.minPayPct);
-      F.spend(g, interest, 'Credit line interest');
-      if (g.cash >= minPay) { F.spend(g, minPay, 'Credit line repayment', null, true); g.loc.balance -= minPay; }
+      const minPay = Math.min(Math.round(g.loc.balance), Math.max(25, Math.round(g.loc.balance * C.loc.minPayPct)));
+      F.spend(g, interest, 'Credit line interest'); g.loc.intPaid = (g.loc.intPaid || 0) + interest;
+      if (g.cash >= minPay) { F.spend(g, minPay, 'Credit line repayment', null, true); g.loc.balance -= minPay; g.loc.prinPaid = (g.loc.prinPaid || 0) + minPay; }
       else { paidAll = false; TG.CREDIT.late(g, 0.6); TG.rep.event(g, null, 'bad', 'Missed the credit line minimum payment', `Cash ${U.money(g.cash)}`); }
     }
     if (paidAll) TG.CREDIT.onTime(g); // on-time record counts once a month, however many loans you have
@@ -3005,7 +3076,7 @@ ul.fx li { margin: 1px 0; }
     if (o.cash < 10000) return { ok: false, msg: 'Investors are not interested yet (valuation too low).' };
     if ((b.outside || 0) + pct > 0.9) return { ok: false, msg: 'You would give away almost everything.' };
     b.outside = (b.outside || 0) + pct;
-    F.earn(g, o.cash, 'Investor funding', null, true);
+    F.earn(g, o.cash, 'Investor funding', b.id, true);
     TG.rep.event(g, b, 'info', `Sold ${U.pct(pct)} of ${b.name} to investors for ${U.money(o.cash)}`, `Valuation ${U.money(o.valuation)}; investors now own ${U.pct(b.outside)}`);
     return { ok: true, cash: o.cash };
   };
@@ -3015,7 +3086,7 @@ ul.fx li { margin: 1px 0; }
     if (b.public) return { ok: false, msg: 'Already public.' };
     const cash = Math.round(v * C.ipoPct * C.ipoPremium);
     b.outside = (b.outside || 0) + C.ipoPct; b.public = true;
-    F.earn(g, cash, 'IPO proceeds', null, true);
+    F.earn(g, cash, 'IPO proceeds', b.id, true);
     TG.rep.event(g, b, 'good', `${b.name} went public, raising ${U.money(cash)}`, `Valuation ${U.money(v)}`);
     return { ok: true, cash };
   };
@@ -3023,7 +3094,7 @@ ul.fx li { margin: 1px 0; }
     if (!b.outside) return { ok: false, msg: 'No outside owners.' };
     const cost = Math.round(F.bizValue(g, b) * b.outside * 1.2);
     if (g.cash < cost) return { ok: false, msg: `Need ${U.money(cost)}.` };
-    F.spend(g, cost, 'Share buy-back', null, true); b.outside = 0; b.public = false;
+    F.spend(g, cost, 'Share buy-back', b.id, true); b.outside = 0; b.public = false;
     return { ok: true, cost };
   };
 
@@ -3070,6 +3141,7 @@ ul.fx li { margin: 1px 0; }
     for (const b of g.businesses.slice()) TG.B.close(g, b, 'bankruptcy', true);
     g.properties = []; g.re.holdings = []; g.loans = []; g.loc.balance = 0;
     TG.I.wipe(g); g.lawsuits = []; g.decisions = []; g.ceo = null;
+    { const d = C.keepCash - g.cash; if (d > 0) F.earn(g, d, 'Debts wiped in bankruptcy', null, true); else if (d < 0) F.spend(g, -d, 'Cash taken in bankruptcy', null, true); }
     g.cash = C.keepCash; g.negMonths = 0;
     g.loc.limit = 0; g.player.bankruptcies++; TG.CREDIT.derog(g, 'bankruptcy'); g.player.noLoanUntil = g.month + C.noLoanMonths;
     g.player.ownerBiz = null;
@@ -3254,18 +3326,21 @@ ul.fx li { margin: 1px 0; }
     if (d.model === 'farm' && !opts.ent) opts.ent = TG.M.bestEnterprise(prop);
     const cost = B.setupCost(g, type, prop, opts);
     if (g.cash < cost) return { ok: false, msg: `Setup costs ${U.money(cost)}.` };
-    TG.F.spend(g, cost, 'Business setup', null, true);
     const n = g.businesses.filter((x) => x.type === type).length;
+    const bid = U.uid('b'), bname = opts.name || (d.name + (n ? ' #' + (n + 1) : ''));
+    if (TG.LG) TG.LG.setName(g, 'b:' + bid, { n: bname, i: d.icon, grp: 'biz' });
+    TG.F.spend(g, cost, 'Business setup', bid, true);
     const b = {
-      id: U.uid('b'), type, name: opts.name || (d.name + (n ? ' #' + (n + 1) : '')), propId, region: prop.region, loc: prop.loc,
+      id: bid, type, name: bname, propId, region: prop.region, loc: prop.loc,
       labor: prop.labor, traffic: prop.traffic, sqft: prop.sqft, acres: prop.acres, founded: g.month,
       rep: d.startRep != null ? d.startRep : C.reputation.start, staff: [], spec: {}, equip: [], fixes: {}, ins: {},
       ads: { budget: 0, channel: 'social' }, pace: 'normal', ask: null, hits: [], boost: null, recv: [], hist: [],
       m: { rev: 0, cost: 0, lines: {} }, revAvg: 0, outside: 0, closed: 0, licensePending: d.license ? d.license.months : 0,
-      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost, orders: {}, backlog: 0,
+      qHits: [], bad: [], insHike: 1, lastUtil: 0.8, setup: cost, orders: {}, backlog: 0, shut: 0,
     };
     prop.bizId = b.id;
     TG.M.init(g, b, prop, opts);
+    if (TG.ST) TG.ST.ensure(b); // v7: the supplies shelf exists from day one, so you can stock it before the first month
     g.businesses.push(b);
     TG.rep.event(g, b, 'info', `Opened ${b.name}`, `Setup cost ${U.money(cost)}${d.license ? `; license takes ${d.license.months} months before opening` : ''}`);
     return { ok: true, biz: b };
@@ -3289,6 +3364,8 @@ ul.fx li { margin: 1px 0; }
       else { const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); } }
     }
     if (TG.D) TG.D.syncTargets(b);
+    // v7: a first supplies order (you pay for it); after this, no manager = you reorder yourself
+    if (TG.ST && TG.ST.def(b)) { TG.ST.ensure(b); const q = TG.ST.suggest(b, g); if (q > 0 && g.cash > q * TG.ST.unitCost(g, b) * 2) TG.ST.buy(g, b, q, 0); }
     for (const t of d.insurance) if (t === 'liability' || t === 'malpractice' || (t === 'property' && g.properties.find((p) => p.id === b.propId && p.owned))) b.ins[t] = true;
     return { cost, steps };
   };
@@ -3486,7 +3563,7 @@ ul.fx li { margin: 1px 0; }
   B.lawsuit = (g, b, label, amount, insType, why) => {
     const C = TG.CONFIG.lawsuits;
     amount = Math.round(amount);
-    const ls = { id: U.uid('s'), bizId: b ? b.id : null, label, amount, ins: insType || null, left: R.int(C.months[0], C.months[1]), status: 'open', why };
+    const ls = { id: U.uid('s'), bizId: b ? b.id : null, own: b ? null : (g._own || null), label, amount, ins: insType || null, left: R.int(C.months[0], C.months[1]), status: 'open', why };
     g.lawsuits.push(ls);
     const win = B.winChance(g, b);
     TG.rep.event(g, b, 'major', `${label}: sued for ${U.money(amount)}`, why || 'See risk factors', { major: 'lawsuit' });
@@ -3503,6 +3580,7 @@ ul.fx li { margin: 1px 0; }
   B.resolveSuit = (g, suitId, how, by) => {
     const C = TG.CONFIG.lawsuits; const ls = g.lawsuits.find((x) => x.id === suitId); if (!ls || ls.status !== 'open') return;
     const b = ls.bizId ? B.get(g, ls.bizId) : null;
+    if (!b && ls.own && TG.LG && !g._own) return TG.LG.within(g, ls.own, () => B.resolveSuit(g, suitId, how, by));
     if (how === 'settle') {
       const amt = Math.round(ls.amount * R.range(C.settleShare[0], C.settleShare[1]));
       TG.F.spend(g, amt, 'Legal settlements', b && b.id); if (b) TG.F.claim(g, b, ls.ins, amt, ls.label);
@@ -3520,6 +3598,8 @@ ul.fx li { margin: 1px 0; }
       ls.left--;
       if (ls.left > 0) continue;
       const b = ls.bizId ? B.get(g, ls.bizId) : null;
+      const prevOwn = g._own; if (!b && ls.own) g._own = ls.own;
+      try {
       if (ls.status === 'open') {
         const amt = Math.round(ls.amount * C.defaultMult);
         TG.F.spend(g, amt, 'Court judgments', b && b.id); if (b) TG.F.claim(g, b, ls.ins, amt, ls.label);
@@ -3530,6 +3610,7 @@ ul.fx li { margin: 1px 0; }
         else { TG.F.spend(g, ls.amount, 'Court judgments', b && b.id); if (b) { TG.F.claim(g, b, ls.ins, ls.amount, ls.label); b.rep = U.clamp(b.rep - 4, 0, 100); } TG.rep.event(g, b, 'major', `Lost the lawsuit: ${ls.label} (${U.money(ls.amount)})`, `Had ${U.pct(ls.win)} odds to win`, { major: 'lawsuit' }); }
       }
       g.lawsuits = g.lawsuits.filter((x) => x !== ls);
+      } finally { g._own = prevOwn; }
     }
   };
 
@@ -3649,13 +3730,41 @@ ul.fx li { margin: 1px 0; }
     TG.E.month(g, b, ctx);
     B.rollRisks(g, b, ctx);
     TG.M.month(g, b, ctx);
+    B.shutCheck(g, b, ctx);
     B.fixedCosts(g, b, ctx);
     TG.S.month(g, b, ctx);
+    B.shutStaff(g, b, ctx);
     B.repMonth(g, b, ctx);
     B.goodEvents(g, b, ctx);
     if (ctx.adFlop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped this month', `${TG.CONFIG.reputation.adChannels[b.ads.channel].label} campaigns flop ${U.pct(TG.CONFIG.reputation.adChannels[b.ads.channel].flop)} of the time${b.spec.ads ? '' : '; no ads manager'}`);
     B.endMonth(g, b, ctx);
     return ctx;
+  };
+  // ---------- v7: no supplies = the doors stay shut ----------
+  // Without a manager, staff never buy supplies or run the shop for you. If nobody bought any, there is nothing to sell:
+  // the business is CLOSED (no sales) but wages, rent and bills keep coming. Idle staff may quit or stick around.
+  B.shutCheck = (g, b, ctx) => {
+    const st = b.stock; if (!TG.ST.def(b) || !st) { b.shut = 0; ctx.closed = null; return; }
+    const empty = (st.qty || 0) < 1 && (st.usedM || 0) < 0.5 && (st.inM || 0) < 0.5;
+    const wanted = (ctx.demand || 0) > 0.5 && !b.licensePending; // off-season with no customers is not 'closed'
+    if (empty && wanted) {
+      const h = TG.D.handler(g, b, 'stock'); const mgrTried = !!(h && st.auto);
+      b.shut = (b.shut || 0) + 1; ctx.closed = mgrTried ? 'nocash' : 'nomgr';
+      ctx.note = mgrTried ? `Closed: no supplies (${st.short === 'room' ? 'no storage room' : 'not enough cash'} for your manager to buy any)` : 'Closed: no supplies, no manager';
+      ctx.served = 0; ctx.busy = 0;
+      b.rep = U.clamp(b.rep - 1.5, 0, 100); // customers find the doors shut
+      if (b.shut === 1) TG.rep.event(g, b, 'major', `${b.name} is CLOSED: no supplies`, mgrTried ? 'Your manager could not buy supplies.' : 'No manager buys supplies for you and you did not buy any. Nothing to sell, but wages and bills still run. Buy supplies (Now tab) or hire a manager.', { major: 'cash' });
+    } else { b.shut = 0; ctx.closed = null; }
+  };
+  // idle staff while closed: each closed month the odds they walk out rise, more if unhappy; the rest stay (and get paid)
+  B.shutQuitP = (b, e) => U.clamp(0.05 * (b.shut || 0) + (e.morale < 50 ? (50 - e.morale) / 200 : 0), 0, 0.6);
+  B.shutStaff = (g, b, ctx) => {
+    if (!ctx.closed) return;
+    for (const e of b.staff.slice()) {
+      e.morale = U.clamp(e.morale - 5, 0, 100);
+      const p = B.shutQuitP(b, e);
+      if (R.chance(p)) TG.S.leave(g, b, e, `the shop has been closed ${b.shut} month${b.shut > 1 ? 's' : ''} with nothing to do (${U.pct(p)} chance)`, true);
+    }
   };
   // ---------- next-month forecast: known costs exactly, the rest from recent months and the season ----------
   B.forecast = (g, b) => {
@@ -3727,7 +3836,7 @@ ul.fx li { margin: 1px 0; }
     const last3 = b.hist.slice(-3);
     b.revAvg = U.avg(last3, (x) => x.rev);
     b.fcPrev = b.fc || null; b.fc = B.forecast(g, b); // forecast for next month; last month's kept to compare with what happened
-    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
+    b.lastCtx = { quality: Math.round(ctx.quality), skill: Math.round(ctx.skill), morale: Math.round(ctx.morale), cap: ctx.cap, served: ctx.served, demand: ctx.demand, down: ctx.down, adBoost: ctx.adBoost || 0, note: ctx.note || '', closed: ctx.closed || null, shut: b.shut || 0, limit: ctx.limit || null, limitEquip: ctx.limitEquip || null, links: ctx.links || null, limitNow: ctx.limitNow || null, priceR: ctx.priceR || 1 };
     for (const w of ctx.warnings) TG.rep.warn(g, b, w.text, w.why, w.p);
     // takeover by investors
     const C = TG.CONFIG.finance;
@@ -3755,7 +3864,7 @@ ul.fx li { margin: 1px 0; }
 
   B.close = (g, b, why, forced, keepProp) => {
     const fs = forced ? TG.CONFIG.finance.bankruptcy.fireSale : 1;
-    for (const it of b.equip) { const v = Math.round(TG.E.resale(g, b, it) * fs); if (v && !forced) TG.F.earn(g, v, 'Asset sales', null, true); else if (v && forced) TG.F.earn(g, v, 'Fire-sale proceeds', null, true); }
+    for (const it of b.equip) { const v = Math.round(TG.E.resale(g, b, it) * fs); if (v && !forced) TG.F.earn(g, v, 'Asset sales', b.id, true); else if (v && forced) TG.F.earn(g, v, 'Fire-sale proceeds', b.id, true); }
     b.equip = [];
     const prop = g.properties.find((p) => p.id === b.propId); if (prop) prop.bizId = null;
     g.businesses = g.businesses.filter((x) => x !== b);
@@ -3774,9 +3883,10 @@ ul.fx li { margin: 1px 0; }
     const prop = g.properties.find((p) => p.id === b.propId);
     const v = Math.round(B.saleValue(g, b) * (mult || 1));
     b.equip = [];
+    TG.F.earn(g, v, forced ? 'Fire-sale proceeds' : 'Business sales', b.id, true);
+    if (prop && prop.mortgageId) { const own = () => TG.F.payoff(g, prop.mortgageId); if (TG.LG) TG.LG.within(g, 'b:' + b.id, own); else own(); }
     B.close(g, b, forced ? 'sold in a forced liquidation' : `sold for ${U.money(v)}`, false);
-    TG.F.earn(g, v, forced ? 'Fire-sale proceeds' : 'Business sales', null, true);
-    if (prop) { if (prop.mortgageId) TG.F.payoff(g, prop.mortgageId); g.properties = g.properties.filter((p) => p !== prop); }
+    if (prop) g.properties = g.properties.filter((p) => p !== prop);
     return v;
   };
   // ---------- v6: instant updates ----------
@@ -4800,8 +4910,8 @@ ul.fx li { margin: 1px 0; }
       const down = Math.round(cost * TG.CONFIG.property.mortgageDown);
       if (g.cash < down) return { ok: false, msg: `Need ${U.money(down)} down.` };
       const ok = TG.CREDIT.apply(g, 'mortgage', cost - down, { collateral: { kind: 'property', id: prop.id }, label: `Land mortgage (${acres} ac)`, bizId: b.id, noCash: true, ltv: (cost - down) / cost, asset: cost }); if (!ok.ok) return ok;
-      TG.F.spend(g, down, 'Land purchases', null, true);
-    } else { if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Land purchases', null, true); }
+      TG.F.spend(g, down, 'Land purchases', b.id, true);
+    } else { if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Land purchases', b.id, true); }
     const free = M.farmFree(f); f.freeSoil = (f.freeSoil * free + f.baseSoil * acres) / Math.max(1, free + acres);
     f.acres += acres; b.acres = f.acres;
     if (prop) { prop.acres += acres; if (prop.owned) prop.baseValue = (prop.baseValue || prop.price) + cost * (prop.housingAtBuy || 1) / g.world.housing; else prop.landOwned = (prop.landOwned || 0) + cost / g.world.housing; }
@@ -5426,12 +5536,85 @@ ul.fx li { margin: 1px 0; }
   RE.askRent = (g, h) => Math.round(RE.marketRent(g, h) * (h.rentR || 1));
   RE.estRent = (g, l) => Math.round(RE.marketRent(g, l) * Math.max(1, l.units || 0) * 0.92);
   RE.vacant = (h) => (h.tenants || []).filter((t) => !t).length;
-  RE.searchCost = (g, h) => { const S = TC().search; const v = Math.max(1, Math.min(S.maxUnitsScale, RE.vacant(h))); return Math.round((S.base + S.perRent * RE.askRent(g, h)) * g.world.priceIdx * Math.sqrt(v)); };
-  RE.poolPreview = (g, h) => { // what a search is likely to bring, shown before you pay
-    const T = TC(), r = h.rentR || 1, k = RC().kinds[h.kind]; const v = Math.max(1, Math.min(T.search.maxUnitsScale, RE.vacant(h)));
-    const n = Math.min(T.pool.max * Math.sqrt(v), T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * Math.sqrt(v) * (k.lease ? T.pool.commercial : 1));
-    const q = U.clamp(T.quality.atMarket + T.quality.slope * (1 - r) + (h.cond - 60) * T.quality.cond, 0.1, 0.85);
+  // v7: ONE tenant per home / unit. Every empty unit is filled by its own search (one applicant at a time).
+  const mgrSkill = (g) => (g.re.manager ? (g.re.manager.skill || 50) : null);
+  RE.mgrCostMult = (g) => { const s = mgrSkill(g); return s == null ? 1 : U.clamp(1.2 - s / 250, 0.8, 1.2); }; // a skilled manager gets better vendor prices
+  RE.searchCost = (g, h, byMgr) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
+  RE.poolPreview = (g, h, byMgr) => { // what ONE unit's search is likely to bring, shown before you pay
+    const T = TC(), r = h.rentR || 1, k = RC().kinds[h.kind];
+    const n = Math.min(T.pool.max, T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * (k.lease ? T.pool.commercial : 1));
+    const sk = byMgr ? mgrSkill(g) : null;
+    const q = U.clamp(T.quality.atMarket + T.quality.slope * (1 - r) + (h.cond - 60) * T.quality.cond + (sk != null ? (sk - 50) / 500 : 0), 0.1, 0.88);
     return { n, q, label: q >= 0.65 ? 'great' : q >= 0.5 ? 'good' : q >= 0.35 ? 'mixed' : 'risky' };
+  };
+  RE.ensureUnits = (h) => {
+    h.searches = h.searches || {}; h.issues = h.issues || [];
+    if (h.search) { const u = (h.tenants || []).findIndex((t) => !t); if (u >= 0 && h.search.list) h.searches[u] = h.search; delete h.search; } // v6 saves: one search per building
+    return h;
+  };
+  RE.unitIssues = (h, u) => (h.issues || []).filter((x) => x.unit === u);
+  // which unit a call is about: the one asked for, or the first empty unit (with an open search when one is wanted)
+  RE.pickUnit = (g, h, unit, wantSearch) => {
+    RE.ensureUnits(h);
+    if (unit != null && unit !== '') return Number(unit);
+    if (wantSearch) { for (let i = 0; i < h.tenants.length; i++) if (!h.tenants[i] && RE.current(g, h, i)) return i; }
+    for (let i = 0; i < h.tenants.length; i++) if (!h.tenants[i] && !RE.current(g, h, i) && !RE.unitIssues(h, i).length) return i;
+    for (let i = 0; i < h.tenants.length; i++) if (!h.tenants[i]) return i;
+    return -1;
+  };
+  RE.search = (g, hid, by, unit) => {
+    const h = g.re.holdings.find((x) => x.id === hid); if (!h || !RC().kinds[h.kind].rentPct || h.flip || h.dev || h.mode === 'sale') return { ok: false, msg: 'Not a rental right now.' };
+    RE.ensureUnits(h); const u = RE.pickUnit(g, h, unit, false);
+    if (u < 0 || h.tenants[u]) return { ok: false, msg: 'No empty units.' };
+    if (RE.unitIssues(h, u).length) return { ok: false, msg: 'Fix the repair in this unit first: nobody signs a lease for a broken home.' };
+    const byMgr = !!(by && g.re.manager);
+    const cost = RE.searchCost(g, h, byMgr); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
+    TG.F.spend(g, cost, 'Tenant search'); g.re.m.cost = (g.re.m.cost || 0) + cost;
+    const pv = RE.poolPreview(g, h, byMgr); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
+    const list = []; for (let i = 0; i < n; i++) list.push(RE.applicant(g, h, R.normal(pv.q, TC().quality.sd)));
+    h.searches[u] = { m: g.month, rent: RE.askRent(g, h), list, i: 0 };
+    if (by) TG.rep.decision(g, null, by, `Paid ${U.money(cost)} for a tenant search for unit ${u + 1} at ${h.name}: ${n} applicant(s)`);
+    return { ok: true, n, cost, unit: u };
+  };
+  RE.current = (g, h, unit) => {
+    if (!h) return null; RE.ensureUnits(h);
+    if (unit == null) { for (const k in h.searches) { const a = RE.current(g, h, Number(k)); if (a && !h.tenants[k]) return a; } return null; }
+    const s = h.searches[unit]; if (!s || g.month - s.m > TC().search.expires) return null; return s.list[s.i] || null;
+  };
+  RE.decide = (g, hid, accept, unit) => {
+    const h = g.re.holdings.find((x) => x.id === hid); if (!h) return { ok: false };
+    const u = RE.pickUnit(g, h, unit, true); if (u < 0) return { ok: false, msg: 'No empty units.' };
+    const s = h.searches[u]; const a = RE.current(g, h, u); if (!s || !a) return { ok: false, msg: 'No applicants left.' };
+    s.i++; // no going back either way
+    if (!accept) return { ok: true, left: s.list.length - s.i, unit: u };
+    if (h.tenants[u]) return { ok: false, msg: 'That unit is already rented.' };
+    h.tenants[u] = RE.makeTenant(g, h, a, s.rent); delete h.searches[u];
+    return { ok: true, tenant: h.tenants[u], left: 0, unit: u };
+  };
+  RE.leaseLeft = (g, t) => { const held = g.month - t.since; if (held < t.lease) return t.lease - held; const x = 12 - ((held - t.lease) % 12); return x; };
+  RE.quality = (t) => (t.rel >= 0.65 ? { label: 'reliable', tone: 'good', stars: 3 } : t.rel >= 0.45 ? { label: 'okay', tone: 'warn', stars: 2 } : { label: 'risky', tone: 'bad', stars: 1 });
+  // repairs: with a property manager they are paid at once; without one they wait for YOU (tap Fix)
+  RE.addIssue = (g, h, unit, what, cost, big) => {
+    RE.ensureUnits(h); const mgr = g.re.manager;
+    if (mgr) {
+      const c = Math.round(cost * RE.mgrCostMult(g) * (g.re.handyman ? 0.8 : 1));
+      TG.F.spend(g, c, 'Real estate repairs'); g.re.m.cost += c; if (big) h.cond = U.clamp(h.cond + 6, 0, 100);
+      TG.rep.decision(g, null, 'Property manager ' + mgr.name, `Fixed ${what} at ${h.name}${unit != null ? ' (unit ' + (unit + 1) + ')' : ''} for ${U.money(c)}`);
+      return null;
+    }
+    const it = { id: U.uid('i'), unit: unit == null ? null : unit, what, cost: Math.round(cost), m: g.month, big: !!big };
+    h.issues.push(it);
+    TG.rep.event(g, null, big ? 'major' : 'bad', `${h.name}${unit != null && h.units > 1 ? ' unit ' + (unit + 1) : ''} needs a repair: ${what} (~${U.money(cost)})`, 'No property manager: it waits until you tap Fix. Unfixed repairs annoy tenants, wear the building and can bring city fines.');
+    return it;
+  };
+  RE.fixCost = (g, it) => Math.round(it.cost * (g.re.handyman ? 0.8 : 1));
+  RE.fixIssue = (g, hid, iid) => {
+    const h = g.re.holdings.find((x) => x.id === hid); if (!h) return { ok: false }; RE.ensureUnits(h);
+    const it = h.issues.find((x) => x.id === iid); if (!it) return { ok: false, msg: 'Already fixed.' };
+    const c = RE.fixCost(g, it); if (g.cash < c) return { ok: false, msg: `The repair costs ${U.money(c)}.` };
+    TG.F.spend(g, c, 'Real estate repairs'); g.re.m.cost += c; h.issues = h.issues.filter((x) => x !== it);
+    if (it.big) h.cond = U.clamp(h.cond + 6, 0, 100);
+    return { ok: true, cost: c };
   };
   const FIRST = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Casey', 'Riley', 'Morgan', 'Jamie', 'Drew', 'Avery', 'Quinn', 'Rosa', 'Omar', 'Mei', 'Luis', 'Priya', 'Ben', 'Nia'];
   const LAST = ['Lee', 'Patel', 'Garcia', 'Smith', 'Nguyen', 'Brown', 'Khan', 'Lopez', 'Clark', 'Young', 'Diaz', 'Hill'];
@@ -5449,27 +5632,6 @@ ul.fx li { margin: 1px 0; }
     { label: 'Income vs rent', val: a.income.toFixed(1) + 'x', mark: a.income >= 3 ? 'good' : a.income >= 2.3 ? 'ok' : 'bad' },
     { label: 'Credit score', val: String(a.credit), mark: a.credit >= 680 ? 'good' : a.credit >= 600 ? 'ok' : 'bad' },
   ];
-  RE.search = (g, hid, by) => {
-    const h = g.re.holdings.find((x) => x.id === hid); if (!h || !RC().kinds[h.kind].rentPct || h.flip || h.dev || h.mode === 'sale') return { ok: false, msg: 'Not a rental right now.' };
-    if (!RE.vacant(h)) return { ok: false, msg: 'No empty units.' };
-    const cost = RE.searchCost(g, h); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
-    TG.F.spend(g, cost, 'Tenant search'); g.re.m.cost = (g.re.m.cost || 0) + cost;
-    const pv = RE.poolPreview(g, h); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
-    const list = []; for (let i = 0; i < n; i++) list.push(RE.applicant(g, h, R.normal(pv.q, TC().quality.sd)));
-    h.search = { m: g.month, rent: RE.askRent(g, h), list, i: 0 };
-    if (by) TG.rep.decision(g, null, by, `Paid ${U.money(cost)} for a tenant search at ${h.name}: ${n} applicant(s)`);
-    return { ok: true, n, cost };
-  };
-  RE.current = (g, h) => { const s = h && h.search; if (!s || g.month - s.m > TC().search.expires) return null; return s.list[s.i] || null; };
-  RE.decide = (g, hid, accept) => {
-    const h = g.re.holdings.find((x) => x.id === hid); if (!h || !h.search) return { ok: false };
-    const a = RE.current(g, h); if (!a) return { ok: false, msg: 'No applicants left.' };
-    h.search.i++; // no going back either way
-    if (!accept) return { ok: true, left: h.search.list.length - h.search.i };
-    const slot = h.tenants.findIndex((t) => !t); if (slot < 0) return { ok: false, msg: 'No empty units.' };
-    h.tenants[slot] = RE.makeTenant(g, h, a, h.search.rent);
-    return { ok: true, tenant: h.tenants[slot], left: h.search.list.length - h.search.i };
-  };
   RE.makeTenant = (g, h, a, rent) => {
     const k = RC().kinds[h.kind];
     return { name: a.name, rel: a.rel, ev: a.evictions, inc: a.income, cs: a.credit, rent: rent || RE.askRent(g, h), late: 0, evict: 0, since: g.month, lease: k.lease || (a.rel > 0.65 && R.chance(0.5) ? 24 : 12) };
@@ -5477,11 +5639,15 @@ ul.fx li { margin: 1px 0; }
   // property manager: runs searches and screens applicants for you (better skill = better reading of the signals)
   RE.mgrFill = (g, h) => {
     const mgr = g.re.manager; if (!mgr || !RE.vacant(h) || h.mode !== 'rent') return;
-    if (!RE.current(g, h)) { if (h.mgrSearchM === g.month) return; h.mgrSearchM = g.month; const r = RE.search(g, h.id, 'Property manager ' + mgr.name); if (!r.ok) return; }
+    RE.ensureUnits(h);
     const bar = 0.42 + mgr.skill / 600; const err = 0.22 - mgr.skill / 600;
-    let a; while (RE.vacant(h) && (a = RE.current(g, h))) {
-      const seen = 0.5 * (a.credit - 470) / 360 + 0.3 * U.clamp((a.income - 1.6) / 3.2, 0, 1) + 0.2 * (a.evictions ? 0 : 1) + R.normal(0, err);
-      RE.decide(g, h.id, seen >= bar);
+    for (let u = 0; u < h.tenants.length; u++) {
+      if (h.tenants[u]) continue;
+      if (!RE.current(g, h, u)) { const k = 'u' + u; h.mgrSearchM = h.mgrSearchM && typeof h.mgrSearchM === 'object' ? h.mgrSearchM : {}; if (h.mgrSearchM[k] === g.month) continue; h.mgrSearchM[k] = g.month; const r = RE.search(g, h.id, 'Property manager ' + mgr.name, u); if (!r.ok) continue; }
+      let a; while (!h.tenants[u] && (a = RE.current(g, h, u))) {
+        const seen = 0.5 * (a.credit - 470) / 360 + 0.3 * U.clamp((a.income - 1.6) / 3.2, 0, 1) + 0.2 * (a.evictions ? 0 : 1) + R.normal(0, err);
+        RE.decide(g, h.id, seen >= bar, u);
+      }
     }
   };
   RE.value = (g, h) => Math.round((h.base || h.price) * g.world.housing * h.nb * condF(h.cond) * (h.over ? 0.92 : 1));
@@ -5501,7 +5667,7 @@ ul.fx li { margin: 1px 0; }
     g.re.listings = g.re.listings.filter((x) => x !== l);
     l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
     l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(R.chance(l.distressed ? 0.2 : 0.6) ? RE.newTenant(g, l, true) : null);
-    l.rentR = 1; l.search = null;
+    l.rentR = 1; l.searches = {}; l.issues = [];
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
     g.re.holdings.push(l);
     return { ok: true, h: l };
@@ -5523,7 +5689,7 @@ ul.fx li { margin: 1px 0; }
     if (g.cash < total * 0.3) return { ok: false, msg: `Need at least ${U.money(total * 0.3)} to start (30% upfront).` };
     TG.F.spend(g, Math.round(total * 0.3), 'Renovations', null, true);
     h.flip = { level, contractor, months: L.months, left: L.months, budget, contingency: contingency ? Math.round(budget * F.contingencyPct) : 0, paid: Math.round(total * 0.3), overrun: 0 };
-    h.mode = 'reno'; for (let i = 0; i < h.tenants.length; i++) h.tenants[i] = null;
+    h.mode = 'reno'; for (let i = 0; i < h.tenants.length; i++) h.tenants[i] = null; h.searches = {}; h.issues = []; // the renovation fixes everything
     return { ok: true, budget };
   };
   RE.list = (g, hid, askMult) => { const h = g.re.holdings.find((x) => x.id === hid); if (!h || h.flip || h.dev) return; h.mode = 'sale'; h.ask = Math.round(RE.value(g, h) * (askMult || 1)); };
@@ -5578,64 +5744,17 @@ ul.fx li { margin: 1px 0; }
     const spend = (amt, label) => { amt = Math.round(amt); if (amt <= 0) return; TG.F.spend(g, amt, label); g.re.m.cost += amt; };
     const units = RE.unitsOwned(g);
     const overSelf = !mgr ? Math.max(0, units - rc.selfManageLimit) : 0;
-    if (g.re.handyman && g.re.holdings.length) spend(Math.round(RC().handymanFee * g.world.priceIdx), 'Handyman retainer');
-    if (mgr) { spend(mgr.wage, 'Property manager'); mgr.months++; mgr.morale = U.clamp(mgr.morale + R.normal(0, 3), 0, 100); if (R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; } }
+    // shared costs are split over the properties by units, so each property's line shows its true result
+    const share = (h) => (units > 0 ? Math.max(0, h.units || 0) / units : 1 / Math.max(1, g.re.holdings.length));
+    if (mgr) { mgr.months++; mgr.morale = U.clamp(mgr.morale + R.normal(0, 3), 0, 100); }
+    const mgrWage = mgr ? mgr.wage : 0, handy = g.re.handyman && g.re.holdings.length ? Math.round(RC().handymanFee * g.world.priceIdx) : 0;
     for (const h of g.re.holdings.slice()) {
-      const k = rc.kinds[h.kind];
-      // neighborhood & condition
-      h.trend = U.clamp(h.trend + R.normal(0, 0.08), -1, 1);
-      h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
-      const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
-      h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5), 0, 100);
-      const v = RE.value(g, h);
-      spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
-      spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
-      if (h.upkeep === 'high') h.cond = U.clamp(h.cond + 0.4, 0, 100);
-      if (h.insured) spend(v * rc.insurancePct, 'Real estate insurance');
-      if (R.chance(rc.taxHikeChance)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
-      // flip in progress
-      if (h.flip) { RE.flipMonth(g, h, spend); continue; }
-      if (h.dev) { RE.devMonth(g, h, spend); continue; }
-      if (h.mode === 'sale') {
-        const pChance = rc.flip.saleChanceBase * Math.pow(w.econ, 2) * Math.pow(h.ask / Math.max(1, RE.value(g, h)), -4) * (w.baseRate > 0.06 ? 0.7 : 1);
-        if (R.chance(U.clamp(pChance, 0.01, 0.9))) { const sold = RE.sell(g, h.id); TG.rep.event(g, null, 'good', `Sold ${h.name} for ${U.money(sold)} (after fees)`, `Asking price ${U.money(h.ask)}`); }
-        continue;
-      }
-      if (!k.rentPct) continue; // land
-      // rentals
-      const rentCapOn = w.rentCap > 0;
-      const T = TC();
-      if (mgr) RE.mgrFill(g, h); // with no manager, empty units stay empty until YOU run a search
-      for (let i = 0; i < h.tenants.length; i++) {
-        const t = h.tenants[i]; if (!t) continue;
-        if (t.rel == null) t.rel = t.bad ? 0.3 : 0.72;
-        if (t.evict > 0) { t.evict--; if (t.evict === 0) { h.tenants[i] = null; spend(t.rent * TC().turnover * 2, 'Unit turnover'); TG.rep.event(g, null, 'info', `Eviction completed at ${h.name}`, 'Unit is empty again: run a tenant search'); } continue; }
-        if (R.chance(T.lifeEvent)) { t.rel = Math.max(0.05, t.rel - T.lifeDrop); t.life = true; }
-        const lateP = (T.late.base + T.late.k * Math.pow(1 - t.rel, T.late.pow)) * (w.phase === 'recession' ? T.late.recession : 1) * (overSelf ? 1.3 : 1);
-        if (R.chance(lateP)) {
-          const miss = R.chance(T.late.missShare[0] + T.late.missShare[1] * (1 - t.rel));
-          if (miss) { t.late++; if (t.late >= 2 && !t.evict) RE.evictCard(g, h, i); }
-          else { earn(t.rent * (1 + T.lateFee) * (mgr ? 1 - rc.managerFeePct : 1), 'Rent'); t.lates = (t.lates || 0) + 1; }
-        } else { earn(t.rent * (mgr ? 1 - rc.managerFeePct : 1), 'Rent'); t.late = Math.max(0, t.late - 1); }
-        if (mgr && R.chance(0.02) && mgr.honesty < 40) { const sk = Math.round(t.rent * 0.5); spend(sk, 'Theft losses'); }
-        if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; spend(c, 'Tenant damage'); h.cond = U.clamp(h.cond - 5, 0, 100); TG.rep.event(g, null, 'bad', `Tenant damaged a unit at ${h.name} (${U.money(c)})`, t.rel < 0.45 ? 'Risky tenant' : 'Accident: even good tenants break things sometimes'); }
-        // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
-        const held = g.month - t.since;
-        if (held >= t.lease && held % 12 === t.lease % 12) {
-          const ask = RE.askRent(g, h), mr = RE.marketRent(g, h);
-          const leaveP = T.leave.base + T.leave.k * (1 - t.rel) + (ask > mr * 1.08 ? T.leave.overRent * (ask / mr - 1.08) * 5 : 0);
-          if (R.chance(U.clamp(leaveP, 0, 0.95))) { h.tenants[i] = null; spend(t.rent * T.turnover, 'Unit turnover'); TG.rep.event(g, null, 'info', `A tenant moved out of ${h.name}`, `Lease ended${ask > mr * 1.08 ? '; your rent is above market' : ''}. ${mgr ? 'Your manager will find a new one.' : 'Run a tenant search to fill it.'}`); continue; }
-          t.rent = rentCapOn ? Math.round(Math.min(ask, t.rent * 1.02)) : ask;
-        }
-      }
-      // repairs & disasters
-      const nUnits = Math.max(1, h.units);
-      const repP = rc.repairChance * Math.sqrt(nUnits) * (1.6 - h.cond / 100) * (h.upkeep === 'low' ? 1.5 : h.upkeep === 'high' ? 0.6 : 1);
-      if (R.chance(repP)) { const c = v * R.range(rc.repairCost[0], rc.repairCost[1]) / Math.sqrt(nUnits) * (g.re.handyman || mgr ? 0.8 : 1); spend(c, 'Real estate repairs'); TG.rep.event(g, null, 'bad', `Repair at ${h.name}: ${R.pick(['water heater', 'furnace', 'roof leak', 'plumbing', 'appliances'])} (${U.money(c)})`, `Condition ${Math.round(h.cond)}%, age ${h.age} yrs`); }
-      if (R.chance(rc.bigRepairChance * (1.6 - h.cond / 100))) { const c = v * R.range(rc.bigRepairCost[0], rc.bigRepairCost[1]); spend(c, 'Real estate repairs'); h.cond = U.clamp(h.cond + 10, 0, 100); TG.rep.event(g, null, 'major', `Major repair at ${h.name}: ${R.pick(['roof replacement', 'foundation work', 'boiler replacement', 'sewer line'])} (${U.money(c)})`, `Condition ${Math.round(h.cond)}%`); }
-      if (R.chance(rc.injuryChance * nUnits * (1.5 - h.cond / 100))) TG.B.lawsuit(g, null, `Tenant injury at ${h.name}`, R.range(rc.injurySuit[0], rc.injurySuit[1]) * w.priceIdx, null, `Condition ${Math.round(h.cond)}%`);
-      if (R.chance(rc.disasterChance)) { const c = v * R.range(rc.disasterCost[0], rc.disasterCost[1]); const cov = h.insured ? c * C.finance.insCover : 0; spend(c - cov, 'Disaster damage'); h.cond = U.clamp(h.cond - 30, 0, 100); TG.rep.event(g, null, 'major', `${R.pick(['Fire', 'Flood', 'Storm'])} damaged ${h.name} (${U.money(c)}${h.insured ? ', insurance paid ' + U.money(cov) : ', NOT insured'})`, 'Rare disaster'); }
+      if (!g.re.holdings.includes(h)) continue;
+      const prevOwn = g._own; g._own = 'r:' + h.id;
+      try { RE.holdingMonth(g, h, { C, rc, w, mgr, earn, spend, overSelf, mgrPart: mgrWage * share(h), handyPart: handy * share(h) }); } finally { g._own = prevOwn; }
     }
+    if (mgr && !g.re.holdings.length) spend(mgrWage, 'Property manager');
+    if (mgr && R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; }
     // fund distributions
     const net = g.re.m.rev - g.re.m.cost;
     if (g.re.fund && net > 0) spend(net * g.re.fund.share, 'Fund investor distributions');
@@ -5644,6 +5763,70 @@ ul.fx li { margin: 1px 0; }
     g.re.listings = g.re.listings.filter((l) => g.month - l.listed < 10 || R.chance(0.5));
     RE.refill(g, rc.newPerMonth);
     while (g.re.listings.length > 20) g.re.listings.shift();
+  };
+  RE.holdingMonth = (g, h, X) => {
+    const { C, rc, w, mgr, earn, spend, overSelf } = X; const k = rc.kinds[h.kind];
+    RE.ensureUnits(h);
+    if (X.mgrPart) spend(X.mgrPart, 'Property manager');
+    if (X.handyPart) spend(X.handyPart, 'Handyman retainer');
+    // neighborhood & condition
+    h.trend = U.clamp(h.trend + R.normal(0, 0.08), -1, 1);
+    h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
+    const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
+    h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length, 0, 100); // open repairs wear the building faster
+    const v = RE.value(g, h);
+    spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
+    spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
+    if (h.upkeep === 'high') h.cond = U.clamp(h.cond + 0.4, 0, 100);
+    if (h.insured) spend(v * rc.insurancePct, 'Real estate insurance');
+    if (R.chance(rc.taxHikeChance)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
+    if (h.flip) { RE.flipMonth(g, h, spend); return; }
+    if (h.dev) { RE.devMonth(g, h, spend); return; }
+    if (h.mode === 'sale') {
+      const pChance = rc.flip.saleChanceBase * Math.pow(w.econ, 2) * Math.pow(h.ask / Math.max(1, RE.value(g, h)), -4) * (w.baseRate > 0.06 ? 0.7 : 1);
+      if (R.chance(U.clamp(pChance, 0.01, 0.9))) { const sold = RE.sell(g, h.id); TG.rep.event(g, null, 'good', `Sold ${h.name} for ${U.money(sold)} (after fees)`, `Asking price ${U.money(h.ask)}`); }
+      return;
+    }
+    if (!k.rentPct) return; // land
+    const rentCapOn = w.rentCap > 0; const T = TC();
+    // a manager pays for open repairs right away; without one they wait for you, and old ones bring city fines
+    if (mgr && h.issues.length) for (const it of h.issues.slice()) { h.issues = h.issues.filter((x) => x !== it); RE.addIssue(g, h, it.unit, it.what, it.cost, it.big); }
+    for (const it of h.issues) if (g.month - it.m >= 3 && R.chance(0.35)) { const f = Math.round(it.cost * 0.25 + 150 * g.world.priceIdx); spend(f, 'Code violation fines'); TG.rep.event(g, null, 'bad', `City fined you ${U.money(f)}: unfixed ${it.what} at ${h.name}`, `Open for ${g.month - it.m} months. Fix it (Money → Real estate) or hire a property manager.`); }
+    if (mgr) RE.mgrFill(g, h); // with no manager, empty units stay empty until YOU run a search
+    for (let i = 0; i < h.tenants.length; i++) {
+      const t = h.tenants[i]; if (!t) continue;
+      if (t.rel == null) t.rel = t.bad ? 0.3 : 0.72;
+      if (t.evict > 0) { t.evict--; if (t.evict === 0) { h.tenants[i] = null; spend(t.rent * TC().turnover * 2, 'Unit turnover'); TG.rep.event(g, null, 'info', `Eviction completed at ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''}`, 'Unit is empty again: run a tenant search'); } continue; }
+      if (R.chance(T.lifeEvent)) { t.rel = Math.max(0.05, t.rel - T.lifeDrop); t.life = true; }
+      const broken = RE.unitIssues(h, i).length + h.issues.filter((x) => x.unit == null).length;
+      if (broken) t.rel = Math.max(0.05, t.rel - 0.01 * broken); // living with a broken home wears down even good tenants
+      const lateP = (T.late.base + T.late.k * Math.pow(1 - t.rel, T.late.pow)) * (w.phase === 'recession' ? T.late.recession : 1) * (overSelf ? 1.3 : 1);
+      const fee = mgr ? 1 - rc.managerFeePct : 1;
+      const withhold = broken && R.chance(0.3) ? 0.5 : 0;
+      if (R.chance(lateP)) {
+        const miss = R.chance(T.late.missShare[0] + T.late.missShare[1] * (1 - t.rel));
+        if (miss) { t.late++; if (t.late >= 2 && !t.evict) RE.evictCard(g, h, i); }
+        else { earn(t.rent * (1 + T.lateFee) * fee * (1 - withhold), 'Rent'); t.lates = (t.lates || 0) + 1; }
+      } else { earn(t.rent * fee * (1 - withhold), 'Rent'); t.late = Math.max(0, t.late - 1); }
+      if (withhold) TG.rep.event(g, null, 'bad', `Tenant at ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''} paid only half the rent`, 'They are waiting for a repair to be fixed.');
+      if (mgr && R.chance(0.02) && mgr.honesty < 40) { const sk = Math.round(t.rent * 0.5); spend(sk, 'Theft losses'); }
+      if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; h.cond = U.clamp(h.cond - 5, 0, 100); RE.addIssue(g, h, i, t.rel < 0.45 ? 'damage left by a risky tenant' : 'accidental damage', c); }
+      // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
+      const held = g.month - t.since;
+      if (held >= t.lease && held % 12 === t.lease % 12) {
+        const ask = RE.askRent(g, h), mr = RE.marketRent(g, h);
+        const leaveP = T.leave.base + T.leave.k * (1 - t.rel) + (ask > mr * 1.08 ? T.leave.overRent * (ask / mr - 1.08) * 5 : 0) + 0.2 * Math.min(2, broken);
+        if (R.chance(U.clamp(leaveP, 0, 0.95))) { h.tenants[i] = null; spend(t.rent * T.turnover, 'Unit turnover'); TG.rep.event(g, null, 'info', `A tenant moved out of ${h.name}${h.units > 1 ? ' unit ' + (i + 1) : ''}`, `Lease ended${ask > mr * 1.08 ? '; your rent is above market' : ''}${broken ? '; repairs were left unfixed' : ''}. ${mgr ? 'Your manager will find a new one.' : 'Run a tenant search to fill it.'}`); continue; }
+        t.rent = rentCapOn ? Math.round(Math.min(ask, t.rent * 1.02)) : ask;
+      }
+    }
+    // repairs & disasters (repairs go through the manager, or wait for you)
+    const nUnits = Math.max(1, h.units);
+    const repP = rc.repairChance * Math.sqrt(nUnits) * (1.6 - h.cond / 100) * (h.upkeep === 'low' ? 1.5 : h.upkeep === 'high' ? 0.6 : 1);
+    if (R.chance(repP)) { const c = v * R.range(rc.repairCost[0], rc.repairCost[1]) / Math.sqrt(nUnits); RE.addIssue(g, h, nUnits > 1 ? R.int(0, nUnits - 1) : 0, R.pick(['water heater', 'furnace', 'roof leak', 'plumbing', 'appliances']), c); }
+    if (R.chance(rc.bigRepairChance * (1.6 - h.cond / 100))) { const c = v * R.range(rc.bigRepairCost[0], rc.bigRepairCost[1]); RE.addIssue(g, h, null, R.pick(['roof replacement', 'foundation work', 'boiler replacement', 'sewer line']), c, true); }
+    if (R.chance(rc.injuryChance * nUnits * (1.5 - h.cond / 100))) TG.B.lawsuit(g, null, `Tenant injury at ${h.name}`, R.range(rc.injurySuit[0], rc.injurySuit[1]) * w.priceIdx, null, `Condition ${Math.round(h.cond)}%`);
+    if (R.chance(rc.disasterChance)) { const c = v * R.range(rc.disasterCost[0], rc.disasterCost[1]); const cov = h.insured ? c * C.finance.insCover : 0; spend(c - cov, 'Disaster damage'); h.cond = U.clamp(h.cond - 30, 0, 100); TG.rep.event(g, null, 'major', `${R.pick(['Fire', 'Flood', 'Storm'])} damaged ${h.name} (${U.money(c)}${h.insured ? ', insurance paid ' + U.money(cov) : ', NOT insured'})`, 'Rare disaster'); }
   };
   RE.evictCard = (g, h, i) => {
     const rc = RC(); const t = h.tenants[i];
@@ -5689,7 +5872,7 @@ ul.fx li { margin: 1px 0; }
     if (--d.left <= 0) {
       h.kind = d.units >= 20 ? 'apartment' : 'smallapt'; h.units = d.units; h.cond = 95; h.age = 0; h.dev = null; h.mode = 'rent';
       h.basePrice = d.cost * 1.25; h.base = (h.base * g.world.housing * h.nb * condF(h.cond) + d.cost * 1.25) / (g.world.housing * h.nb * condF(h.cond));
-      h.housingAtBuy = g.world.housing; h.tenants = Array(d.units).fill(null);
+      h.housingAtBuy = g.world.housing; h.tenants = Array(d.units).fill(null); h.searches = {}; h.issues = [];
       TG.rep.event(g, null, 'good', `Development finished: ${h.name} now has ${d.units} units`, `Total build cost ${U.money(d.paid)}`);
     }
   };
@@ -6310,11 +6493,137 @@ ul.fx li { margin: 1px 0; }
 })();
 
 </script>
+<script>/* js/ledger.js */
+/* ledger.js - v7: where every dollar went, and WHO it belongs to.
+   Every cash move (F.earn / F.spend) is recorded against an owner: a business ('b:id'), a rental property ('r:id'),
+   a business building not in use ('p:id'), shared real estate costs ('rePort'), investments ('inv'), crime ('crime')
+   or you personally ('you': income tax, personal loans, the credit line, CEO pay...).
+   The monthly money report is built from this, so the lines always add up to your real cash change. */
+(function () {
+  const TG = globalThis.TG; const U = TG.U;
+  const LG = {};
+  // ---------- owners ----------
+  LG.resolve = (g, key) => {
+    if (key && key.slice(0, 2) === 'p:') { const p = g.properties.find((x) => x.id === key.slice(2)); if (p && p.bizId) return 'b:' + p.bizId; }
+    return key || 'you';
+  };
+  LG.nameOf = (g, key) => {
+    const id = key.slice(2);
+    if (key.slice(0, 2) === 'b:') { const b = g.businesses.find((x) => x.id === id); if (b) return { n: b.name, i: TG.CONFIG.businesses[b.type].icon, grp: 'biz' }; return null; }
+    if (key.slice(0, 2) === 'r:') { const h = (g.re.holdings || []).find((x) => x.id === id) || (g.re.listings || []).find((x) => x.id === id); if (h) return { n: h.name, i: TG.CONFIG.realEstate.kinds[h.kind].icon, grp: 're' }; return null; }
+    if (key.slice(0, 2) === 'p:') { const p = g.properties.find((x) => x.id === id) || g.listings.find((x) => x.id === id); if (p) return { n: p.name || 'Building', i: '🏢', grp: 'prop' }; return null; }
+    if (key === 'rePort') return { n: 'All rentals (shared costs)', i: '🏘️', grp: 're' };
+    if (key === 'inv') return { n: 'Investments & bets', i: '📈', grp: 'inv' };
+    if (key === 'crime') return { n: 'Crime', i: '🕶️', grp: 'crime' };
+    return { n: 'You (personal & company costs)', i: '👤', grp: 'you' };
+  };
+  LG.setName = (g, key, nm) => { const a = g.acc || (g.acc = TG.F.newAcc()); a.names = a.names || {}; a.names[key] = nm; };
+  // who owns a loan's payments
+  LG.loanOwner = (g, l) => {
+    if (l.bizId && g.businesses.some((b) => b.id === l.bizId)) return 'b:' + l.bizId;
+    const c = l.collateral;
+    if (c && c.kind === 'property') {
+      if ((g.re.holdings || []).some((h) => h.id === c.id)) return 'r:' + c.id;
+      const p = g.properties.find((x) => x.id === c.id); if (p) return LG.resolve(g, 'p:' + p.id);
+    }
+    if (c && c.kind === 'equip') { const b = g.businesses.find((x) => x.equip.some((e) => e.id === c.id)); if (b) return 'b:' + b.id; }
+    return 'you';
+  };
+  // record one cash move (delta > 0 = money in)
+  LG.rec = (g, delta, label, bizId) => {
+    if (!delta || !Number.isFinite(delta)) return;
+    const a = g.acc; if (!a) return; a.led = a.led || {}; a.names = a.names || {};
+    const k = LG.resolve(g, bizId ? 'b:' + bizId : g._own);
+    const o = a.led[k] || (a.led[k] = { i: {}, o: {} });
+    if (delta > 0) o.i[label] = (o.i[label] || 0) + delta; else o.o[label] = (o.o[label] || 0) - delta;
+    if (!a.names[k]) { const nm = LG.nameOf(g, k); if (nm) a.names[k] = nm; }
+  };
+  LG.within = (g, key, fn) => { const prev = g._own; g._own = key; try { return fn(); } finally { g._own = prev; } };
+  LG.net = (led) => { let t = 0; for (const k in led || {}) { for (const l in led[k].i) t += led[k].i[l]; for (const l in led[k].o) t -= led[k].o[l]; } return t; };
+  // run a module's functions "on behalf of" an owner, so the money they move lands on the right line
+  const wrap = (obj, keyFn) => {
+    for (const name of Object.keys(obj)) {
+      const f = obj[name]; if (typeof f !== 'function' || f.__lg) continue;
+      const w = function (g, a1) {
+        if (!g || typeof g !== 'object' || !Array.isArray(g.businesses)) return f.apply(this, arguments);
+        const key = keyFn(name, g, a1); if (!key) return f.apply(this, arguments);
+        const prev = g._own; g._own = key; try { return f.apply(this, arguments); } finally { g._own = prev; }
+      };
+      w.__lg = true; obj[name] = w;
+    }
+  };
+  const idOf = (x) => (typeof x === 'string' ? x : x && typeof x === 'object' && typeof x.id === 'string' ? x.id : null);
+  LG.install = () => {
+    if (TG.RE) wrap(TG.RE, (n, g, a) => { if (n === 'month') return 'rePort'; const id = idOf(a); return id ? 'r:' + id : null; });
+    if (TG.I) wrap(TG.I, () => 'inv');
+    if (TG.CR) wrap(TG.CR, () => 'crime');
+    if (TG.P) wrap(TG.P, (n, g, a) => { const id = idOf(a); return id && (g.properties.some((p) => p.id === id) || g.listings.some((p) => p.id === id)) ? LG.resolve(g, 'p:' + id) : null; });
+  };
+
+  // ---------- categories (Thomas's layout: money in first, then expense groups with subtotals) ----------
+  LG.IN = [
+    ['sales', '🛒', 'Sales'], ['rent', '🔑', 'Rent from tenants'], ['inv', '📈', 'Investments'],
+    ['borrow', '🏦', 'Borrowed money (loans, credit line, investors)'], ['sold', '🏷️', 'Things you sold (machines, buildings, businesses)'], ['other', '✨', 'Other money in'],
+  ];
+  LG.OUT = [
+    ['loans', '🏦', 'Loans'], ['property', '🏠', 'Property'], ['wages', '👥', 'Wages'], ['product', '📦', 'Cost of product'],
+    ['equip', '🛠️', 'Equipment'], ['buy', '🏗️', 'Buying property & businesses'], ['tax', '🧾', 'Taxes'], ['inv', '📈', 'Investing & bets'], ['other', '📎', 'Other'],
+  ];
+  const T = (re) => (l) => re.test(l);
+  const IN_RULES = [
+    ['rent', T(/^Rent$/)],
+    ['borrow', T(/Loan proceeds|Credit line draw|Refinance cash-out|Investor funding|IPO proceeds|Fund raise/)],
+    ['inv', T(/Trading gains|Gambling winnings|Investments sold|Angel exits|Angel stakes sold/)],
+    ['sold', T(/Asset sales|Business sales|Fire-sale|Property sales|Real estate sales|Repossession surplus|Lease deposits returned|Buy-out payment/)],
+    ['sales', T(/Revenue|sales|Subscriptions|Royalties|Franchise fees|Freight/i)],
+  ];
+  const OUT_RULES = [
+    ['loans', T(/Loan|Credit line|Margin|Refinance fees|Late fees/)],
+    ['tax', T(/Income tax|Tax audit/)],
+    ['property', T(/Real estate (property tax|upkeep|insurance|repairs)|Tenant|Disaster damage|Evictions|Property manager|Handyman|Unit turnover|^Rent|Property tax|Building upkeep|Code violation/)],
+    ['wages', T(/Wages|Payroll tax|Bonuses|Severance|Training|Seasonal labor|CEO salary|CEO profit share|Background checks|HR /)],
+    ['product', T(/Supplies|cost of sales|Raw materials|Feed|Seed|Inventory orders|Fuel|Materials|Spray|Planting|Orchard care|Livestock|Hosting|Shipping|Storage$|Spoiled|Tolls/)],
+    ['equip', T(/Equipment|Repairs|Maintenance|Inspections|Storage construction/)],
+    ['buy', T(/Business setup|Property purchases|Real estate purchases|Land purchases|Land conversion|Renovations|Permits|Development|Lease deposits|Share buy-back|Pivot/)],
+    ['inv', T(/Investments bought|Angel investments|Trading|Gambling|Cash moved to the street/)],
+  ];
+  LG.catIn = (l) => { for (const [c, f] of IN_RULES) if (f(l)) return c; return 'other'; };
+  LG.catOut = (l) => { for (const [c, f] of OUT_RULES) if (f(l)) return c; return 'other'; };
+  // friendlier names for a few lines that are capital, not running costs
+  LG.NOTE = { 'Loan principal': 'paid down what you owe', 'Loan payoff': 'paid off early', 'Loan prepayment': 'extra payment', 'Credit line repayment': 'paid down the line', 'Loan proceeds': 'borrowed', 'Credit line draw': 'borrowed on the line', 'Equipment purchases': 'new machines', 'Property purchases': 'down payment / price', 'Real estate purchases': 'down payment / price' };
+
+  // build the report from a ledger: totals by group, by owner, and the bottom line
+  LG.summary = (g, led, names, cashStart, cashEnd) => {
+    names = names || {};
+    const inG = {}, outG = {}; for (const [k] of LG.IN) inG[k] = { t: 0, lines: {} }; for (const [k] of LG.OUT) outG[k] = { t: 0, lines: {} };
+    const owners = []; let tin = 0, tout = 0;
+    for (const k in led || {}) {
+      const L = led[k]; let oi = 0, oo = 0; const og = {};
+      for (const l in L.i) { const v = L.i[l]; const c = LG.catIn(l); inG[c].t += v; inG[c].lines[l] = (inG[c].lines[l] || 0) + v; oi += v; og['+' + c] = (og['+' + c] || 0) + v; }
+      for (const l in L.o) { const v = L.o[l]; const c = LG.catOut(l); outG[c].t += v; outG[c].lines[l] = (outG[c].lines[l] || 0) + v; oo += v; og['-' + c] = (og['-' + c] || 0) + v; }
+      tin += oi; tout += oo;
+      const nm = names[k] || LG.nameOf(g, k) || { n: k.slice(0, 2) === 'b:' ? 'Closed business' : k.slice(0, 2) === 'r:' ? 'Sold property' : 'Other', i: '•', grp: k.slice(0, 2) === 'b:' ? 'biz' : k.slice(0, 2) === 'r:' ? 're' : 'you' };
+      const borrowed = og['+borrow'] || 0;
+      owners.push({ k, n: nm.n, i: nm.i, grp: nm.grp, in: oi, out: oo, net: oi - oo, borrowed, groups: og, lines: L });
+    }
+    owners.sort((a, b) => (LG.GRP_ORDER.indexOf(a.grp) - LG.GRP_ORDER.indexOf(b.grp)) || b.net - a.net);
+    const net = tin - tout;
+    return { inG, outG, tin, tout, net, owners, cashStart, cashEnd, diff: cashEnd - cashStart - net };
+  };
+  LG.GRP_ORDER = ['biz', 'prop', 're', 'inv', 'crime', 'you'];
+  // add one month's ledger into a running total (skips)
+  LG.add = (into, led) => { for (const k in led || {}) { const t = into[k] || (into[k] = { i: {}, o: {} }); for (const l in led[k].i) t.i[l] = (t.i[l] || 0) + led[k].i[l]; for (const l in led[k].o) t.o[l] = (t.o[l] || 0) + led[k].o[l]; } return into; };
+  LG.ownerNets = (led) => { const o = {}; for (const k in led || {}) { let t = 0; for (const l in led[k].i) t += led[k].i[l]; for (const l in led[k].o) t -= led[k].o[l]; o[k] = Math.round(t); } return o; };
+  TG.LG = LG;
+  LG.install(); // loaded after realestate / invest / crime / property
+})();
+
+</script>
 <script>/* js/engine.js */
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 6;
+  const VERSION = 7;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -6377,6 +6686,7 @@ ul.fx li { margin: 1px 0; }
       rep.event(g, b, 'major', 'You inherited a struggling farm', 'Old, worn equipment, unhappy workers, a weak reputation and $140,000 of debt. Your call.');
     }
     g.stats.startCash = g.cash; g.lastNW = TG.F.netWorth(g); g.stats.peakNW = g.lastNW;
+    g.acc = TG.F.newAcc(); g.cashMark = g.cash; // v7: the money report counts every dollar from here
     return g;
   };
 
@@ -6386,12 +6696,15 @@ ul.fx li { margin: 1px 0; }
     TG.G = g;
     const C = TG.CONFIG; const m = g.month;
     TG.D.autoResolve(g);
-    const cashStart = g.cash, nwStart = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
+    const nwStart = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
     const pre = g.acc || TG.F.newAcc(); // money moved by the player's own actions between months
+    // v7: the month starts where last month ended, so money you moved between months is in this report too
+    const cashStart = g.cashMark != null ? g.cashMark : g.cash - TG.LG.net(pre.led);
     // v6: running costs you paid between months (supplies, feed, seed, repairs) belong to this month's profit and tax
     g.acc = TG.F.newAcc(); g.acc.inc = Object.assign({}, pre.inc); g.acc.exp = Object.assign({}, pre.exp);
+    g.acc.led = JSON.parse(JSON.stringify(pre.led || {})); g.acc.names = Object.assign({}, pre.names || {});
     TG.W.month(g); TG.P.month(g);
-    for (const p of g.properties) if (!p.bizId) { if (p.leased) TG.F.spend(g, p.rent, 'Rent (unused property)'); else TG.F.spend(g, TG.P.monthlyTax(g, p), 'Property tax (unused property)'); }
+    for (const p of g.properties) if (!p.bizId) TG.LG.within(g, 'p:' + p.id, () => { if (p.leased) TG.F.spend(g, p.rent, 'Rent (unused property)'); else TG.F.spend(g, TG.P.monthlyTax(g, p), 'Property tax (unused property)'); });
     TG.RE.month(g); TG.I.month(g);
     const bizRows = [];
     for (const b of g.businesses.slice()) {
@@ -6410,6 +6723,11 @@ ul.fx li { margin: 1px 0; }
     TG.F.monthEnd(g);
     const inc = Object.assign({}, g.acc.inc), exp = Object.assign({}, g.acc.exp);
     const profit = sumObj(inc) - sumObj(exp);
+    // v7: who made or lost money, counting EVERYTHING (machines bought, loan payments, damage...); adds up to the cash change
+    const led = g.acc.led || {}; const money = TG.LG.summary(g, led, g.acc.names, cashStart, g.cash); const nets = TG.LG.ownerNets(led);
+    for (const b of g.businesses) { const h = b.hist[b.hist.length - 1]; if (h && h.m === m) h.cash = nets['b:' + b.id] || 0; }
+    for (const h of g.re.holdings) { h.lastNet = nets['r:' + h.id] || 0; h.lastNetM = m; }
+    for (const b of bizRows) b.cash = nets['b:' + b.id] || 0;
     const nw = TG.F.netWorth(g);
     g.history.push({ m, cash: Math.round(g.cash), nw: Math.round(nw), profit: Math.round(profit), inc: Math.round(sumObj(inc)), exp: Math.round(sumObj(exp)), phase: g.world.phase });
     if (g.history.length > C.maxHistory) g.history.shift();
@@ -6419,7 +6737,7 @@ ul.fx li { margin: 1px 0; }
     const report = {
       m, date: U.dateStr(m), cashStart, cashEnd: g.cash, nwStart, nw, profit, tax, inc, exp, capIn: g.acc.capIn, capOut: g.acc.capOut,
       pre: { inc: sumObj(pre.capIn), exp: sumObj(pre.capOut) },
-      biz: bizRows, re: g.re.holdings.length ? { rev: g.re.m.rev, cost: g.re.m.cost, units: TG.RE.unitsOwned(g) } : null,
+      biz: bizRows, re: g.re.holdings.length ? { rev: g.re.m.rev, cost: g.re.m.cost, units: TG.RE.unitsOwned(g) } : null, money, led, names: Object.assign({}, g.acc.names),
       events: b0.events, staff: b0.staff, decisions: b0.decisions, news: b0.news, warns: b0.warns, ach,
       world: { phase: TG.W.phaseLabel(g), econ: g.world.econ, rate: g.world.baseRate, inflation: g.world.priceIdx },
       majors: b0.events.filter((e) => e.major).map((e) => ({ kind: e.major, text: e.text })),
@@ -6429,11 +6747,11 @@ ul.fx li { margin: 1px 0; }
     g.lastReport = report;
     g.month++;
     g.cur = rep.newBuf(g.month);
-    g.acc = TG.F.newAcc();
+    g.acc = TG.F.newAcc(); g.cashMark = g.cash;
     TG.LB.record(g);
     return report;
   };
-  E.slimReport = (r) => ({ m: r.m, date: r.date, profit: r.profit, nw: r.nw, cashEnd: r.cashEnd, events: r.events.slice(0, 40), decisions: r.decisions.slice(0, 30), news: r.news, majors: r.majors, biz: r.biz.map((x) => ({ name: x.name, profit: x.profit })) });
+  E.slimReport = (r) => ({ m: r.m, date: r.date, profit: r.profit, nw: r.nw, cashEnd: r.cashEnd, events: r.events.slice(0, 40), decisions: r.decisions.slice(0, 30), news: r.news, majors: r.majors, biz: r.biz.map((x) => ({ name: x.name, profit: x.profit, cash: x.cash })), net: r.money ? Math.round(r.money.net) : null });
 
   // explain WHY a business did what it did this month, with numbers
   E.bizWhy = (g, b, ctx, repBefore) => {
@@ -6460,6 +6778,7 @@ ul.fx li { margin: 1px 0; }
     n = Math.max(1, Math.floor(n));
     const startM = g.month, cash0 = g.cash, nw0 = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
     const inc = {}, exp = {}; const majors = [], decisions = [], bizTot = {}; let profit = 0, done = 0, stopped = null, events = 0;
+    const ledAll = {}, names = {}, months = []; const cashStart0 = g.cashMark != null ? g.cashMark : g.cash - TG.LG.net((g.acc || {}).led);
     const stopOn = opts.stopOnMajor != null ? opts.stopOnMajor : g.settings.stopOnMajor;
     const types = opts.majorTypes || g.settings.majorTypes;
     for (let i = 0; i < n; i++) {
@@ -6467,7 +6786,9 @@ ul.fx li { margin: 1px 0; }
       profit += r.profit; events += r.events.length;
       for (const k in r.inc) inc[k] = (inc[k] || 0) + r.inc[k];
       for (const k in r.exp) exp[k] = (exp[k] || 0) + r.exp[k];
-      for (const b of r.biz) { const t = bizTot[b.name] || (bizTot[b.name] = { rev: 0, cost: 0, profit: 0 }); t.rev += b.rev; t.cost += b.cost; t.profit += b.profit; }
+      for (const b of r.biz) { const t = bizTot[b.name] || (bizTot[b.name] = { rev: 0, cost: 0, profit: 0, cash: 0 }); t.rev += b.rev; t.cost += b.cost; t.profit += b.profit; t.cash += b.cash || 0; }
+      TG.LG.add(ledAll, r.led); Object.assign(names, r.names);
+      months.push({ m: r.m, date: r.date, in: Math.round(r.money.tin), out: Math.round(r.money.tout), net: Math.round(r.money.net), cash: Math.round(r.cashEnd), own: TG.LG.ownerNets(r.led) });
       for (const e of r.events) if (e.type === 'major') majors.push(Object.assign({ date: r.date }, e));
       for (const d of r.decisions) if (d.by && d.by !== 'You') decisions.push(Object.assign({ date: r.date }, d));
       if (stopOn && i < n - 1) {
@@ -6476,7 +6797,8 @@ ul.fx li { margin: 1px 0; }
       }
       if (opts.onProgress) opts.onProgress(i + 1, n);
     }
-    return { months: done, asked: n, from: U.dateStr(startM), to: U.dateStr(g.month - 1), cash0, cash1: g.cash, nw0, nw1: g.lastNW, profit, inc, exp, majors: majors.slice(-60), majorCount: majors.length, decisions: decisions.slice(-60), decisionCount: decisions.length, bizTot, stopped, events, pending: g.decisions.length };
+    const money = TG.LG.summary(g, ledAll, names, cashStart0, g.cash);
+    return { money, perMonth: months, names, months: done, asked: n, from: U.dateStr(startM), to: U.dateStr(g.month - 1), cash0: cashStart0, cash1: g.cash, nw0, nw1: g.lastNW, profit, inc, exp, majors: majors.slice(-60), majorCount: majors.length, decisions: decisions.slice(-60), decisionCount: decisions.length, bizTot, stopped, events, pending: g.decisions.length };
   };
 
   // ================= ACHIEVEMENTS =================
@@ -6557,6 +6879,14 @@ ul.fx li { margin: 1px 0; }
     for (const h of (g.re && g.re.holdings) || []) { if (h.rentR == null) h.rentR = 1; for (const t of h.tenants || []) if (t && t.rel == null) { t.rel = t.bad ? 0.3 : 0.72; delete t.bad; } }
     TG.CREDIT.ensure(g); if (!hadCr) TG.CREDIT.sync(g);
     if ((g.v || 1) < 6) g.v = 6;
+    // v7: money ledger, per-unit tenant searches and repairs, loan history, closed shops, HR wage deals
+    delete g._own;
+    if (g.acc && !g.acc.led) { g.acc.led = {}; g.acc.names = {}; }
+    if (g.cashMark == null) g.cashMark = g.cash - TG.LG.net((g.acc || {}).led);
+    for (const h of (g.re && g.re.holdings) || []) { TG.RE.ensureUnits(h); if (h.mgrSearchM != null && typeof h.mgrSearchM !== 'object') h.mgrSearchM = {}; }
+    for (const l of g.loans || []) { if (l.intPaid == null) { l.intPaid = 0; l.prinPaid = Math.max(0, (l.principal || l.balance) - l.balance); l.histUnknown = true; } }
+    for (const b of g.businesses) if (b.shut == null) b.shut = 0;
+    if ((g.v || 1) < 7) g.v = 7;
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };
@@ -6822,7 +7152,7 @@ ul.fx li { margin: 1px 0; }
     }
     out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
       ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
-      ${UI.tile('h_pf', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', 'Profit after costs and tax.')}
+      ${(() => { const lr = g.lastReport && g.lastReport.money; const v = lr ? lr.net : last ? last.profit : null; return UI.tile('h_pf', '💰', v != null ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Left with last month', v == null ? '' : v >= 0 ? 'g' : 'r', 'Cash change last month: everything in minus everything out (sales, rent, wages, machines, loan payments, tax...). Tap 📄 Last month for the full report.'); })()}
       ${UI.tile('h_cr', '🏦', TG.CREDIT.score(g).score, 'Credit score', TG.CREDIT.score(g).score >= 700 ? 'g' : TG.CREDIT.score(g).score >= 620 ? 'y' : 'r', 'Higher = better loan odds and cheaper rates. Details in Money → Finance.')}</div>`;
     { const L = TG.IN.list(g); const mine = new Set(g.businesses.map((b) => TG.IN.ofBiz(b))); const sh = L.filter((x) => mine.has(x.k)); const show = (sh.length ? sh : L.sort((a, c) => c.s.x - a.s.x).slice(0, 3)).slice(0, 4);
       out += `<div class="card"><div class="row sp"><h3 style="margin:0">📈 Industry outlook</h3>${UI.btn('See all', 'go', 'ind', 'xs')}</div>${show.map((x) => `<div class="small">${x.d.icon} ${esc(x.d.label)} ${UI.pill(x.st.label, x.st.tone)} ${TG.IN.arrow(x.s)}</div>`).join('')}</div>`; }
@@ -6837,7 +7167,7 @@ ul.fx li { margin: 1px 0; }
     if (g.lastReport && g.lastReport.warns) for (const w of g.lastReport.warns.slice(0, 3)) al.push(`<div class="ev warn">⚠️ ${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}</div>`);
     if (al.length) out += `<div class="card"><h3>🔔 Look at these</h3>${al.join('')}</div>`;
     if (g.businesses.length) { out += `<h3>🏪 My businesses</h3>`; for (const b of g.businesses) out += UI.bizCard(b); }
-    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row"><span class="ico">🏘️</span><b class="grow">Houses & flats</b><b>${TG.RE.unitsOwned(g)} 🚪</b></div><div class="mute">Rent ${m(g.re.m.rev)} · costs ${m(g.re.m.cost)}</div></div>`;
+    if (g.re.holdings.length) out += `<div class="card tap" data-act="goMoneyTab" data-arg="re"><div class="row"><span class="ico">🏘️</span><b class="grow">Houses & flats</b><b>${TG.RE.unitsOwned(g)} 🚪</b></div><div class="mute">Last month: ${UI.signed(Math.round(U.sum(g.re.holdings, (h) => h.lastNet || 0)))} after every cost and mortgage payment · ${g.re.holdings.reduce((a, h) => a + (h.tenants || []).filter((t) => !t).length, 0)} empty units</div></div>`;
     out += `<div class="card">${h.length > 2 ? `<div class="mute">📈 Worth</div>${UI.spark(h.slice(-60).map((x) => x.nw))}<div class="mute">💰 Profit each month</div>${UI.spark(h.slice(-60).map((x) => x.profit), '#2563eb')}` : ''}
       <div class="btns">${g.lastReport ? UI.btn('📄 Last month', 'lastReport') : ''}${UI.btn('📰 News', 'goMoreTab', 'news')}${UI.btn('📜 History', 'goMoreTab', 'log')}</div></div>`;
     const risks = [];
@@ -6850,9 +7180,10 @@ ul.fx li { margin: 1px 0; }
     const g = TG.G, d = TG.CONFIG.businesses[b.type]; const h = b.hist[b.hist.length - 1];
     const lc = UI.lc(b); const fl = b.flow && b.flow.rows ? b.flow.rows : [];
     const bad = fl.filter((x) => x.c === 'r').length, warn = fl.filter((x) => x.c === 'y').length;
-    const tone = !h ? '' : h.profit < 0 || bad ? 'r' : warn > 2 ? 'y' : 'g';
+    const res = h ? (h.cash != null ? h.cash : h.profit) : 0; const shut = lc.closed || (b.lastCtx && b.lastCtx.closed);
+    const tone = !h ? '' : res < 0 || bad || shut ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
-    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(h.profit) : '<span class="mute">new</span>'}</span></div>
+    return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(Math.round(res)) : '<span class="mute">new</span>'}</span></div>${shut ? `<div class="closed small">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}</div>` : ''}
       <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you' : b.spec.gm ? ' · 👔 boss' : ' · ⚠️ no boss'}${lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}%` : ''}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };
@@ -7087,12 +7418,13 @@ ul.fx li { margin: 1px 0; }
   function overview(g, b) {
     const d = TG.B.def(b), lc = UI.lc(b); const h = b.hist; const last = h[h.length - 1];
     let o = `<div class="tiles">
-      ${UI.tile('t_profit', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Profit last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', last ? `Money in ${m(last.rev)} − money out ${m(last.cost)}.` : 'Not open a full month yet.')}
+      ${(() => { const v = last ? (last.cash != null ? last.cash : last.profit) : null; return UI.tile('t_profit', '💰', last ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'True result last month', last ? (v >= 0 ? 'g' : 'r') : '', last ? `Everything this business really cost and made last month, including machines bought, repairs, damage and its loan payments. Profit on paper (without buying machines or paying down loans): ${UI.signed(last.profit).replace(/<[^>]+>/g, '')}.` : 'Not open a full month yet.'); })()}
       ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
       ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
       ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
-    if (lc.note) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
+    const cb = UI.closedBanner(g, b); o += cb;
+    if (lc.note && !cb) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
     o += UI.todoCard(g, b); // v6: jobs nobody does for you (no manager)
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
@@ -7194,8 +7526,9 @@ ul.fx li { margin: 1px 0; }
     const pool = TG.S.poolFor(g, b, hr);
     o += `<div class="card" id="hireCard"><h3 style="margin-top:0">➕ Hire</h3><div class="row"><select data-change="hireRole">${roles.map((r) => `<option value="${r}"${r === hr ? ' selected' : ''}>${esc(d.roles[r].label)}</option>`).join('')}<optgroup label="Managers & specialists">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}"${k === hr ? ' selected' : ''}>${esc(s.label)}${b.spec[k] ? ' (filled)' : ''}</option>`).join('')}</optgroup></select></div>
       <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
+      ${UI.hrHiring(g, b, hr)}
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
-    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}
+    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}${UI.hrCand(c)}
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;
     if (!pool.length) o += `<div class="ev warn">Nobody applied this month. Small labor pools make hiring slow; try next month or move to a bigger town.</div>`;
     o += `</div>`;
@@ -7940,8 +8273,7 @@ ul.fx li { margin: 1px 0; }
       ${g.cash < 0 ? `<div class="ev bad">Cash is negative: ${C.bankruptcyMonths - g.negMonths} month(s) until creditors force a fire sale. Interest and fees pile up.</div>` : ''}
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
     o += UI.creditCards(g); // v6: score with its reasons, loan applications with odds, credit line
-    o += `<div class="card"><h3 style="margin-top:0">Loans (${g.loans.length})</h3>${g.loans.map((l) => `<div class="ev ${l.missed ? 'bad' : ''}"><div class="row sp"><b>${esc(l.label)}</b><span>${m(l.balance)} left</span></div><div class="small">${U.pct(l.rate, 2)} · ${m(l.payment)}/mo · ${l.left} months left${l.missed ? ` · ${l.missed} missed payment(s)!` : ''}</div>
-      <div class="btns">${UI.btn(`Pay off ${m(l.balance)}`, 'loanDo', `${l.id}|off`, 'sm', g.cash < l.balance)}${UI.btn('Prepay 10k', 'loanDo', `${l.id}|10000`, 'sm', g.cash < 10000)}</div></div>`).join('') || '<div class="mute">No loans.</div>'}</div>`;
+    o += UI.loansCard(g); // v7: amortizing loans, tap one for its schedule
     if (g.lawsuits.length) o += `<div class="card"><h3 style="margin-top:0">Lawsuits</h3>${g.lawsuits.map((ls) => `<div class="ev bad"><b>${esc(ls.label)}</b> ${m(ls.amount)} · ${ls.status === 'fighting' ? `in court (${U.pct(ls.win || 0)} win odds)` : 'awaiting your decision'} · ${ls.left} mo left<div class="why">${esc(ls.why || '')}</div></div>`).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Last resort</h3><div class="btns">${UI.btn('Declare personal bankruptcy', 'bk', null, 'sm badb')}</div><div class="mute">Wipes everything: you keep ${m(C.bankruptcy.keepCash)}, credit drops, no loans for ${C.bankruptcy.noLoanMonths} months. The game continues.</div></div>`;
     return o;
@@ -7963,21 +8295,20 @@ ul.fx li { margin: 1px 0; }
     let o = `<div class="card"><div class="kv"><span>Portfolio value</span><span>${m(RE.totalValue(g))}</span><span>Units</span><span>${RE.unitsOwned(g)}</span><span>Last month</span><span>rent ${m(r.m.rev)} · costs ${m(r.m.cost)}</span><span>Housing market</span><span>x${g.world.housing.toFixed(2)}</span>
       <span>Flips done</span><span>${r.flipsDone} (${r.flipsProfit} profitable)</span></div>
       ${r.hist.length > 2 ? UI.spark(r.hist.slice(-48).map((x) => x.rev - x.cost), '#1d4ed8') : ''}
-      <div class="kv" style="margin-top:6px"><span>Property manager</span><span>${r.manager ? `${esc(r.manager.name)} (skill ${r.manager.skillSeen}) ${UI.btn('Fire', 'reMgrFire', null, 'sm')}` : UI.btn('Hire one', 'reMgr', null, 'sm')}</span>
-      <span>Handyman on call</span><span>${UI.btn(r.handyman ? 'Yes' : 'No', 'reHandy', null, 'sm')}</span></div>
-      <div class="mute">Self-managing more than ${RC.selfManageLimit} units gets sloppy. A manager runs tenant searches, picks tenants, handles evictions, and takes ${U.pct(RC.managerFeePct)} of rent plus wage.</div>
+      ${UI.reMgrCard(g)}
       ${RE.totalValue(g) >= RC.fund.minPortfolio && !r.fund ? `<div class="btns">${UI.btn(`Raise a fund (${U.pct(RC.fund.raisePct)} of value, investors get ${U.pct(RC.fund.investorShare)} of rent)`, 'reFund', null, 'sm')}</div>` : ''}</div>`;
     o += `<h3>Your properties (${r.holdings.length})</h3>`;
     for (const h of r.holdings) {
       const k = RC.kinds[h.kind]; const occ = h.tenants.filter((t) => t).length; const v = RE.value(g, h);
       const loan = h.mortgageId ? g.loans.find((l) => l.id === h.mortgageId) : null;
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
-        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)}` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
+        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)} (${m(loan.payment)}/mo)` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
+        ${h.lastNetM != null ? `<div class="small">Last month, after every cost${loan ? ' and the mortgage' : ''}: <b>${UI.signed(Math.round(h.lastNet))}</b></div>` : ''}
         ${h.flip ? `<div class="ev info">Renovation: ${esc(RC.flip.levels[h.flip.level].label)} by ${esc(RC.flip.contractors[h.flip.contractor].label.toLowerCase())}, ${h.flip.left} month(s) left, budget ${m(h.flip.budget)}${h.flip.overrun ? `, overrun ${m(h.flip.overrun)}` : ''}</div>` : ''}
         ${h.dev ? `<div class="ev info">Development: ${h.dev.units} units, stage ${esc(h.dev.stage)}, ${h.dev.left} month(s) left, ${m(h.dev.paid)} of ~${m(h.dev.cost)} spent</div>` : ''}
         <div class="row small" style="margin-top:4px"><span>Upkeep</span><select data-change="reSet" data-k="upkeep" data-h="${h.id}">${['low', 'normal', 'high'].map((x) => `<option${h.upkeep === x ? ' selected' : ''}>${x}</option>`).join('')}</select>
         <span>Insured</span><select data-change="reSet" data-k="insured" data-h="${h.id}"><option value="1"${h.insured ? ' selected' : ''}>yes</option><option value="0"${!h.insured ? ' selected' : ''}>no</option></select></div>
-        ${UI.rentRows(g, h)}
+        ${UI.rentRows(g, h)}${UI.unitsHtml(g, h)}
         <div class="btns">${!h.flip && !h.dev && h.kind !== 'land' ? UI.btn('Renovate…', 'reFlip', h.id, 'sm') : ''}${h.kind === 'land' && !h.dev ? UI.btn('Develop…', 'reDev', h.id, 'sm') : ''}
         ${h.mode === 'sale' ? UI.btn('Unlist', 'reDo', `${h.id}|unlist`, 'sm') : !h.flip && !h.dev ? UI.btn('List at value', 'reDo', `${h.id}|list`, 'sm') + UI.btn('List +10%', 'reDo', `${h.id}|list110`, 'sm') : ''}
         ${h.mode === 'hold' && h.units && !h.flip ? UI.btn('Start renting', 'reDo', `${h.id}|rent`, 'sm') : ''}
@@ -8022,7 +8353,7 @@ ul.fx li { margin: 1px 0; }
   UI.A.reDevGo = (id) => { const r = TG.RE.develop(TG.G, id, UI.num('devU', 10)); UI.closeModal(); after(r, r.ok ? `Development of ${r.dev.units} units started.` : null); };
   UI.A.reMgr = () => {
     const pool = TG.RE.managerPool(TG.G);
-    UI.modal('Hire a property manager', pool.map((c) => `<div class="card"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs</div><div class="btns">${UI.btn('Hire', 'reMgrGo', c.id, 'sm pri')}</div></div>`).join(''));
+    UI.modal('Hire a property manager', pool.map((c) => `<div class="card"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs · tenants ${c.skillSeen >= 60 ? '👍 better' : c.skillSeen >= 40 ? '≈ average' : '👎 worse'} · searches & repairs x${U.clamp(1.2 - c.skillSeen / 250, 0.8, 1.2).toFixed(2)}</div><div class="mute">Plus ${U.pct(TG.CONFIG.realEstate.managerFeePct)} of the rent they collect.</div><div class="btns">${UI.btn('Hire', 'reMgrGo', c.id, 'sm pri')}</div></div>`).join(''));
   };
   UI.A.reMgrGo = (id) => { const c = TG.G.re.pool.list.find((x) => x.id === id); if (c) TG.RE.hireManager(TG.G, c); UI.closeModal(); UI.refresh(); };
   UI.A.reMgrFire = () => { TG.G.re.manager = null; UI.refresh(); };
@@ -8561,35 +8892,38 @@ ul.fx li { margin: 1px 0; }
     const mr = RE.marketRent(g, h), ask = RE.askRent(g, h), vac = RE.vacant(h); const pv = RE.poolPreview(g, h); const cur = RE.current(g, h);
     let o = `<div class="row small" style="margin-top:4px"><span>Your rent</span><select data-change="reRent" data-h="${h.id}">${T.rentSteps.map((r) => `<option value="${r}"${Math.abs((h.rentR || 1) - r) < 0.001 ? ' selected' : ''}>${m(mr * r)} (${r === 1 ? 'market' : Math.round(r * 100) + '%'})</option>`).join('')}</select><span class="mute">market ${m(mr)}/unit</span></div>`;
     o += `<div class="small">${(h.rentR || 1) > 1.08 ? '<span class="warn">Above market: fewer, riskier applicants and longer empty months.</span>' : (h.rentR || 1) < 0.95 ? '<span class="warn">Below market: lots of great applicants, but you leave money on the table.</span>' : 'Near market: a fair number of decent applicants.'}</div>`;
-    if (vac && h.mode === 'rent') o += `<div class="ev warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}. ${g.re.manager ? 'Your property manager is searching.' : 'No manager: you must find tenants yourself.'}<div class="btns">${UI.btn(cur ? `👤 See applicants (${h.search.list.length - h.search.i} left)` : `🔎 Tenant search ${m(RE.searchCost(g, h))}`, 'reSearch', h.id, 'sm pri')}</div><div class="mute">Expect about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}.</div></div>`;
-    const T2 = h.tenants.filter((t) => t); if (T2.length) { const avg = U.avg(T2, (t) => t.rel); o += `<div class="small">👥 ${T2.length} tenant(s) · ${avg >= 0.65 ? '<span class="good">mostly reliable</span>' : avg >= 0.45 ? '<span class="warn">mixed</span>' : '<span class="bad">risky</span>'}${T2.some((t) => t.late) ? ` · <span class="bad">${T2.filter((t) => t.late).length} behind on rent</span>` : ''}</div>`; }
+    if (vac && h.mode === 'rent' && !g.re.manager) o += `<div class="small warn">🔑 ${vac} empty unit${vac > 1 ? 's' : ''}: no property manager, so each one needs its own tenant search (below). Expect about ${Math.max(0, Math.round(pv.n))} applicant(s) per search, mostly ${pv.label}.</div>`;
+    void cur;
     return o;
   };
   UI.A.reRent = (v, el) => { const h = TG.G.re.holdings.find((x) => x.id === el.dataset.h); if (h) h.rentR = Number(v); UI.refresh(); };
-  UI.A.reSearch = (hid) => {
-    const g = TG.G, RE = TG.RE; const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
-    const a = RE.current(g, h); const vac = RE.vacant(h);
+  // v7: every unit has its own search; you see one applicant at a time and cannot go back
+  UI.A.reSearch = (arg) => {
+    const g = TG.G, RE = TG.RE; const [hid, us] = String(arg).split('|'); const h = g.re.holdings.find((x) => x.id === hid); if (!h) return;
+    const u = RE.pickUnit(g, h, us != null && us !== '' ? Number(us) : null, true); if (u < 0 || h.tenants[u]) { UI.closeModal(); UI.refresh(); return UI.toast('That unit is rented.'); }
+    const a = RE.current(g, h, u); const tag = h.units > 1 ? ` · unit ${u + 1}` : ''; const key = `${hid}|${u}`;
     if (!a) {
-      const pv = RE.poolPreview(g, h); const had = h.search && h.search.m >= g.month - TG.CONFIG.tenants.search.expires;
-      return UI.modal('🔎 Tenant search', `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
-        <div class="kv kvl"><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Empty units</span><span>${vac}</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
-        <div class="mute">Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
-        <div class="btns">${vac ? UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', hid, 'sm pri', g.cash < RE.searchCost(g, h)) : '<span class="mute">No empty units.</span>'}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+      const pv = RE.poolPreview(g, h); const s0 = h.searches[u]; const had = s0 && s0.m >= g.month - TG.CONFIG.tenants.search.expires;
+      return UI.modal(`🔎 Tenant search${esc(tag)}`, `<div class="card">${had ? '<div class="ev warn"><b>No applicants left.</b> Pay for another search to see more.</div>' : ''}
+        <div class="kv kvl"><span>Home</span><span>${esc(h.name)}${esc(tag)}</span><span>Rent you ask</span><span>${m(RE.askRent(g, h))} (${Math.round((h.rentR || 1) * 100)}% of market)</span><span>Search cost</span><span>${m(RE.searchCost(g, h))}</span><span>Expect</span><span>about ${Math.max(0, Math.round(pv.n))} applicant(s), mostly ${pv.label}</span></div>
+        <div class="mute">One tenant per home. This search is for this unit only. Ads, showings and background checks. You see one applicant at a time: accept or decline. Declined applicants are gone for good.</div>
+        ${RE.unitIssues(h, u).length ? '<div class="ev bad">Fix the repair in this unit first.</div>' : ''}
+        <div class="btns">${UI.btn(`💵 Pay ${m(RE.searchCost(g, h))} and search`, 'reSearchGo', key, 'sm pri', g.cash < RE.searchCost(g, h) || RE.unitIssues(h, u).length > 0)}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
     }
-    const left = h.search.list.length - h.search.i; const marks = RE.applicantMarks(a);
-    UI.modal('👤 Applicant', `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left · ${vac} empty</span></div>
+    const s = h.searches[u]; const left = s.list.length - s.i; const marks = RE.applicantMarks(a);
+    UI.modal(`👤 Applicant${esc(tag)}`, `<div class="card"><div class="row sp"><b>${esc(a.name)}</b><span class="mute">${left} left for this unit</span></div>
       <table>${marks.map((x) => `<tr><td>${mark(x.mark)} ${esc(x.label)}</td><td class="n">${esc(x.val)}</td></tr>`).join('')}</table>
-      <div class="small">Rent ${m(h.search.rent)}/mo. Rule of thumb: income at least 3x rent, no evictions, credit 650+.</div>
+      <div class="small">Rent ${m(s.rent)}/mo. Rule of thumb: income at least 3x rent, no evictions, credit 650+.</div>
       <div class="mute">These are clues, not guarantees: good tenants can still lose a job, and risky ones sometimes pay fine.</div>
-      <div class="btns">${UI.btn('✅ Accept', 'reDecide', hid + '|1', 'sm goodb')}${UI.btn('❌ Decline', 'reDecide', hid + '|0', 'sm badb')}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
+      <div class="btns">${UI.btn('✅ Accept', 'reDecide', key + '|1', 'sm goodb')}${UI.btn('❌ Decline', 'reDecide', key + '|0', 'sm badb')}${UI.btn('Close', 'closeModal', null, 'sm')}</div></div>`);
   };
-  UI.A.reSearchGo = (hid) => { const r = TG.RE.search(TG.G, hid); if (!r.ok) return UI.toast(r.msg, true); UI.toast(r.n ? `${r.n} applicant(s) came.` : 'Nobody applied at this rent.', !r.n); UI.A.reSearch(hid); };
+  UI.A.reSearchGo = (key) => { const [hid, u] = String(key).split('|'); const r = TG.RE.search(TG.G, hid, null, u != null ? Number(u) : null); if (!r.ok) return UI.toast(r.msg, true); UI.toast(r.n ? `${r.n} applicant(s) came.` : 'Nobody applied at this rent.', !r.n); UI.A.reSearch(`${hid}|${r.unit}`); UI.refresh(); };
   UI.A.reDecide = (arg) => {
-    const [hid, acc] = arg.split('|'); const g = TG.G; const r = TG.RE.decide(g, hid, acc === '1'); if (!r.ok) return UI.toast(r.msg || 'Not possible.', true);
+    const [hid, u, acc] = arg.split('|'); const g = TG.G; const r = TG.RE.decide(g, hid, acc === '1', Number(u)); if (!r.ok) return UI.toast(r.msg || 'Not possible.', true);
     UI.toast(acc === '1' ? `Signed a lease with ${r.tenant.name}.` : 'Declined.');
-    const h = g.re.holdings.find((x) => x.id === hid); if (h && TG.RE.vacant(h) > 0) UI.A.reSearch(hid); else { UI.closeModal(); } UI.refresh();
+    if (acc === '1') UI.closeModal(); else UI.A.reSearch(`${hid}|${u}`);
+    UI.refresh();
   };
-
   // ================= ✋ "NO MANAGER: YOU MUST DO THIS YOURSELF" =================
   UI.todoCard = (g, b) => {
     const D = TG.D, out = [];
@@ -8622,6 +8956,187 @@ ul.fx li { margin: 1px 0; }
     return o;
   };
   void biz;
+})();
+
+</script>
+<script>/* js/ui/ui-v7.js */
+/* ui-v7.js - v7 screens: the money report (money in, expense groups, what you are left with, who made or lost money),
+   skip totals with a month-by-month view, the loans screen with amortization, rental units, closed shops and HR hiring. */
+(function () {
+  const TG = globalThis.TG; const U = TG.U; const UI = TG.UI; const esc = UI.esc, m = UI.m;
+  const N = (x) => Math.round(x || 0).toLocaleString();
+  const LG = () => TG.LG;
+  const sg = (x) => UI.signed(Math.round(x));
+  const plus = (x) => `<span class="good">+${m(Math.round(x))}</span>`, minus = (x) => `<span class="bad">−${m(Math.round(x))}</span>`;
+  const grp = (icon, label, val, inner, open) => `<details class="grp"${open ? ' open' : ''}><summary><span class="gl"><span class="car"></span>${icon} ${esc(label)}</span><span class="gv">${val}</span></summary><div class="in1">${inner}</div></details>`;
+  const lineRows = (lines, sign) => `<table>${Object.entries(lines).sort((a, b) => b[1] - a[1]).filter(([, v]) => Math.abs(v) >= 0.5).map(([k, v]) => `<tr><td>${esc(k)}${LG().NOTE[k] ? ` <span class="mute">(${esc(LG().NOTE[k])})</span>` : ''}</td><td class="n">${sign > 0 ? plus(v) : minus(v)}</td></tr>`).join('')}</table>`;
+
+  // ================= 💰 THE MONEY REPORT =================
+  UI.moneyHtml = (M, opts) => {
+    opts = opts || {}; if (!M) return '';
+    const L = LG(); let o = '';
+    o += `<div class="card"><h3>🟰 You are left with ${sg(M.net)}</h3><div class="row sp"><div><div class="mute">💰 In</div><div class="big good">+${m(M.tin)}</div></div><div><div class="mute">💸 Out</div><div class="big bad">−${m(M.tout)}</div></div><div><div class="mute">💵 Cash now</div><div class="big">${m(M.cashEnd)}</div></div></div>
+      <div class="mute">${esc(opts.span || 'This month')}: every dollar in and out, including machines you bought, loan payments and money you moved between months.</div></div>`;
+    // money in
+    let inn = ''; for (const [k, ic, lb] of L.IN) { const G = M.inG[k]; if (G.t >= 0.5) inn += grp(ic, lb, plus(G.t), lineRows(G.lines, 1)); }
+    o += `<div class="card"><h3>💰 Money in</h3>${inn || '<div class="mute">No money came in.</div>'}<div class="tot"><span>Total in</span><span class="good">+${m(M.tin)}</span></div></div>`;
+    let out = ''; for (const [k, ic, lb] of L.OUT) { const G = M.outG[k]; if (G.t >= 0.5) out += grp(ic, lb, minus(G.t), lineRows(G.lines, -1)); }
+    o += `<div class="card"><h3>💸 Money out</h3>${out || '<div class="mute">No money went out.</div>'}<div class="tot"><span>Total out</span><span class="bad">−${m(M.tout)}</span></div></div>`;
+    o += `<div class="card"><h3>🟰 Bottom line</h3><table><tr><td>💵 Cash at the start</td><td class="n">${m(M.cashStart)}</td></tr><tr><td>💰 Money in</td><td class="n">${plus(M.tin)}</td></tr><tr><td>💸 Money out</td><td class="n">${minus(M.tout)}</td></tr>
+      <tr><td><b>What you are left with</b></td><td class="n"><b>${sg(M.net)}</b></td></tr><tr><td><b>💵 Cash at the end</b></td><td class="n"><b>${m(M.cashEnd)}</b></td></tr></table>
+      <div class="mute">${Math.abs(M.diff) < 1 ? '✔ Matches your real cash change.' : `⚠️ ${m(M.diff)} not explained.`}</div></div>`;
+    o += UI.whoHtml(M, opts);
+    return o;
+  };
+  // who made or lost money: every business, every property (grouped), investments, crime, you. Adds up to the bottom line.
+  const ownerInner = (ow) => {
+    const L = LG(); let t = '';
+    for (const [k, ic, lb] of L.IN) { const v = ow.groups['+' + k]; if (v >= 0.5) t += `<tr><td>${ic} ${esc(lb)}</td><td class="n">${plus(v)}</td></tr>`; }
+    for (const [k, ic, lb] of L.OUT) { const v = ow.groups['-' + k]; if (v >= 0.5) t += `<tr><td>${ic} ${esc(lb)}</td><td class="n">${minus(v)}</td></tr>`; }
+    return `<table>${t}</table>${ow.borrowed >= 0.5 ? `<div class="mute">Includes ${m(ow.borrowed)} of borrowed money.</div>` : ''}`;
+  };
+  UI.whoHtml = (M, opts) => {
+    const by = {}; for (const ow of M.owners) (by[ow.grp] = by[ow.grp] || []).push(ow);
+    let o = '';
+    for (const ow of (by.biz || []).concat(by.prop || [])) o += grp(ow.i, ow.n, sg(ow.net), ownerInner(ow));
+    if (by.re) { const t = U.sum(by.re, (x) => x.net); o += grp('🏘️', `Real estate (${by.re.filter((x) => x.k !== 'rePort').length} properties)`, sg(t), by.re.map((ow) => grp(ow.i, ow.n, sg(ow.net), ownerInner(ow))).join(''), opts.openRE); }
+    for (const ow of (by.inv || []).concat(by.crime || [], by.you || [])) o += grp(ow.i, ow.n, sg(ow.net), ownerInner(ow));
+    return `<div class="card"><h3>📊 Who made or lost money ${UI.tipBtn('who')}</h3>${UI.tipLine('who', 'Each line counts ALL its real costs: machines bought, repairs and damage, its loan payments, upkeep. Red = it cost you money. The lines add up exactly to what you are left with.')}
+      ${o || '<div class="mute">Nothing yet.</div>'}<div class="tot"><span>= Left with</span><span>${sg(M.net)}</span></div></div>`;
+  };
+
+  // monthly report: money first, then the why for each business, then events
+  UI.reportHtml = (r) => {
+    let o = '';
+    if (r.money) o += UI.moneyHtml(r.money, { span: r.date });
+    else o += `<div class="card"><div class="row sp"><div><div class="mute">Profit (after tax)</div><div class="big">${UI.signed(r.profit)}</div></div><div><div class="mute">Cash</div><div class="big">${m(r.cashEnd)}</div></div></div></div>`;
+    o += `<div class="card"><div class="row sp"><div><div class="mute">Profit on paper (after tax)</div><div class="big">${UI.signed(r.profit)}</div></div><div><div class="mute">Net worth</div><div class="big">${m(r.nw)}</div><div class="mute">${UI.signed(r.nw - r.nwStart)}</div></div></div>
+      <div class="mute" style="margin-top:4px">Profit on paper leaves out buying machines and buildings and paying down loans; "left with" above counts everything. Economy: ${esc(r.world.phase)} · interest ${U.pct(r.world.rate, 1)}${r.tax ? ` · income tax ${m(r.tax)}` : ''}</div></div>`;
+    if (r.ach && r.ach.length) o += `<div class="card" style="border-color:#15803d">🏆 Achievement${r.ach.length > 1 ? 's' : ''}: ${r.ach.map((a) => esc(TG.CONFIG.achievements[a])).join(', ')}</div>`;
+    if (r.biz.length) o += `<div class="card"><h3>🏪 Why each business did what it did</h3>${r.biz.map((b) => grp('🏪', b.name, sg(b.cash != null ? b.cash : b.profit), `<div class="mute">True result ${UI.signed(Math.round(b.cash != null ? b.cash : b.profit))} · profit on paper ${UI.signed(b.profit)} · sales ${m(b.rev)}</div><ul class="plain small">${b.why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`)).join('')}</div>`;
+    const evs = r.events.filter((e) => e.type !== 'news');
+    if (evs.length) o += `<div class="card"><h3 style="margin-top:0">What happened (${evs.length})</h3>${evs.slice(0, 60).map(UI.ev).join('')}</div>`;
+    if (r.decisions.length) o += `<div class="card"><h3 style="margin-top:0">Decisions made</h3>${r.decisions.map((d) => `<div class="ev ${d.outcome === 'bad' ? 'bad' : d.outcome === 'good' ? 'good' : 'info'}"><b>${esc(d.by)}</b>${d.biz ? ` (${esc(d.biz)})` : ''}: ${esc(d.text)}</div>`).join('')}</div>`;
+    if (r.staff.length) o += `<div class="card"><h3 style="margin-top:0">Staff changes</h3>${r.staff.map((s) => `<div class="small">👥 ${s.biz ? esc(s.biz) + ': ' : ''}${esc(s.text)}</div>`).join('')}</div>`;
+    if (r.news.length) o += `<div class="card"><h3 style="margin-top:0">News</h3>${r.news.map((n) => `<div class="ev ${n.tone}">📰 ${esc(n.text)}</div>`).join('')}</div>`;
+    if (r.warns.length) o += `<div class="card"><h3 style="margin-top:0">Warning signs</h3>${r.warns.map((w) => `<div class="ev warn">${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}${w.p ? ` (${U.pct(w.p, 1)})` : ''}<div class="why">${esc(w.why || '')}</div></div>`).join('')}</div>`;
+    return o;
+  };
+
+  // skip: totals for the whole stretch, then month by month (tap a month for who made or lost money)
+  UI.showSkip = (s) => {
+    UI.S.lastSkip = s;
+    let o = `<div class="card"><div class="mute">${esc(s.from)} to ${esc(s.to)}: ${s.months} months (${U.yrsMo(s.months)}) simulated one by one${s.months < s.asked ? `, stopped early of ${s.asked}` : ''}</div>
+      ${s.stopped ? `<div class="ev bad"><b>Stopped early (${esc(s.stopped.date)}):</b> ${esc(s.stopped.text)}</div>` : ''}
+      <div class="row sp" style="margin-top:6px"><div><div class="mute">Net worth</div><div class="big">${m(s.nw1)}</div><div class="mute">from ${m(s.nw0)}</div></div><div><div class="mute">Profit on paper</div><div class="big">${UI.signed(s.profit)}</div></div></div></div>`;
+    o += UI.moneyHtml(s.money, { span: `All ${s.months} months together`, openRE: true });
+    const PM = s.perMonth || []; const show = PM.slice(-600);
+    o += `<div class="card"><details class="grp"><summary><span class="gl"><span class="car"></span>📅 Month by month (${PM.length})</span><span class="gv"></span></summary>
+      ${PM.length > show.length ? `<div class="mute">Showing the last ${show.length} months.</div>` : ''}<div class="mute">Tap a month to see who made or lost money.</div>
+      ${show.map((x) => grp('', x.date, `${sg(x.net)} <span class="mute small">→ ${m(x.cash)}</span>`, `<table class="mtab"><tr><td>💰 In</td><td class="n">${plus(x.in)}</td></tr><tr><td>💸 Out</td><td class="n">${minus(x.out)}</td></tr>${Object.entries(x.own).sort((a, b) => a[1] - b[1]).map(([k, v]) => { const nm = (s.names && s.names[k]) || LG().nameOf(TG.G, k) || { n: 'Closed / sold', i: '•' }; return `<tr><td>${nm.i} ${esc(nm.n)}</td><td class="n">${sg(v)}</td></tr>`; }).join('')}</table>`)).join('')}</details></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">Major events (${s.majorCount})</h3>${s.majors.length ? s.majors.slice(-40).reverse().map((e) => `<div class="ev bad"><b>${esc(e.date)}</b> ${e.biz ? esc(e.biz) + ': ' : ''}${esc(e.text)}<div class="why">${esc(e.why || '')}</div></div>`).join('') : '<div class="mute">None. Quiet stretch.</div>'}</div>`;
+    o += `<div class="card"><h3 style="margin-top:0">Manager decisions (${s.decisionCount})</h3>${s.decisions.length ? s.decisions.slice(-30).reverse().map((d) => `<div class="ev ${d.outcome === 'bad' ? 'bad' : d.outcome === 'good' ? 'good' : 'info'}"><b>${esc(d.date)}</b> ${esc(d.by)}: ${esc(d.text)}</div>`).join('') : '<div class="mute">No manager decisions. Without managers, problems sat unhandled.</div>'}</div>`;
+    UI.modal('⏩ Skip summary', o + `<div class="btns">${s.pending ? UI.btn(`⚠️ ${s.pending} decision(s) waiting`, 'decisions', null, 'pri') : ''}${UI.btn('Close', 'closeModal')}</div>`);
+  };
+
+  // ================= 🏦 LOANS (like real mortgages) =================
+  const loanOwnerName = (g, key) => { const nm = LG().nameOf(g, key); return nm ? `${nm.i} ${nm.n}` : '👤 You'; };
+  UI.loansCard = (g) => {
+    const F = TG.F; let o = `<div class="card" id="loansCard"><h3>🏦 Your loans (${g.loans.length + (g.loc.balance > 0 ? 1 : 0)}) ${UI.tipBtn('lns')}</h3>${UI.tipLine('lns', 'Every payment = interest on what you still owe + the rest off the balance. Early on most of it is interest; near the end most of it pays the loan down. Tap a loan for the full schedule, extra payments or paying it off.')}`;
+    const rows = g.loans.map((l) => { const i = F.loanInfo(g, l); return `<div class="link" data-act="loanView" data-arg="${l.id}" style="cursor:pointer"><span class="ico">${l.type === 'mortgage' ? '🏠' : l.type === 'equipment' ? '🛠️' : l.type === 'emergency' ? '🚑' : '🏦'}</span><span class="grow"><b>${esc(l.label)}</b><small>${U.pct(l.rate, 2)} · ${m(l.payment)}/mo · ${i.monthsLeft} mo left${l.missed ? ` · <span class="bad">${l.missed} missed</span>` : ''}</small></span><b>${m(l.balance)}</b></div>`; });
+    if (g.loc.balance > 0) { const i = F.locInfo(g); rows.push(`<div class="link" data-act="loanView" data-arg="loc" style="cursor:pointer"><span class="ico">💳</span><span class="grow"><b>Credit line</b><small>${U.pct(i.rate, 2)} · ${m(i.payment)}/mo minimum</small></span><b>${m(g.loc.balance)}</b></div>`); }
+    o += rows.join('') || '<div class="mute">No loans.</div>';
+    if (rows.length) o += `<div class="tot"><span>Total owed · ${m(F.totalPayments(g))}/mo</span><span>${m(U.sum(g.loans, (l) => l.balance) + g.loc.balance)}</span></div>`;
+    return o + '</div>';
+  };
+  UI.A.loanView = (id) => {
+    const g = TG.G, F = TG.F; const loc = id === 'loc'; const l = loc ? null : g.loans.find((x) => x.id === id); if (!loc && !l) { UI.closeModal(); return; }
+    const i = loc ? F.locInfo(g) : F.loanInfo(g, l);
+    const col = l && l.collateral ? (l.collateral.kind === 'property' ? `🏠 ${esc(((g.re.holdings.find((h) => h.id === l.collateral.id) || g.properties.find((p) => p.id === l.collateral.id) || {}).name) || 'property')} (the lender takes it after ${TG.CONFIG.finance.repoAfterMissed} missed payments)` : '🛠️ a machine') : 'none (unsecured)';
+    const row = (a, b) => `<span>${a}</span><span>${b}</span>`;
+    let o = `<div class="card"><div class="kv kvl">
+      ${loc ? row('Approved limit', m(g.loc.limit || 0)) : row('Borrowed', m(i.original))}
+      ${row('<b>Still owed</b>', `<b>${m(i.balance)}</b>`)}${row('Interest rate', `${U.pct(i.rate, 2)} a year`)}
+      ${loc ? row('Length', 'no end date: minimum payments') : row('Length', `${i.term} months (${U.yrsMo(i.term)})`)}
+      ${row('Monthly payment', `<b>${m(i.payment)}</b>${loc ? ' minimum' : ''}`)}
+      ${row('This month: interest', minus(i.thisInt))}${row('This month: principal (off the balance)', `<span class="good">${m(i.thisPrin)}</span>`)}
+      ${row('Interest paid so far', m(i.intPaid) + (l && l.histUnknown ? ' <span class="mute">(since v7)</span>' : ''))}${row('Interest still to pay', m(i.intLeft))}
+      ${row('Months left', `${i.monthsLeft} (${U.yrsMo(i.monthsLeft)})`)}${row('Paid off in', U.dateStr(i.payoffM))}
+      ${loc ? '' : row('Paid by', esc(loanOwnerName(g, i.owner)))}</div>${loc ? '' : `<div class="small" style="margin-top:6px">🔒 Security: ${col}</div>`}
+      ${l && l.missed ? `<div class="ev bad">${l.missed} missed payment(s): late interest and fees were added to what you owe.</div>` : ''}</div>`;
+    const cut = Math.min(i.balance, Math.max(0, Math.floor(g.cash)));
+    o += `<div class="card"><h3>💵 Pay extra</h3><div class="mute">Extra money goes straight off the balance. ${loc ? 'Less owed = less interest.' : 'Your monthly payment stays the same, so the loan ends sooner and you skip the interest on those months.'}</div>
+      <div class="row"><input type="number" id="xPay" placeholder="amount" min="0" step="1000" aria-label="extra payment">${UI.btn('Pay extra', 'loanExtra', id, 'sm pri')}</div>
+      <div class="btns">${UI.btn(`Pay it all off (${m(i.balance)})`, 'loanExtra', id + '|all', 'sm', g.cash < i.balance)}</div>${cut < i.balance ? `<div class="mute">You have ${m(g.cash)} cash.</div>` : ''}</div>`;
+    const S = i.schedule; const show = S.slice(0, 600);
+    o += `<div class="card"><details class="grp"><summary><span class="gl"><span class="car"></span>📅 Full payment schedule (${S.length})</span><span class="gv"></span></summary>
+      <table class="sched mtab"><tr><th>When</th><th>Pay</th><th>Interest</th><th>Off loan</th><th>Left</th></tr>${show.map((x) => `<tr><td>${U.dateStr(x.m)}</td><td class="n">${m(x.pay)}</td><td class="n bad">${m(x.int)}</td><td class="n good">${m(x.prin)}</td><td class="n">${m(x.bal)}</td></tr>`).join('')}</table>${S.length > show.length ? '<div class="mute">First 600 shown.</div>' : ''}</details></div>`;
+    UI.modal(loc ? '💳 Credit line' : `🏦 ${esc(l.label)}`, o + `<div class="btns">${UI.btn('Close', 'closeModal')}</div>`);
+  };
+  UI.A.loanExtra = (arg) => {
+    const g = TG.G, F = TG.F; const [id, how] = String(arg).split('|');
+    if (id === 'loc') { const amt = how === 'all' ? g.loc.balance : UI.num('xPay', 0); const v = F.locRepay(g, amt); UI.toast(v ? `Paid ${m(v)} off the credit line.` : 'Nothing paid (check your cash).', !v); }
+    else { const l = g.loans.find((x) => x.id === id); if (!l) return UI.closeModal();
+      if (how === 'all') { if (g.cash < l.balance) return UI.toast(`Paying it off takes ${m(l.balance)}.`, true); const b = l.balance; F.payoff(g, id); UI.toast(`Paid off: ${m(b)}.`); }
+      else { const before = F.loanInfo(g, l); const v = F.prepay(g, id, UI.num('xPay', 0)); if (!v) return UI.toast('Enter an amount you have in cash.', true); const after = g.loans.includes(l) ? F.loanInfo(g, l) : null; UI.toast(after ? `Paid ${m(v)} extra: ${before.monthsLeft - after.monthsLeft} months sooner, ${m(before.intLeft - after.intLeft)} less interest.` : `Paid off with ${m(v)}.`); } }
+    if ((id === 'loc' && g.loc.balance > 0) || g.loans.some((x) => x.id === id)) UI.A.loanView(id); else UI.closeModal();
+    UI.refresh();
+  };
+
+  // ================= 🔑 RENTAL UNITS: one tenant per home / unit =================
+  UI.unitsHtml = (g, h) => {
+    const RE = TG.RE; RE.ensureUnits(h); if (!h.units || h.kind === 'land' || !TG.CONFIG.realEstate.kinds[h.kind].rentPct) return '';
+    const mgr = g.re.manager; const occ = h.tenants.filter((t) => t).length;
+    const UL = h.tenants.map((t, u) => {
+      const iss = RE.unitIssues(h, u);
+      const fix = iss.map((it) => `<div class="small bad">🔧 ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
+      if (t) { const q = RE.quality(t); return `<div class="unit"><span class="un">🟢 ${u + 1}</span><span class="ub"><b>${esc(t.name)}</b> ${UI.pill('⭐'.repeat(q.stars) + ' ' + q.label, q.tone)}<br>${m(t.rent)}/mo · ${t.evict ? `<span class="bad">eviction: ${t.evict} mo</span>` : `lease ${RE.leaseLeft(g, t)} mo left`}${t.late ? ` · <span class="bad">${t.late} mo behind</span>` : ''}${fix}</span></div>`; }
+      const cur = RE.current(g, h, u); const s = h.searches[u];
+      const act = h.mode !== 'rent' ? '<span class="mute">not renting</span>' : iss.length ? '<span class="mute">fix first</span>' : mgr ? '<span class="mute">manager is on it</span>' : cur ? UI.btn(`👤 Applicants (${s.list.length - s.i})`, 'reSearch', `${h.id}|${u}`, 'xs pri') : UI.btn(`🔎 Search ${m(RE.searchCost(g, h))}`, 'reSearch', `${h.id}|${u}`, 'xs');
+      return `<div class="unit"><span class="un">🔴 ${u + 1}</span><span class="ub"><b>Empty</b> · would rent for ${m(RE.askRent(g, h))}/mo${fix}</span>${act}</div>`;
+    });
+    const big = h.tenants.length > 8; const lim = UI.S['units' + h.id] ? UI.S['units' + h.id] : 40;
+    const shown = UL.slice(0, lim).join('') + (UL.length > lim ? `<div class="btns">${UI.btn(`Show ${Math.min(40, UL.length - lim)} more units`, 'unitsMore', h.id, 'xs')}</div>` : '');
+    const whole = (h.issues || []).filter((x) => x.unit == null).map((it) => `<div class="ev bad">🔧 Building: ${esc(it.what)} ${UI.btn(`Fix ${m(RE.fixCost(g, it))}`, 'reFix', `${h.id}|${it.id}`, 'xs pri')}</div>`).join('');
+    return `${whole}<details class="grp"${big ? '' : ' open'}><summary><span class="gl"><span class="car"></span>🚪 Units: ${occ}/${h.tenants.length} rented</span><span class="gv">${h.tenants.length - occ ? `<span class="bad">${h.tenants.length - occ} empty</span>` : '<span class="good">full</span>'}</span></summary>${shown}</details>`;
+  };
+  UI.A.unitsMore = (hid) => { UI.S['units' + hid] = (UI.S['units' + hid] || 40) + 40; UI.refresh(); };
+  UI.A.reFix = (arg) => { const [hid, iid] = arg.split('|'); const r = TG.RE.fixIssue(TG.G, hid, iid); if (UI.res(r, r.ok ? `Fixed for ${m(r.cost)}.` : null)) UI.refresh(); };
+
+  // property manager card: what they do, what they cost, and what you must do without one
+  UI.reMgrCard = (g) => {
+    const RC = TG.CONFIG.realEstate, r = g.re, RE = TG.RE; const open = U.sum(r.holdings, (h) => (h.issues || []).length); const empty = U.sum(r.holdings, (h) => RE.vacant(h));
+    if (r.manager) { const mg = r.manager; const rent = U.sum(r.holdings, (h) => U.sum((h.tenants || []).filter((t) => t), (t) => t.rent));
+      return `<div class="ev info">🧑‍💼 <b>Property manager ${esc(mg.name)}</b> (skill ~${mg.skillSeen}) ${UI.btn('Fire', 'reMgrFire', null, 'xs')}<div class="small">Finds and screens a tenant for every empty unit, pays for repairs as they happen and handles evictions. Skill: tenants ${mg.skill >= 60 ? 'better' : mg.skill >= 40 ? 'about average' : 'worse'} than you'd find; searches and repairs cost x${RE.mgrCostMult(g).toFixed(2)}.</div><div class="small">Cost: ${m(mg.wage)}/mo + ${U.pct(RC.managerFeePct)} of rent (≈ ${m(rent * RC.managerFeePct)}) = about <b>${m(mg.wage + rent * RC.managerFeePct)}/mo</b>.</div></div>
+        <div class="kv" style="margin-top:6px"><span>Handyman on call</span><span>${UI.btn(r.handyman ? 'Yes' : 'No', 'reHandy', null, 'sm')}</span></div>`; }
+    return `<div class="ev warn">🧑‍💼 <b>No property manager: you do it all.</b><div class="small">Each empty unit needs its own tenant search${empty ? ` (${empty} empty now)` : ''}; repairs wait until you tap Fix${open ? ` (<b class="bad">${open} open</b>)` : ''}. Unfixed repairs annoy tenants, wear the building and can bring city fines. Self-managing more than ${RC.selfManageLimit} units gets sloppy (more late rent).</div>
+      <div class="btns">${UI.btn('Hire a property manager', 'reMgr', null, 'sm')}</div><div class="mute">A manager costs a wage + ${U.pct(RC.managerFeePct)} of rent: worth it with many units.</div></div>
+      <div class="kv" style="margin-top:6px"><span>Handyman on call (repairs −20%)</span><span>${UI.btn(r.handyman ? 'Yes' : 'No', 'reHandy', null, 'sm')}</span></div>`;
+  };
+  // ================= 🚫 CLOSED SHOP =================
+  UI.closedBanner = (g, b) => {
+    const lc = UI.lc(b); const closedNow = lc.closed || (b.lastCtx && b.lastCtx.closed);
+    if (!closedNow) return '';
+    const shut = Math.max(b.shut || 0, 1); const st = b.stock; const q = TG.ST.suggest(b, g);
+    const pq = U.avg(b.staff, (e) => TG.B.shutQuitP(Object.assign({}, b, { shut: shut + 1 }), e), 0);
+    return `<div class="closed">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}<div class="small" style="font-weight:600;margin-top:4px">No sales while closed. Wages (${m(TG.S.payroll(b))}/mo), rent and bills keep coming. Idle staff may quit: about ${U.pct(pq)} each next month (more each closed month and when unhappy). ${st ? `You have ${N(st.qty)} supplies.` : ''}</div>
+      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire a manager', 'hireRole', 'ops', 'sm')}</div></div>`;
+  };
+
+  UI.A.stBuyN = (arg) => { const [id, q] = String(arg).split('|'); const g = TG.G, b = TG.B.get(g, id); if (!b) return; const n = TG.ST.buy(g, b, Number(q), 0); UI.res(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)}. The shop can open.`); UI.refresh(); };
+  // ================= 🤝 HR IN HIRING =================
+  UI.hrHiring = (g, b, role) => {
+    const C = TG.CONFIG, S = TG.S; if (C.specialists[role] || role === 'ceo') return '';
+    const hr = S.hrOf(b); const rd = S.roleDef(b, role) || {};
+    if (hr) {
+      const d = S.hrDisc(hr), sc = S.hrScreen(hr);
+      return `<div class="ev info">🤝 <b>HR manager ${esc(hr.name)}</b> (skill ${Math.round(hr.skill)}, ${m(hr.wage)}/mo): wages about <b>${U.pct(d)} lower</b> for the same skill, and about <b>${U.pct(sc)}</b> of unreliable or dishonest applicants are screened out.
+        <div class="mute">Odds, not a promise: the deepest bargains are more often duds, and people paid under the going rate are a bit less happy. HR pays for itself only if you hire a lot (${U.pct(d)} of ${m(S.payroll(b))} payroll ≈ ${m(d * U.sum(b.staff, (e) => e.wage))}/mo vs ${m(hr.wage)} salary).</div></div>`;
+    }
+    const sp = C.specialists.hr; const mid = Math.round((sp.wage[0] + sp.wage[1]) / 2 * (C.staff.specWageByTier[TG.B.def(b).tier] || 1));
+    return `<div class="ev">🤝 <b>No HR manager</b>: you pay full wages and see every applicant. An HR manager (about ${m(mid)}/mo) would get ~${U.pct(S.hrDisc({ skill: 40 }))}–${U.pct(S.hrDisc({ skill: 85 }))} lower wages and screen out ${U.pct(S.hrScreen({ skill: 40 }))}–${U.pct(S.hrScreen({ skill: 85 }))} of bad fits. Worth it when you hire many people (your payroll: ${m(S.payroll(b))}/mo). ${UI.btn('See HR managers', 'hireRole', 'hr', 'xs')}</div>`;
+  };
+  UI.hrCand = (c) => (c.hrDisc != null ? `<div class="small">🤝 HR deal: ${m(c.wage)} instead of ${m(c.listWage)} (−${U.pct(c.hrDisc)})${c.screened ? ' · ✔ screened' : ''}</div>` : '');
 })();
 
 </script>
