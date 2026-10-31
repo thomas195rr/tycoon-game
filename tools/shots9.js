@@ -50,7 +50,7 @@ const URL = process.env.URL || 'http://127.0.0.1:8765/index.html';
   await p.evaluate(() => { const el = [...document.querySelectorAll('main *')].find((x) => x.children.length === 0 && /^Tractors/.test(x.textContent.trim())); if (el) el.scrollIntoView({ block: 'center' }); }); await snap('shots9-farm-now-tractors.png');
   // 8) dry / old cows: the herd row explains itself, count + feed + meat value + Sell button, heads-up with no manager
   await p.evaluate(() => { const g = TG.G, b = g.businesses.find((x) => x.id === window.__f); for (const k in b.spec) b.spec[k] = null; g.ceo = null; const a = b.farm.areas.cows; TG.M.herdSync(a); a.st.dry = Math.max(15, Math.ceil(a.herd * 0.12)); TG.M.herdSync(a); TG.UI.render(); const ch = [...document.querySelectorAll('.herdchips [data-act="tip"]')].find((x) => /dry/.test(x.innerText)); if (ch) ch.click(); });
-  await scrollTo('Dry / old cows'); await snap('shots9-dry-cows.png');
+  await p.evaluate(() => { const el = (document.querySelector('[data-act="cowSell"][data-arg="dry"]') || document.getElementById('dryN' + window.__f)); if (el) el.scrollIntoView({ block: 'center' }); }); await snap('shots9-dry-cows.png');
   await p.evaluate(() => { const ch = [...document.querySelectorAll('.herdchips [data-act="tip"]')].find((x) => /dry/.test(x.innerText)); if (ch) { ch.click(); ch.scrollIntoView({ block: 'start' }); } }); await snap('shots9-herd-stage-tip.png');
   await p.evaluate(() => { TG.UI.S.supOK = -1; TG.UI.A.next(); }); await snap('shots9-dry-before-next.png');
   if (errs.length) console.log('PAGE ERRORS:', errs.join('\n'));
