@@ -1705,7 +1705,18 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
    (demand, ticketMult, repTarget, seasonFloor, seasonDamp, hitSoften, badDebtMult, otaCut, loadMult, fuelCut ...). */
 (function () {
   const C = globalThis.TG.CONFIG, BZ = C.businesses, fix = C._fix;
-  const add = (type, list) => { for (const f of list) { if (!BZ[type].fixes.some((x) => x.id === f.id)) BZ[type].fixes.push(f); } };
+  const add = (type, list) => { for (const f of list) { f.v10 = true; f.raw = JSON.parse(JSON.stringify(f)); if (!BZ[type].fixes.some((x) => x.id === f.id)) BZ[type].fixes.push(f); } };
+  // v10 balance: one dial for how strong the new upgrades are (1 = as written above). Tuned with tools/audit.js so upgrades
+  // reward good moves without doubling a careful player's growth.
+  const ADDK = ['demand', 'staffMult', 'capMult', 'supplyCut', 'salesUp', 'churnCut', 'seasonDamp', 'fuelCut', 'hitSoften'], MULK = ['ticketMult', 'organicMult', 'loadMult', 'appMult'];
+  C.v10scale = (k0) => { for (const t in BZ) for (const f of BZ[t].fixes) { if (!f.v10) continue; const r = f.raw; const k = k0 * (((C.v10upg || {}).kBy || {})[t] || 1);
+    for (const key of ADDK) if (r[key] != null) f[key] = r[key] * k;
+    for (const key of MULK) if (r[key] != null) f[key] = r[key] >= 1 ? 1 + (r[key] - 1) * k : r[key];
+    if (r.costCut) { f.costCut = {}; for (const l in r.costCut) f.costCut[l] = r.costCut[l] * k; }
+    // selling more per customer is not free: extra product, ingredients and time cost part of it (shown as "costs X% of sales")
+    const extra = (r.ticketMult > 1 ? (r.ticketMult - 1) * k * C.v10upg.ticketCost : 0) + (r.salesUp > 0 ? r.salesUp * k * C.v10upg.salesCost : 0);
+    f.revCostPct = (r.revCostPct || 0) + (extra ? Math.round(extra * 1000) / 1000 : 0); if (!f.revCostPct) delete f.revCostPct; } };
+  C.v10upg = { k: 0.7, ticketCost: 0.5, salesCost: 0.4, kBy: { tech: 0.5, construction: 0.7, lawn: 0.6, farm: 0.4 } };
   const U = (ic, f) => Object.assign(f, { ic });
   // ---------- MORE UPGRADES (every business gets at least 4 new ones) ----------
   add('cafe', [
@@ -1719,12 +1730,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     U('📍', fix('social', 'Daily "where we park" posts', 1500, 120, {}, { demand: 0.06 })),
     U('🎉', fix('catering', 'Catering & event bookings', 4000, 150, {}, { demand: 0.05, seasonDamp: 0.2 })),
     U('🥤', fix('combo', 'Combo meals with drinks', 2000, 0, {}, { ticketMult: 1.06 })),
-    U('🏬', fix('depot', 'Restaurant-depot membership', 600, 40, {}, { supplyCut: 0.08 })),
+    U('🏬', fix('depot', 'Restaurant-depot membership', 9000, 120, {}, { supplyCut: 0.08 })),
   ]);
   add('bakery', [
     U('🏪', fix('wholesale', 'Wholesale to local cafes', 8000, 200, {}, { demand: 0.08, ticketMult: 0.97 })),
     U('🎂', fix('cakes', 'Custom cakes & orders', 6000, 150, {}, { ticketMult: 1.07 })),
-    U('🌾', fix('flourdeal', 'Flour mill contract', 3000, 0, {}, { supplyCut: 0.1 })),
+    U('🌾', fix('flourdeal', 'Flour mill contract', 10000, 50, {}, { supplyCut: 0.1 })),
     U('🛒', fix('preorder', 'Online pre-orders (bake to order)', 4000, 120, { stale: 0.7 }, {})),
     U('💡', fix('ecoovens', 'Energy-saving ovens', 15000, 0, {}, { costCut: { Utilities: 0.3 } })),
   ]);
@@ -1732,26 +1743,26 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     U('📅', fix('onlinebook', 'Online booking & reminders', 3000, 120, {}, { demand: 0.05, staffMult: 0.05 })),
     U('🧴', fix('retail', 'Retail product shelf', 5000, 60, {}, { ticketMult: 1.06 })),
     U('🎨', fix('color', 'Color specialist training', 8000, 100, { botched: 0.8 }, { ticketMult: 1.05 })),
-    U('📦', fix('proacct', 'Wholesale product account', 1500, 0, {}, { supplyCut: 0.1 })),
+    U('📦', fix('proacct', 'Wholesale product account', 3000, 30, {}, { supplyCut: 0.1 })),
     U('💌', fix('referral', 'Loyalty & referral cards', 2500, 150, {}, { demand: 0.05, hitSoften: 0.4 })),
   ]);
   add('carwash', [
     U('✨', fix('detail', 'Detailing bay', 25000, 300, {}, { ticketMult: 1.1 })),
     U('♾️', fix('plans', 'Unlimited wash plans', 6000, 200, {}, { demand: 0.04, seasonDamp: 0.4 })),
     U('💧', fix('reclaim', 'Water reclaim system', 30000, 100, { water: 0.5 }, { costCut: { Utilities: 0.35 } })),
-    U('🚐', fix('fleet', 'Fleet contracts (company cars)', 3000, 100, {}, { demand: 0.07, ticketMult: 0.97 })),
+    U('🚐', fix('fleet', 'Fleet contracts (company cars)', 5000, 100, {}, { demand: 0.07, ticketMult: 0.97 })),
   ]);
   add('lawn', [
-    U('🗺️', fix('routes', 'Route-planning app', 2000, 80, {}, { staffMult: 0.08, supplyCut: 0.08 })),
+    U('🗺️', fix('routes', 'Route-planning app', 6000, 120, {}, { staffMult: 0.08, supplyCut: 0.08 })),
     U('🌷', fix('landscape', 'Landscaping & planting jobs', 8000, 150, {}, { ticketMult: 1.08 })),
     U('📝', fix('contracts', 'Prepaid season contracts', 2500, 100, { noshow: 0.8 }, { demand: 0.05 })),
-    U('🍂', fix('leaves', 'Fall clean-up & gutters', 3000, 60, {}, { seasonFloor: 0.25 })),
+    U('🍂', fix('leaves', 'Fall clean-up & gutters', 9000, 80, {}, { seasonFloor: 0.25 })),
   ]);
   add('auto', [
     U('🚕', fix('fleetacc', 'Fleet accounts (taxis, vans)', 5000, 150, {}, { demand: 0.08 })),
     U('🛞', fix('tires', 'Tire storage & seasonal swaps', 9000, 100, {}, { ticketMult: 1.04, seasonDamp: 0.3 })),
     U('🔋', fix('ev', 'Electric-car repair license', 15000, 200, {}, { ticketMult: 1.06, demand: 0.03 })),
-    U('📦', fix('partsacct', 'Parts distributor account', 2000, 0, {}, { supplyCut: 0.1 })),
+    U('📦', fix('partsacct', 'Parts distributor account', 18000, 100, {}, { supplyCut: 0.1 })),
     U('⭐', fix('reviews', 'Review & service-reminder texts', 1500, 80, {}, { demand: 0.04, repTarget: 3 })),
   ]);
   add('gym', [
@@ -1764,7 +1775,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   add('hotel', [
     U('🍽️', fix('restaurant', 'Hotel restaurant & bar', 120000, 1500, {}, { ticketMult: 1.08 })),
     U('💒', fix('events', 'Meeting & wedding rooms', 80000, 800, {}, { demand: 0.06, seasonDamp: 0.15 })),
-    U('📈', fix('revmgmt', 'Revenue-management software', 25000, 600, {}, { ticketMult: 1.05 })),
+    U('📈', fix('revmgmt', 'Revenue-management software', 70000, 900, {}, { ticketMult: 1.05 })),
     U('🎟️', fix('hloyal', 'Guest loyalty club', 30000, 500, {}, { demand: 0.04, repTarget: 3 })),
     U('☀️', fix('ecohotel', 'Energy retrofit', 150000, 0, {}, { costCut: { Utilities: 0.3 } })),
   ]);
@@ -1777,8 +1788,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   add('clinic', [
     U('💻', fix('telehealth', 'Telehealth visits', 40000, 1200, {}, { demand: 0.06, staffMult: 0.05 })),
     U('🚑', fix('urgent', 'Walk-in urgent-care hours', 60000, 1500, {}, { demand: 0.08 })),
-    U('📦', fix('groupbuy', 'Group purchasing for supplies', 10000, 0, {}, { supplyCut: 0.1 })),
-    U('🧾', fix('coders', 'Certified billing coders', 25000, 900, { paydelay: 0.7 }, { ticketMult: 1.05 })),
+    U('📦', fix('groupbuy', 'Group purchasing for supplies', 90000, 1000, {}, { supplyCut: 0.1 })),
+    U('🧾', fix('coders', 'Certified billing coders', 90000, 2500, { paydelay: 0.7 }, { ticketMult: 1.05 })),
   ]);
   add('construction', [
     U('📐', fix('estimator', 'Estimating software', 40000, 1000, {}, { costCut: { 'Materials & subcontractors': 0.04 } })),
@@ -1813,7 +1824,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   add('brand', [
     U('🤳', fix('influencer', 'Influencer program', 8000, 1500, {}, { demand: 0.08 })),
     U('✉️', fix('email', 'Email & text list', 3000, 300, {}, { demand: 0.05 })),
-    U('📏', fix('sizing', 'Size guides & fit photos', 2000, 100, { chargeback: 0.7 }, { salesUp: 0.02 })),
+    U('📏', fix('sizing', 'Size guides & fit photos', 5000, 150, { chargeback: 0.7 }, { salesUp: 0.02 })),
     U('🛍️', fix('boutiques', 'Wholesale to boutiques', 10000, 400, {}, { demand: 0.1, salesUp: -0.03 })),
     U('🏭', fix('quotes', 'Second factory quotes', 5000, 0, {}, { costCut: { 'Inventory orders': 0.06 } })),
   ]);
@@ -1866,6 +1877,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     // rentals: down-payment choices for a rental mortgage (bigger down = smaller monthly payment)
     reDown: [0.2, 0.3, 0.4, 0.5],
   };
+  C.v10scale(C.v10upg.k);
+  // big-revenue businesses: % upgrades are worth more there, so they cost more (keeps payback in the 1-3 year range)
+  C.v10upg.costMult = { tech: 2, construction: 2, salon: 1.5, foodtruck: 1.3, lawn: 1.3 };
+  for (const t in C.v10upg.costMult) for (const f of C.businesses[t].fixes) if (f.v10) { const m = C.v10upg.costMult[t]; f.cost = Math.round(f.raw.cost * m / 100) * 100; f.monthly = Math.round((f.raw.monthly || 0) * m / 10) * 10; }
   C.casino.maxBet = Infinity; // v10: no table limit (odds unchanged)
   C.finance.insurance.equipment.label = 'Machine insurance';
 })();
@@ -2815,7 +2830,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const isSpec = !!(TG.CONFIG.specialists[e.role] || e.role === 'ceo' || e.role === 'rem');
     const demand = U.clamp((e.skill - P.skillFrom) / P.skillSpan, isSpec ? 0.2 : 0, 1);
     const pd = guess && !e.persSeen ? cs.pers.steady : S.persDef(e); const hr = !!S.hrOf(b);
-    const loyalF = 1.2 - e.loyalty / 125; const moraleF = e.morale < 45 ? 1.3 : 1;
+    const loyalF = 1.6 * Math.max(0.1, 1.5 - e.loyalty / 50); /* v10: loyalty matters more (same odds at loyalty 50), so a bonus visibly cuts the poach risk */ const moraleF = e.morale < 45 ? 1.3 : 1;
     let p = demand * (P.base + P.gapK * Math.max(0, gap - (P.tol || 0))) * pd.poach * loyalF * moraleF * (hr ? 0.8 : 1);
     if (gap < -0.1) p *= 0.5;
     p = U.clamp(p, 0, P.max);
@@ -5338,7 +5353,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const a = f.areas[from]; soil = a.soil; const keep = (a.acres - acres) / a.acres;
       if (from === 'crops') { a.planted *= keep; a.toHarvest *= keep; }
       a.acres -= acres;
-      if (from === 'cows' && a.herd > M.farmHeadCap(b) * 1.05) TG.rep.event(g, b, 'bad', 'Less grass than cows now', `${Math.round(a.herd)} cows, room for ${M.farmHeadCap(b)}: sell some or they eat expensive feed`);
+      if (from === 'cows' && a.herd > M.farmHeadCap(b) * 1.05) TG.rep.event(g, b, 'bad', 'Less grass than cows now', `${Math.round(a.herd)} cows, room for ${M.farmHeadCap(b)}: sell some or they eat expensive feed and give ${Math.round((1 - M.crowdMilk(a.herd / Math.max(1, M.farmHeadCap(b)))) * 100)}% less milk`);
     } else { /* free soil stays as it was */ }
     if (c.cost) TG.F.spend(g, c.cost, 'Land conversion', b.id, true);
     if (to === 'free') { const fr = M.farmFree(f) - acres; f.freeSoil = (f.freeSoil * Math.max(0, fr) + soil * acres) / Math.max(1, fr + acres); }
@@ -5459,12 +5474,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const room = a.herd / Math.max(1, M.farmHeadCap(b)); const bullF = M.bullF(a);
     const births = M.breeders(a) * M.breedRate(a.herd) * bullF * M.roomF(room) * Math.pow(Math.min(1, M.feedMonths(g, b) > 1 ? 1 : 0.6), 2) * (a.health || 0.9);
     const deaths = U.sum(ST, (k) => a.st[k] * c.stages[k].death);
-    const need = M.feedNeed(a), grass = M.grass(g, b, null, U.moy(g.month + 1));
+    const need = M.feedNeed(a) * (1 + 2 * Math.max(0, room - 1)), grass = M.grass(g, b, null, U.moy(g.month + 1));
     return { births, deaths, culls: 0, matured: a.st.steer * c.grow.steer, ready: a.st.ready + a.st.steer * c.grow.steer, need, grass, buy: Math.max(0, need - grass), feed: Math.max(0, need - grass) * M.feedPrice(g), months: M.feedMonths(g, b) };
   };
   M.bullF = (a) => { const br = M.breeders(a); if (br < 0.5) return 0; return a.st.bull >= 0.5 ? Math.min(1, a.st.bull * HC().breed.bullPer / br) : HC().breed.noBull; };
   M.roomF = (room) => U.clamp((1 - room) / (1 - HC().breed.roomFull), 0, 1); // full rate up to 85% of room, none when full
 
+  M.crowdMilk = (room) => U.clamp(1 - 0.8 * Math.max(0, room - 1), 0.4, 1); // v10: crowded cows are stressed and give less milk
   M.models.farm.feedCost = (g, b) => M.herdForecast(g, b).feed;
   M.models.farm.herdMonth = function (g, b, ctx, cov, q) {
     const f = b.farm, a = f.areas.cows, c = HC(), m = a.m;
@@ -5474,7 +5490,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (!a.herd) { m.feedEaten = 0; return; }
     const cap = M.farmHeadCap(b), room = a.herd / Math.max(1, cap);
     // 1) eat: grass first, then feed from storage
-    const need = M.feedNeed(a) * (1 + Math.max(0, room - 1)), grass = Math.min(need, M.grass(g, b, ctx.weather));
+    const need = M.feedNeed(a) * (1 + 2 * Math.max(0, room - 1)), grass = Math.min(need, M.grass(g, b, ctx.weather));
     const fromStore = Math.min(f.feed || 0, need - grass); f.feed = (f.feed || 0) - fromStore;
     const fed = need > 0 ? (grass + fromStore) / need : 1; m.grass = grass; m.feedEaten = fromStore; m.fed = fed;
     const work = 0.6 + 0.4 * cov.hcov; // farmhands do the feeding and care
@@ -5496,8 +5512,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     a.st.calf += births; m.born = births;
     // 5) milk: milking cows that fit in the parlors, every day (collected and sold for you at your milk price)
     const milked = Math.min(a.st.milker, M.farmParlorCap(b));
-    const milk = milked * E().milkPerCow * (0.4 + 0.6 * a.health) * Math.min(1, 0.5 + 0.5 * fed) * work * q;
-    m.milk = milk; m.notMilked = Math.max(0, a.st.milker - milked);
+    const milk = milked * E().milkPerCow * (0.4 + 0.6 * a.health) * Math.min(1, 0.5 + 0.5 * fed) * work * q * M.crowdMilk(room);
+    m.milk = milk; m.crowd = room; m.notMilked = Math.max(0, a.st.milker - milked);
     if (milk > 0) { const o = this.offer(g, b, 'cows', milk, 'Milk sales'); m.lost = (m.lost || 0) + o.unsold; TG.M.logVolX(g, f, o.sold); }
     // 6) manager orders: sell market-ready, cull dry cows, keep within room, keep feed topped up
     TG.D.farmCowOrders(g, b);
@@ -5930,7 +5946,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   const STREETS = ['Maple', 'Birch', 'Sunset', 'Park', 'Grove', 'Union', 'Liberty', 'Spring', 'Garden', 'Highland', 'Bay', 'Summit'];
   const condF = (c) => 0.7 + 0.5 * c / 100;
 
-  RE.init = (g) => { g.re = { holdings: [], listings: [], manager: null, handyman: false, fund: null, flipsDone: 0, flipsProfit: 0, m: { rev: 0, cost: 0 }, hist: [] }; RE.refill(g, RC().listingCount); };
+  RE.init = (g) => { g.re = { holdings: [], listings: [], manager: null, handyman: false, fund: null, flipsDone: 0, flipsProfit: 0, m: { rev: 0, cost: 0 }, hist: [] }; RE.refill(g, RC().listingCount); RE.ensureStarter(g); };
 
   RE.gen = (g, kindId, opts) => {
     const C = TG.CONFIG, k = RC().kinds[kindId]; opts = opts || {};
@@ -5951,6 +5967,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
       age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
       life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
+  };
+  // v10: a first rental is always possible: keep at least one ordinary home and one small multi-unit building on the market
+  RE.ensureStarter = (g) => {
+    const L = g.re.listings, ok = (l) => !l.distressed;
+    if (!L.some((l) => ok(l) && (l.kind === 'house' || l.kind === 'condo'))) L.push(RE.gen(g, R.chance(0.5) ? 'house' : 'condo', { distressed: false }));
+    if (!L.some((l) => ok(l) && l.units > 1 && l.units <= 20)) L.push(RE.gen(g, R.chance(0.6) ? 'duplex' : 'smallapt', { distressed: false }));
   };
   RE.refill = (g, n) => {
     for (let i = 0; i < n; i++) {
@@ -6201,6 +6223,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     g.re.listings = g.re.listings.filter((l) => g.month - l.listed < l.life);
     RE.refill(g, Math.max(gone, rc.listingCount - g.re.listings.length));
     while (g.re.listings.length > 20) g.re.listings.shift();
+    RE.ensureStarter(g);
   };
   RE.holdingMonth = (g, h, X) => {
     const { C, rc, w, mgr, earn, spend, overSelf } = X; const k = rc.kinds[h.kind];
@@ -7388,7 +7411,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (E.onSaved) E.onSaved(st); return lsOk; };
   E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; if (g) TG.G = g; E.markSeen(); return g; });
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); /* v10: the caller decides when to make it the live game */
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
   E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
@@ -7436,7 +7459,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   const MUL = ['ticketMult', 'loadMult', 'appMult', 'badDebtMult', 'wearMult', 'organicMult', 'packerMult'];
   const MAX = ['skillGrowth', 'seasonFloor', 'seasonDamp', 'hitSoften'];
   const COMB = ['driftCut', 'scandalCut', 'cannibalCut', 'unitCostCut', 'otaCut', 'workerCut'];
-  const SKIP = ['id', 'label', 'cost', 'monthly', 'reduces', 'note', 'ic', 'perUnitMonthly', 'lockMonths', 'minVolume'];
+  const SKIP = ['id', 'label', 'cost', 'monthly', 'reduces', 'note', 'ic', 'raw', 'v10', 'perUnitMonthly', 'lockMonths', 'minVolume'];
   B.fixAgg = (b, extra) => {
     const d = B.def(b); const o = { equipBreak: {}, demand: 0, morale: 0, cogsAdd: 0, revCostPct: 0, skillGrowth: 1, repTarget: 0, costCut: {} };
     const list = d.fixes.filter((f) => b.fixes[f.id] || (extra && extra === f.id));
@@ -7455,7 +7478,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   const fo = (b) => (b && b.fixesOn) || {};
   // every sale of a business gets salesUp (upgrades + a GM's sales perk); money lines in costCut get cheaper
-  const NOT_SALES = ['Insurance payouts', 'Lucky breaks', 'Clearance sales', 'Asset sales', 'Fire-sale proceeds', 'Refinance cash-out', 'Buy-out payment', 'Investor funding'];
+  const NOT_SALES = ['Insurance payouts', 'Lucky breaks', 'Clearance sales', 'Asset sales', 'Fire-sale proceeds', 'Refinance cash-out', 'Buy-out payment', 'Investor funding', 'Cattle sales', 'Herd sales', 'Land sales'];
   V.salesUp = (b) => (fo(b).salesUp || 0) + S.perk(b, 'salesUp');
   const earn0 = F.earn, spend0 = F.spend;
   const bizOf = (g, id) => (id && g.businesses ? g.businesses.find((x) => x.id === id) : null);
@@ -7475,16 +7498,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   E.capacity = (b, pool) => cap0(b, pool) * (1 + (fo(b).capMult || 0));
 
   // ================= MANAGER PERKS: GM = people & sales, Ops = machines & running things =================
-  C.perks.gm = [[0, 'demand', 0.03, '+3% customers (sales & service boss)'], [0, 'morale', 2, '+2 morale for everyone'], [40, 'salesUp', 0.02, '+2% on every sale (upselling)'], [60, 'demand', 0.02, 'another +2% customers'], [80, 'salesUp', 0.02, 'another +2% on every sale']];
-  C.perks.ops = [[0, 'breakCut', 0.1, '-10% breakdown odds'], [0, 'supplyCut', 0.03, '-3% supply costs (better orders)'], [40, 'staffMult', 0.04, '+4% work done (smoother shifts)'], [60, 'wearCut', 0.1, '-10% machine wear'], [80, 'breakCut', 0.1, 'another -10% breakdowns']];
+  C.perks.gm = [[0, 'demand', 0.02, '+2% customers (sales & service boss)'], [40, 'morale', 2, '+2 morale for everyone'], [60, 'salesUp', 0.02, '+2% on every sale (upselling)'], [80, 'demand', 0.03, 'another +3% customers']];
+  C.perks.ops = [[0, 'breakCut', 0.1, '-10% breakdown odds'], [40, 'supplyCut', 0.03, '-3% supply costs (better orders)'], [60, 'wearCut', 0.1, '-10% machine wear'], [80, 'staffMult', 0.03, '+3% work done (smoother shifts)']];
   C.specialists.gm.desc = 'The people & sales boss: hires and keeps staff (raises, poach offers), runs PR and bids, and brings in customers. Orders supplies and replaces destroyed machines if there is no Ops manager. Works on the job at 25% of a worker.';
   C.specialists.ops.desc = 'The machines & running-things boss: orders supplies, buys machines when you are full, replaces destroyed ones, fewer breakdowns, cheaper supplies, more work done. Does NOT hire people. Works on the job at 25% of a worker.';
-  const perk0 = S.perk;
-  S.perk = (b, key) => { if (key === 'supplyCut' || key === 'morale' || key === 'salesUp' || key === 'staffMult') { /* applied where they act */ } return perk0(b, key); };
-  // GM morale perk: everyone a bit happier (applied in the staff month)
-  const sMonth0 = S.month;
-  S.month = (g, b, ctx) => { const r = sMonth0(g, b, ctx); const mp = perk0(b, 'morale'); if (mp && !g._pv) for (const e of S.allStaff(b)) e.morale = U.clamp(e.morale + mp * 0.25, 0, 100); return r; };
-
   // ================= BONUSES BUILD LOYALTY =================
   V.bonusLoyalty = (e) => Math.max(C.v10.bonusLoyaltyMin, Math.round(C.v10.bonusLoyalty * (1 - (e.loyalty || 0) / 100)));
   S.bonusPreview = (g, b, e) => { const add = V.bonusLoyalty(e); const now = S.poachOdds(g, b, e, true); const after = S.poachOdds(g, b, Object.assign({}, e, { loyalty: Math.min(100, e.loyalty + add), morale: Math.min(100, e.morale + C.staff.bonusMorale) }), true); return { cost: Math.round(e.wage * 0.5), add, from: Math.round(e.loyalty), to: Math.min(100, Math.round(e.loyalty + add)), pFrom: now.p, pTo: after.p }; };
@@ -7615,9 +7632,17 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     for (const [rid, mult] of Object.entries(f.reduces || {})) { const r = d.risks.find((x) => x.id === rid); if (!r || !r.base) continue; const p = B.riskP(g, b, ctx, r).p; const pOff = on ? p / Math.max(0.01, mult) : p; risk += pOff * (1 - mult) * V.riskCost(g, b, r); }
     if (f.equipBreak) for (const [t, mult] of Object.entries(f.equipBreak)) for (const it of b.equip.filter((x) => x.type === t && !x.broken)) { const p = E.breakChance(g, b, it).p; const pOff = on ? p / mult : p; risk += pOff * (1 - mult) * (E.repairCost(g, b, Object.assign({}, it, { broken: 'major' })) * 0.5 + (b.revAvg || 0) * 0.08); }
     if ((f.seasonFloor || f.seasonDamp) && b.revAvg) { const se = d.season || []; const lift = U.avg(se, (x) => Math.max(0, Math.max(x, f.seasonFloor || 0) - x) + (x < 1 ? (1 - x) * (f.seasonDamp || 0) : 0)); money = Math.max(money || 0, b.revAvg * lift * 0.45 - (f.monthly || 0) * g.world.priceIdx); }
+    // growth that builds up (fewer users leaving, more invites): estimate the month-12 effect, since next month shows almost nothing
+    let slow = false;
+    if ((f.churnCut || (f.organicMult && f.organicMult > 1)) && b.tech && b.tech.users > 0 && b.revAvg) {
+      const T = d.tech || {}; const users = b.tech.users; const arpu = b.revAvg / users; const keep = 1 - (T.serverCostPerUser || 0) * g.world.priceIdx / Math.max(1e-9, arpu);
+      const extraUsers = users * (f.churnCut || 0) * 12 * 0.75 + (f.organicMult > 1 ? users * (T.organic || 0.03) * (f.organicMult - 1) * 12 * 0.7 : 0);
+      const est = extraUsers * arpu * Math.max(0.2, keep) - (f.monthly || 0) * g.world.priceIdx;
+      if (est > (money || 0)) { money = Math.round(est); slow = true; }
+    }
     const cost = Math.round((f.cost || 0) * g.world.priceIdx); const net = (money || 0) + risk;
     const full = !!(b.lastCtx && b.lastCtx.cap && b.lastCtx.demand >= b.lastCtx.cap * 0.98) && !!(f.demand || f.ticketMult == null && f.salesUp == null && f.demand);
-    const out = { money: money == null ? null : Math.round(money), risk: Math.round(risk), net: Math.round(net), cost, months: net > 1 ? cost / net : Infinity, full: !!(f.demand && b.lastCtx && b.lastCtx.cap && b.lastCtx.demand >= b.lastCtx.cap * 0.98) };
+    const out = { money: money == null ? null : Math.round(money), risk: Math.round(risk), net: Math.round(net), cost, months: net > 1 ? cost / net : Infinity, full: !!(f.demand && b.lastCtx && b.lastCtx.cap && b.lastCtx.demand >= b.lastCtx.cap * 0.98), slow };
     void full; cache.v[fixId] = out; return out;
   };
 
@@ -7715,6 +7740,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   const mig0 = TG.Game.migrate;
   TG.Game.migrate = (g) => { mig0(g); if ((g.v || 0) < 10) V.migrate(g); return g; };
+})();
+
+// v10: city gyms charge more (bigger rent, richer members) so the city is a real option, not a trap
+(function () { const TG = globalThis.TG, P = TG.PR, m0 = P.market;
+  P.market = (g, b) => { const p = m0(g, b); const d = TG.CONFIG.businesses[b.type]; const cp = d && d.cityPrem; return cp && b.loc === 'city' ? p * (1 + cp) : p; };
+  TG.CONFIG.businesses.gym.cityPrem = 0.25;
 })();
 
 </script>
@@ -7900,8 +7931,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       else UI.newGameScreen(true);
     };
     let fired = false; const once = (g) => { if (!fired) { fired = true; done(g); } };
-    try { TG.Game.loadAsync().then(once, () => once(TG.Game.load())); } catch (e) { once(TG.Game.load()); }
-    setTimeout(() => once(TG.Game.load()), 2500);
+    try { TG.Game.loadAsync().then((g) => { if (!fired) once(g); }, () => { if (!fired) once(TG.Game.load()); }); } catch (e) { once(TG.Game.load()); }
+    setTimeout(() => { if (!fired) once(TG.Game.load()); }, 2500); // v10 fix: only a fallback (it used to swap the live game for the last save 2.5 s after start)
     // installable app (service worker only works over http/https, not file://)
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => null);
   };
@@ -8431,7 +8462,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const isSpec = !!C.specialists[e.role];
     UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
       ${UI.skillInfo(g, b, e)}${UI.payCard(g, b, e)}${UI.trainCard(g, b, e)}
-      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div>${(() => { const bp = TG.S.bonusPreview(g, b, e); return `<div class="small" id="bonusPrev">🎁 A bonus: 🤝 loyalty ${bp.from} → <b>${bp.to}</b> · 🎯 chance a rival hires them away ${U.pct(bp.pFrom, 1)} → <b>${U.pct(bp.pTo, 1)}</b>/mo · 😊 morale +${TG.CONFIG.staff.bonusMorale}. Each bonus adds less loyalty the more loyal they already are.</div>`; })()}<div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
+      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div>${(() => { const bp = TG.S.bonusPreview(g, b, e); return `<div class="small" id="bonusPrev">🎁 A bonus: 🤝 loyalty ${bp.from} → <b>${bp.to}</b> · 🎯 chance a rival hires them away ${U.pct(bp.pFrom, bp.pFrom < 0.01 ? 2 : 1)} → <b>${U.pct(bp.pTo, bp.pFrom < 0.01 ? 2 : 1)}</b>/mo${bp.pFrom > 0 && bp.pTo < bp.pFrom ? ` <span class="good">(${Math.round((1 - bp.pTo / bp.pFrom) * 100)}% less likely)</span>` : ''} · 😊 morale +${TG.CONFIG.staff.bonusMorale}. Each bonus adds less loyalty the more loyal they already are.</div>`; })()}<div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
       ${UI.btn(`Fire (severance ${m(e.wage * C.staff.severanceMonths)})`, 'empDo', `${id}|fire`, 'sm badb')}</div>
       ${!isSpec ? `<div class="row" style="margin-top:8px"><span class="small">Promote to</span><select id="promRole">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}">${esc(s.label)}${b.spec[k] ? ' (replaces current)' : ''}</option>`).join('')}</select>${UI.btn('Promote', 'empDo', `${id}|promote`, 'sm')}</div><div class="mute">A promoted worker's management skill can surprise you either way.</div>` : ''}</div>`);
   };
@@ -8652,7 +8683,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       if (gain) {
         const net = gain.net; const pm = gain.months;
         if (!b.revAvg && !(gain.net > 0)) pay = '<div class="small mute">📈 Payback shows once you have sales.</div>'; else
-        pay = `${gain.full ? '<div class="small warn">⚠️ You are full right now: more customers cannot be served. Add staff or gear first, then this pays.</div>' : ''}<div class="small">📈 <b class="${net > 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b> (${gain.money == null ? '?' : (gain.money >= 0 ? '+' : '−') + m(Math.abs(gain.money))} next month${gain.risk > 0 ? ` + ${m(gain.risk)} less trouble on average` : gain.risk < 0 ? ` − ${m(-gain.risk)} more trouble on average` : ''}${mo ? ', after its monthly fee' : ''}) · ⏱️ ${net <= 0 ? '<span class="bad">does not pay back right now</span>' : cost ? `pays back in <b>${pm < 1 ? 'under 1' : pm > 120 ? '10+ yrs' : Math.round(pm)} month${pm >= 1.5 && pm <= 120 ? 's' : ''}</b>` : '<b>pays from month 1</b>'}</div>`;
+        pay = `${gain.full ? '<div class="small warn">⚠️ You are full right now: more customers cannot be served. Add staff or gear first, then this pays.</div>' : ''}<div class="small">📈 <b class="${net > 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b> (${gain.money == null ? '?' : (gain.money >= 0 ? '+' : '−') + m(Math.abs(gain.money))} ${gain.slow ? 'a month, once it builds up (about a year)' : 'next month'}${gain.risk > 0 ? ` + ${m(gain.risk)} less trouble on average` : gain.risk < 0 ? ` − ${m(-gain.risk)} more trouble on average` : ''}${mo ? ', after its monthly fee' : ''}) · ⏱️ ${net <= 0 ? '<span class="bad">does not pay back right now</span>' : cost ? `pays back in <b>${pm < 1 ? 'under 1' : pm > 120 ? '10+ yrs' : Math.round(pm)} month${pm >= 1.5 && pm <= 120 ? 's' : ''}</b>` : '<b>pays from month 1</b>'}</div>`;
       }
       o += `<div class="ev ${on ? 'good' : ''} upgcard" data-fix="${esc(f.id)}"><div class="row sp"><b>${f.ic || '⬆️'} ${esc(f.label)}</b>${on ? UI.pill('active', 'good') : ''}</div><div class="small">💵 ${cost ? `${m(cost)} once` : 'No upfront cost'}${mo ? ` + ${m(mo)}/mo` : ''}${f.perUnitMonthly ? ` + ${m(f.perUnitMonthly * g.world.priceIdx)}/mo each ${b.type === 'tech' ? 'server' : 'truck'}` : ''}</div>
         <ul class="fx">${what.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>${pay}

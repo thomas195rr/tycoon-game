@@ -89,9 +89,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(150);
   const re = await page.evaluate((hid) => { const h = TG.G.re.holdings.find((x) => x.id === hid); return { units: h.units, empty: h.tenants.filter((t) => !t).length, sels: document.querySelectorAll('select.usel').length, txt: document.querySelector('main').innerText }; }, hid);
   ok(re.empty === re.units, `new rental: all ${re.units} units empty`); ok(!/not renting/.test(re.txt), 'ready to rent'); ok(re.sels >= re.units, `a rent picker on every empty unit (${re.sels})`);
-  await page.evaluate(() => { const s = document.querySelectorAll('select.usel')[1]; s.selectedIndex = s.options.length - 3; s.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(100);
+  await page.evaluate(() => { const s = document.querySelectorAll('select.usel')[1]; s.selectedIndex = s.options.length - 3; s.dispatchEvent(new Event('change', { bubbles: true })); }); await page.waitForFunction(() => /Rents set per unit/.test(document.querySelector('main').innerText), { timeout: 4000 }).catch(() => null);
   const re2 = await page.evaluate((hid) => { const h = TG.G.re.holdings.find((x) => x.id === hid); return { r: h.unitR && h.unitR[1], r0: h.unitR && h.unitR[0], txt: document.querySelector('main').innerText }; }, hid);
-  ok(re2.r > 1.05 && re2.r0 == null, `unit 2 has its own rent (${re2.r}), unit 1 unchanged`); ok(/Rents set per unit = \$[\d,]+\/mo when full/.test(re2.txt), 'total rent when full shown');
+  ok(re2.r > 1.05 && re2.r0 == null, `unit 2 has its own rent (${re2.r}), unit 1 unchanged`); ok(/Rents set per unit = \$[\d,]+\/mo when full/.test(re2.txt), 'total rent when full shown' + (/Rents set per unit = \$[\d,]+\/mo when full/.test(re2.txt) ? '' : ` [${(re2.txt.match(/.{0,80}when full.{0,40}/g) || ['no when-full text']).join(' | ').slice(0, 300)}]`));
   await shot('v10-rental-per-unit', 'details.grp'); await noSide('real estate');
   // ---- 11. casino: no limits ----
   await page.evaluate(() => { TG.G.settings.gambling = true; TG.UI.tab.money = 'casino'; TG.UI.render(); });

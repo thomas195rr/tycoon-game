@@ -2,19 +2,19 @@
 
 ### Leo, 10: "I have a cow farm. What do I do with old cows?" (375px)
 - My Biz: 🚜Farmnew
-      ⭐ 35 · 👥 3 · 🛠️ 9 · ⚠️ no manager: you do 
+      ⭐ 35 · 👥 6 · 🛠️ 7 · ⚠️ no manager: you do 
 - Sees 👵 Dry / old cows right after 🥩 Market-ready
-- Under it: "💵 Sell: 1 × $1,754 = $1,754"
-- Types 25 tons of feed: "🧾 Buy: 25 × $154 = $3,853"
+- Under it: "💵 Sell: 1 × $1,873 = $1,873"
+- Types 25 tons of feed: "🧾 Buy: 25 × $158 = $3,953"
 - Tapped 💵 Sell on the dry row
 - Row is still there showing 0
 - Gear tab: 🛠️ Gear
 - Sees 🔧 Machines cared for and 🛡️ Machine insurance
 ### Ava, 13: "How do I make my cafe earn more?" (375px)
-- Types 500 supplies: "🧾 Buy: 500 × $4.26 = $2,129"
+- Types 500 supplies: "🧾 Buy: 500 × $3.85 = $1,926"
 - Tab: ⬆️ Upgrades
-- 10 upgrades; 10 show payback. Top one: "🛡️ Fridge temperature monitor" – pays back in 49 months
-- Bought the best-payback one: 🛡️ Fridge temperature monitor
+- 10 upgrades; 10 show payback. Top one: "💡 LED lights & efficient fridges" – pays back in 62 months
+- Bought the best-payback one: 💡 LED lights & efficient fridges
 - Tab: 📣 Ads
 - Types $1,500: "🔮 $1,500/mo ≈ +14% more customers wanting you (after flops ≈ +11%) → about +0 served. ⚠️ You are already about full: ex"
 - Next month the Ads tab says: "Last month ($1,500) · ⚠️ you were full: more ads cannot sell more"
@@ -22,16 +22,16 @@
 - Home: 🏠Home
 - "⏱️ Play time: 4 mo (all your games, in game time) · this game 4 mo · v10"
 ### Sam, 15: "I want to buy a duplex with a loan and rent it out" (1280px)
-- Mortgage screen: down payment choices 20% = $40.2k / 30% = $60.3k / 40% = $80.4k / 50% = $100.5k
-- Picks 50% down: Loan payment $949/mo -> Loan payment $593/mo
+- Mortgage screen: down payment choices 20% = $70.6k / 30% = $105.9k / 40% = $141.2k / 50% = $176.5k
+- Picks 50% down: Loan payment $2,114/mo -> Loan payment $1,321/mo
 - Apply & buy: ok
 - Owns it: 2 of 2 units empty
 - Sees 2 rent pickers (one per empty unit)
-- After raising unit 2's rent: "Rents set per unit = $2,293/mo when full"
-- Search unit 1: 🔎 Search $499
-- Search screen: "Rent you ask $997 (100% of market)"
+- After raising unit 2's rent: "Rents set per unit = $4,110/mo when full"
+- Search unit 1: 🔎 Search $736
+- Search screen: "Rent you ask $1,787 (100% of market)"
 ### Kim, 12: "Give me a broken business to fix" (375px)
-- Started with a carwash: rep 21, 0/1 machines broken, team morale 33, debt $49,000, cash $20,000
+- Started with a carwash: rep 18, 0/2 machines broken, team morale 36, debt $50,000, cash $24,000
 - Gear tab: 🛠️ Gear
 - Gear says a destroyed machine waits for "you decide" (no manager)
 - Sees ♻️ Replace like-for-like and 🗑️ Scrap on the destroyed machine
@@ -40,9 +40,9 @@
 - Manager tab: "GM or Ops manager?" card with what each does
 - Gear: 🔁 Like-for-like
 - Destroyed a standard machine: Ops manager replaced it with a standard one
-- Worker card: "🎁 A bonus: 🤝 loyalty 30 → 38 · 🎯 chance a rival hires them away 0.14% → 0.12%/mo (18% less likely) · 😊 morale +8. Ea"
+- Worker card: "🎁 A bonus: 🤝 loyalty 34 → 42 · 🎯 chance a rival hires them away 0.00% → 0.00%/mo · 😊 morale +8. Each bonus adds less"
 - Casino: "Table limit: none"
-- Bets $250,000: "Roulette: red / black: lost $250.0k"
+- Bets $250,000: "Roulette: red / black: won $250.0k"
 
 ## How it should work (checklist)
 - [x] Farm Now tab: a 👵 Dry / old cows row sits right under 🥩 Market-ready, even with 1 cow (or 0), with a box + 💵 Sell

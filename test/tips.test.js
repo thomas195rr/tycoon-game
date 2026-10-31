@@ -60,6 +60,7 @@ const W = Number(arg('width', 375));
     for (const tb of await tabsOf('biz')) { await openTab(tb); await checkTips(t + ' ' + tb); await checkPopups(t + ' ' + tb); }
     // the first worker's Manage popup (skill, pay, market value, training)
     await openTab('biz:staff'); await page.evaluate(() => { const b = [...document.querySelectorAll('[data-act="emp"]')][0]; if (b) b.click(); });
+    await page.waitForFunction(() => { const m = document.getElementById('modal'); return m && m.innerText.length > 50; }, { timeout: 5000 }).catch(() => null); // v10: wait for the popup under load
     const c0 = checked; await checkTips(t + ' worker popup'); if (checked - c0 < 6) empty.push(`${t}: worker popup has only ${checked - c0} info buttons`); await page.evaluate(() => TG.UI.closeModal());
   }
   console.log(`width ${W}: tapped ${checked} info buttons (incl. ${popups} popups)`);

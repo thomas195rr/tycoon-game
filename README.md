@@ -85,6 +85,34 @@ Progress autosaves after every month and every tap, and again when the app is hi
   - **Clinics outside the city and rural gyms** lost money in nearly every run: their listings now rate those places as a poor fit.
 - **Balance:** apartment and small-apartment rents up about 10%. Food trucks (shared commissary: 60% of shop rent, utilities and insurance) and lawn care (shared yard: 85%, plus half wages in the Nov-Feb off-season) have lower fixed costs. Tech startups: engineers take part of their pay in options until launch (65% wages), lower churn, and investors offer cash for a share at 1,000 and 40,000 users; a stalled app gets a "consider a pivot" hint.
 
+## Version 10 highlights (upgrades with payback, takeovers, per-unit rentals)
+- **Upgrades:** every business has at least 4 new upgrades, with its own customers and choices. Each card shows its price, what it adds per month and how many months it takes to pay back, best payback first. Selling more per customer costs some extra product, so no upgrade is free money.
+- **Ads:** the Ads tab previews a budget before you save it, then shows what the ads really did last month, with the last 6 months of history. Sales also have busy and slow months.
+- **Costs before buying:** every "how many" box shows `N × price each = total` while you type.
+- **Take over a failing business:** pick this in the start dialog, or as a new-game start, for any of the 18 types. It is cheaper than opening a new one, but comes with worn gear, a low-morale team, a weak reputation and the old owner's debt.
+- **Machines:**
+  - The mechanic now services and repairs machines, so maintenance plans are gone.
+  - Optional machine insurance pays for a new machine if one is destroyed.
+  - A destroyed machine waits for you, or the GM/Ops manager replaces it. Turn on the like-for-like order to make them replace it with the same kind and quality.
+- **GM vs Ops:**
+  - The GM runs people and sales.
+  - The Ops manager runs machines, stock and the farm.
+  - Each makes better calls in their own area.
+- **Bonuses:** a bonus raises loyalty, which visibly cuts the odds that a rival hires the worker away.
+- **Rentals:**
+  - A building you buy is empty, and each unit gets its own tenant and its own rent.
+  - Listings show the rent per unit and the total when full.
+  - You choose a down payment of 20-50% on a mortgage.
+  - Listings stay on the market for 3-7 months, and a first rental is always for sale.
+- **Other changes:**
+  - Total play time is counted in game years across all your games.
+  - The casino has no table limit (the odds are unchanged).
+  - The dry cows row always shows on the farm.
+  - Crowded cows give less milk.
+  - City gyms charge more.
+- **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
+- **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
+
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.
 
