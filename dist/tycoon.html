@@ -407,9 +407,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     poolSize: [3, 7], skillByQuals: [20, 60], skillNoise: 14,
     trainBasic: { cost: 1500, skill: [3, 10], attitude: [0, 5] },
     trainAdvanced: { cost: 5000, skill: [8, 20], attitude: [2, 8] },
-    learnNoResponse: 0.15, expSkillPerYear: 3,
+    learnNoResponse: 0.15, expSkillPerYear: 3, expMarket: 0.4, // v9: share of on-the-job skill that raises market value (training counts fully)
+   
     moraleDrift: 0.15, quitBase: 0.01, quitLowMorale: 0.08,
-    poachSkill: 72, poachBase: 0.012, counterOfferPct: 0.15,
+    counterOfferPct: 0.15,
     theftBase: 0.012, fightBase: 0.006, noShowBase: 0.04,
     strikeMinStaff: 40, strikeBase: 0.012,
     backgroundCheck: 250, severanceMonths: 0.5, wrongfulFireChance: 0.05,
@@ -418,11 +419,24 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     // per person per month: 1 raise, 1 bonus, 2 trainings. Past that it backfires (morale drops) and gives nothing
     perMonth: { raise: 1, bonus: 1, train: 2 }, spamMorale: 3,
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
+    // v9: managers (GM, Ops) also lend a hand on the job, at this share of one regular worker
+    mgrWorkFrac: 0.25, mgrWorkRoles: ['gm', 'ops'],
+    // v9: personalities. poach = how hard they look for better pay; payWeight = how much pay below market hurts morale
+    pers: {
+      loyal:   { w: 0.25, poach: 0.3, payWeight: 0.4, accept: 0.95, icon: '🤝', label: 'Loyal', txt: 'Happy where they are: stays even when paid a bit below market.' },
+      steady:  { w: 0.5, poach: 1, payWeight: 1, accept: 0.8, icon: '🙂', label: 'Steady', txt: 'Stays if paid fairly; listens to good offers.' },
+      climber: { w: 0.25, poach: 1.9, payWeight: 1.4, accept: 0.6, icon: '📈', label: 'Climber', txt: 'Wants top pay: looks for better offers when underpaid.' },
+    },
+    // v9: other companies try to hire away people paid under their market value. Monthly odds =
+    // demand(skill) x (base + gapK x share underpaid) x personality x loyalty x (HR 0.8)
+    poach: { base: 0.001, gapK: 0.2, tol: 0.12, skillFrom: 30, skillSpan: 50, warnAt: 0.03, offer: [1.0, 1.08], max: 0.35 },
+    // v9: trainees: low skill, cheap, eager to learn
+    trainee: { n: [1, 2], quals: [0, 0.12], pay: [0.82, 0.94], learn: [0.7, 1.5] },
+    trainAway: { basic: 0.15, advanced: 0.35 }, // share of their month spent in training (not working)
   };
   C.specialists = {
-    lead:       { label: 'Shift lead', icon: '🧑‍🍳', wage: [2600, 3800], desc: 'Cheap first manager for a small shop: only reorders supplies each month (sometimes a bit too much or too little). Makes no other decisions.' },
-    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there.' },
-    ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and stock decisions.' },
+    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there. Orders supplies. Also works on the job at 25% of a worker.' },
+    ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and orders supplies. Also works on the job at 25% of a worker.' },
     hr:         { label: 'HR manager', icon: '🤝', wage: [3500, 9000], desc: 'Better hires, fewer conflicts, better morale; replaces staff who leave.' },
     accountant: { label: 'Accountant', icon: '🧮', wage: [3200, 8500], desc: 'Lowers taxes legally, catches theft and errors, uses credit in a crunch.' },
     mechanic:   { label: 'Mechanic', icon: '🔧', wage: [3400, 7500], desc: 'Services equipment: much lower wear and breakdowns. Covers about 12 machines.' },
@@ -486,13 +500,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   C.invest = {
     assets: {
-      IDX:  { label: 'Total Market Index', kind: 'stock', mu: 0.005, sd: 0.035, beta: 1.0, start: 100 },
-      BLUE: { label: 'Bluechip Industrials', kind: 'stock', mu: 0.005, sd: 0.05, beta: 1.1, start: 80 },
-      GROW: { label: 'Growth Tech Co', kind: 'stock', mu: 0.006, sd: 0.09, beta: 1.6, start: 50 },
-      SAFE: { label: 'Utility & Bonds Fund', kind: 'stock', mu: 0.0028, sd: 0.012, beta: 0.2, start: 50 },
-      PNY:  { label: 'Penny Miner', kind: 'penny', mu: -0.004, sd: 0.22, beta: 1.5, start: 1, zero: 0.006 },
-      MOON: { label: 'MoonCoin', kind: 'coin', mu: -0.006, sd: 0.28, beta: 0.8, start: 1, zero: 0.008 },
-      HYPE: { label: 'HypeToken', kind: 'coin', mu: -0.01, sd: 0.35, beta: 0.5, start: 0.5, zero: 0.012 },
+      IDX:  { label: 'Total Market Index', kind: 'stock', desc: 'A basket of all big companies. Moves with the economy: up in booms, down in recessions. The safest way to own stocks.', mu: 0.005, sd: 0.035, beta: 1.0, start: 100 },
+      BLUE: { label: 'Bluechip Industrials', kind: 'stock', desc: 'Big, old factory companies. A bit bumpier than the index and moves a little more with the economy.', mu: 0.005, sd: 0.05, beta: 1.1, start: 80 },
+      GROW: { label: 'Growth Tech Co', kind: 'stock', desc: 'A fast-growing tech company. Big swings both ways and it moves 1.6x as hard as the economy, so it falls hardest in crashes.', mu: 0.006, sd: 0.09, beta: 1.6, start: 50 },
+      SAFE: { label: 'Utility & Bonds Fund', kind: 'stock', desc: 'Power companies and bonds. Small, steady gains and tiny swings. Barely moves with the economy.', mu: 0.0028, sd: 0.012, beta: 0.2, start: 50 },
+      PNY:  { label: 'Penny Miner', kind: 'penny', desc: 'A tiny mining company. Wild swings, drifts DOWN on average, and can go bust (price to zero) any month.', mu: -0.004, sd: 0.22, beta: 1.5, start: 1, zero: 0.006 },
+      MOON: { label: 'MoonCoin', kind: 'coin', desc: 'A made-up crypto coin. Huge swings, drifts DOWN on average, and can crash to zero any month.', mu: -0.006, sd: 0.28, beta: 0.8, start: 1, zero: 0.008 },
+      HYPE: { label: 'HypeToken', kind: 'coin', desc: 'A hyped crypto token. The wildest swings, the worst average drift, and the highest chance of going to zero.', mu: -0.01, sd: 0.35, beta: 0.5, start: 0.5, zero: 0.012 },
     },
     econShockSd: 0.03, crashDrop: [0.18, 0.35], tradeFee: 0.002,
     margin: { maxLev: 2, spread: 0.03, callAt: 0.3 },
@@ -516,8 +530,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0085, icon: '🏢' },
       house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.008, icon: '🏠' },
       duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0085, icon: '🏘️' },
-      smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0088, commercial: true, icon: '🏬' },
-      apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0082, commercial: true, icon: '🏙️' },
+      smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0097, commercial: true, icon: '🏬' },
+      apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0090, commercial: true, icon: '🏙️' },
       strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0078, commercial: true, lease: 36, icon: '🛍️' },
       officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0072, commercial: true, lease: 60, icon: '🏢' },
       warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0075, commercial: true, lease: 60, icon: '🏭' },
@@ -637,6 +651,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       name: 'Food truck', icon: '🌮', tier: 'small', model: 'service', cat: 'food',
       blurb: 'Cheap entry and mobile, but the truck itself is a single point of failure.',
       setupCost: 9000, space: { unit: 'sqft', min: 150, ideal: 800 },
+      fixedCut: 0.6, fixedCutWhy: 'Parks at a shared commissary: pays 60% of the rent, utilities and insurance a shop would.',
       locPref: { city: 0.95, suburb: 0.9, town: 0.8, rural: 0.5, remote: 0.15 },
       site: { traffic: 0.45, labor: 0.1, space: 0.1, loc: 0.35 },
       econSens: 0.5, weatherSens: 0.6, season: [0.6, 0.65, 0.85, 1, 1.15, 1.25, 1.3, 1.25, 1.1, 0.95, 0.75, 0.65],
@@ -747,6 +762,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       name: 'Lawn care / landscaping', icon: '🌿', tier: 'small', model: 'service', cat: 'home',
       blurb: 'Easy start and seasonal: crews and mowers are the whole business.',
       setupCost: 4000, space: { unit: 'sqft', min: 150, ideal: 1500 },
+      fixedCut: 0.85, fixedCutWhy: 'Works out of a shared yard: pays 85% of the rent, utilities and insurance a shop would.',
+      offSeason: { below: 0.45, pay: 0.5, why: 'In the off-season (Nov-Feb) the crew works short hours: wages drop to 50% those months.' },
       locPref: { city: 0.55, suburb: 1, town: 0.85, rural: 0.5, remote: 0.15 },
       site: { traffic: 0.4, labor: 0.2, space: 0.05, loc: 0.35 },
       econSens: 0.4, weatherSens: 0.4, season: [0.08, 0.1, 0.5, 1.05, 1.2, 1.2, 1.15, 1.1, 1.05, 0.9, 0.4, 0.1],
@@ -1081,8 +1098,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       locPref: { city: 1, suburb: 0.75, town: 0.35, rural: 0.1, remote: 0.05 },
       site: { labor: 0.6, space: 0.1, loc: 0.3 },
       econSens: 0.5, weatherSens: 0, season: flat(1),
-      tech: { market: 'software', devPoints: 30, arpu: 10, serverCostPerUser: 1.4, cacBase: 24, churnBase: 0.08, organic: 0.03, researchCost: 60000, pmfNoise: 0.25, outageBase: 0.02 },
-      roles: { engineer: { label: 'Software engineer', wage: [8500, 18000], cap: 1, key: true, min: 1 } },
+      tech: { market: 'software', devPoints: 30, arpu: 10, serverCostPerUser: 1.4, cacBase: 24, churnBase: 0.06, churnFit: 0.04, orgFit: 1.2, orgFloor: 400, organic: 0.03, researchCost: 60000, pmfNoise: 0.25, outageBase: 0.02,
+        // v9: lean build phase (engineers take part of their pay in stock options until launch) and milestone funding rounds
+        buildPay: 0.65, rounds: [{ id: 'seed', label: 'Seed round', users: 1000, perUser: 120, min: 200000, pct: 0.15 }, { id: 'a', label: 'Series A', users: 40000, perUser: 30, min: 1500000, pct: 0.2 }] },
+      roles: { engineer: { label: 'Software engineer', wage: [6500, 14000], cap: 1, key: true, min: 1 } },
       equip: [{ id: 'server', label: 'Server cluster', price: 45000, cap: 60000, critical: false, brk: 0.012, life: 60 }],
       insurance: ['liability', 'property'],
       risks: [
@@ -2060,16 +2079,23 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   // equipment pools of a business -> group per pool (service-type)
   WK.poolGroups = (g, b, ctx, load, unit) => {
-    const C = TG.CONFIG; for (const pl of TG.E.pools(b)) {
+    const C = TG.CONFIG; const PL = TG.E.pools(b); const catN = {}; for (const pl of PL) catN[pl.primary.cat] = (catN[pl.primary.cat] || 0) + 1;
+    for (const pl of PL) {
       const ed = pl.primary; const items = b.equip.filter((x) => { const d = TG.E.def(b, x.type); return d && TG.E.poolOf(d) === pl.pool && !x.broken; });
-      const cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      let cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      if (catN[ed.cat] > 1) cat = [cat[0], ed.label + 's']; /* v9: two groups in one category (bakery ovens + mixers) get their own names, not "Machines" twice */
       WK.add(ctx, 'eq', cat[0], cat[1], items.length, TG.E.capacity(b, pl.pool), load, unit, [pl.pool], `${items.length} working, about ${Math.round(TG.E.capacity(b, pl.pool) / Math.max(1, items.length)).toLocaleString()} ${unit} each. Work is shared evenly.`);
     }
   };
   // end of month: keep the report and per-pool utilization (drives next month's wear)
   WK.commit = (b, ctx) => {
     b.work = ctx.wk || []; const P = {};
-    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); for (const w of b.work) if (w.kind === 'staff' && !w.role) { w.role = kr; break; }
+    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); for (const w of b.work) if (w.kind === 'staff' && !w.role) { w.role = kr; const mw = TG.S.mgrW(b); if (mw > 0) { w.mw = Math.round(mw * 100) / 100; w.tip += TG.S.mgrNote(b); } break; } // v9: managers' share of the main work
+    /* v9: machine groups show what you OWN (w.own) and how many are broken (w.brk), not just the working ones */
+    for (const w of b.work) if (w.kind === 'eq' && w.pools.length) {
+      const mine = b.equip.filter((x) => { if (x.broken === 'destroyed') return false; const d = TG.E.def(b, x.type); return w.pools.includes(x.type) || (d && (w.pools.includes(TG.E.poolOf(d)) || w.pools.includes(d.countsAs))); });
+      const brk = mine.filter((x) => x.broken).length; w.brk = brk; w.own = Math.max(w.n + brk, mine.length);
+    }
     for (const w of b.work) if (w.kind === 'eq') for (const p of w.pools) P[p] = Math.min(1.5, w.util);
     b.workPool = P;
   };
@@ -2304,11 +2330,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   S.hrOf = (b) => (b && b.spec && b.spec.hr) || null;
   S.hrDisc = (hr) => U.clamp(0.02 + 0.13 * (hr.skill || 50) / 100, 0.02, 0.15); // average wage cut
   S.hrScreen = (hr) => U.clamp(0.2 + 0.6 * (hr.skill || 50) / 100, 0.2, 0.8);  // share of unreliable / dishonest applicants spotted
-  S.candidate = (g, b, role, labor, noHR) => {
-    const e = S.candidate0(g, b, role, labor); const hr = !noHR && S.hrOf(b);
+  S.candidate = (g, b, role, labor, noHR, opts) => {
+    const e = S.candidate0(g, b, role, labor, opts); const hr = !noHR && S.hrOf(b);
     if (!hr || TG.CONFIG.specialists[role] || role === 'ceo' || role === 'rem' || !b.type) return e;
     let c = e;
-    if ((c.reliability < 50 || c.honesty < 40) && R.chance(S.hrScreen(hr))) { c = S.candidate0(g, b, role, labor); c.screened = true; }
+    if ((c.reliability < 50 || c.honesty < 40) && R.chance(S.hrScreen(hr))) { c = S.candidate0(g, b, role, labor, opts); c.screened = true; }
+    if (R.chance(S.hrScreen(hr) + 0.15)) { c.persSeen = true; c.persByHR = true; } // v9: HR reads people: spots the loyal bargains and the job-hoppers
     const disc = U.clamp(S.hrDisc(hr) + R.normal(0, 0.035), 0, 0.22);
     c.listWage = c.wage; c.wage = Math.round(c.wage * (1 - disc) / 10) * 10; c.hrDisc = disc;
     if (disc > S.hrDisc(hr) && R.chance(0.15 + (disc - S.hrDisc(hr)) * 3)) { // a bargain that is a bargain for a reason
@@ -2317,10 +2344,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     return c;
   };
   // Generate a candidate. labor = property labor pool (0..1)
-  S.candidate0 = (g, b, role, labor) => {
-    const C = TG.CONFIG, rd = S.roleDef(b, role);
+  S.candidate0 = (g, b, role, labor, opts) => {
+    const C = TG.CONFIG, rd = S.roleDef(b, role); opts = opts || {};
     labor = U.clamp(labor == null ? 0.5 : labor, 0.02, 1);
-    const quals = U.clamp(Math.pow(R.next(), 1.25 - labor * 0.6), 0, 1);
+    const qr = R.next(); const quals = opts.trainee ? R.range(C.staff.trainee.quals[0], C.staff.trainee.quals[1]) : U.clamp(Math.pow(qr, 1.25 - labor * 0.6), 0, 1);
     const skill = U.clamp(Math.round(C.staff.skillByQuals[0] + quals * C.staff.skillByQuals[1] + R.normal(0, C.staff.skillNoise)), 5, 99);
     const regionWage = b && b.region ? C.regions[b.region].wage : 1;
     const locWage = b && b.loc ? C.locations[b.loc].wage : 1;
@@ -2344,6 +2371,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       e.trait = R.chance(C.traits.reckless) ? 'reckless' : R.chance(C.traits.cautious) ? 'cautious' : R.chance(C.traits.dishonest) ? 'dishonest' : 'steady';
       if (e.trait === 'dishonest') e.honesty = Math.min(e.honesty, 30);
     }
+    // v9: personality (hidden until you have worked with them a few months, or HR reads it at the interview)
+    e.pers = R.weighted({ loyal: C.staff.pers.loyal.w, steady: C.staff.pers.steady.w, climber: C.staff.pers.climber.w }); e.persSeen = false;
+    if (opts.trainee) {
+      e.trainee = true; e.learning = R.range(C.staff.trainee.learn[0], C.staff.trainee.learn[1]);
+      e.wage = Math.round(S.mv(g, b, e) * R.range(C.staff.trainee.pay[0], C.staff.trainee.pay[1]) / 10) * 10;
+    }
     if (role === 'ceo') e.profitShare = +(U.lerp(C.ceo.profitShare[0], C.ceo.profitShare[1], quals)).toFixed(3);
     return e;
   };
@@ -2360,6 +2393,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (role === 'driver' && g.world.driverShortage > 0) n = Math.max(0, Math.round(n * 0.4));
     const list = [];
     for (let i = 0; i < n; i++) list.push(S.candidate(g, b, role, labor));
+    // v9: a couple of cheap trainees for regular (unlicensed) jobs: low skill, low pay, can be trained up
+    if (!rd.specialist && !rd.licensed && role !== 'ceo' && role !== 'rem' && b.type) { const k = R.int(C.staff.trainee.n[0], C.staff.trainee.n[1]); for (let i = 0; i < k; i++) list.push(S.candidate(g, b, role, labor, false, { trainee: true })); }
     b.pools[key] = { month: g.month, list };
     return list;
   };
@@ -2399,18 +2434,31 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     return true;
   };
 
+  // v9: training takes part of their month (less work done this month), gains shrink at high skill, some people barely learn
+  S.trainDim = (skill) => (skill < 60 ? 1 : Math.max(0.25, 1 - (skill - 60) / 50));
+  S.trainPreview = (g, b, e, level) => {
+    const C = TG.CONFIG, t = level === 'advanced' ? C.staff.trainAdvanced : C.staff.trainBasic; const growth = (b.fixesOn && b.fixesOn.skillGrowth) || 1;
+    const dim = S.trainDim(e.skill); const lr = e.learnSeen ? e.learning : 1;
+    const lo = Math.round(t.skill[0] * dim * growth * (e.learnSeen ? lr : 0.6)), hi = Math.round(t.skill[1] * dim * growth * (e.learnSeen ? lr : 1.4));
+    const avg = Math.round((t.skill[0] + t.skill[1]) / 2 * dim * growth * lr);
+    const away = C.staff.trainAway[level === 'advanced' ? 'advanced' : 'basic'];
+    const mv0 = S.mv(g, b, e), mv1 = S.mv(g, b, Object.assign({}, e, { skill: Math.min(99, e.skill + avg) }));
+    return { cost: t.cost, lo, hi, avg, dim, away, noStick: e.learnSeen ? (e.learning < 0.3 ? 1 : 0) : C.staff.learnNoResponse, mv0, mv1 };
+  };
+  S.learnLabel = (e) => (!e.learnSeen ? 'not known yet (shows after the first training)' : e.learning < 0.3 ? 'barely learns from training' : e.learning < 0.9 ? 'learns at a normal pace' : e.learning < 1.2 ? 'learns well' : 'fast learner');
   S.train = (g, b, empId, level) => {
     const C = TG.CONFIG, t = level === 'advanced' ? C.staff.trainAdvanced : C.staff.trainBasic;
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return null;
     if (g.cash < t.cost) return null;
     TG.F.spend(g, t.cost, 'Training', b.id, true);
     if (S.spam(g, e, 'train')) return { gain: 0, att: 0, spam: true };
-    const growth = (b.fixesOn && b.fixesOn.skillGrowth) || 1;
-    const gain = Math.round(R.range(t.skill[0], t.skill[1]) * e.learning * growth);
+    const growth = (b.fixesOn && b.fixesOn.skillGrowth) || 1; const mv0 = S.mv(g, b, e);
+    const gain = Math.round(R.range(t.skill[0], t.skill[1]) * e.learning * growth * S.trainDim(e.skill));
     const att = Math.round(R.range(t.attitude[0], t.attitude[1]) * e.learning);
     e.skill = U.clamp(e.skill + gain, 1, 99); e.skillSeen = e.skill; e.attitude = U.clamp(e.attitude + att, 1, 99);
-    e.morale = U.clamp(e.morale + 4, 0, 100);
-    return { gain, att };
+    e.morale = U.clamp(e.morale + 4, 0, 100); e.learnSeen = true; e.trained = (e.trained || 0) + 1;
+    const away = C.staff.trainAway[level === 'advanced' ? 'advanced' : 'basic']; e.away = U.clamp((e.away || 0) + away, 0, 0.7);
+    return { gain, att, away, mv0, mv1: S.mv(g, b, e) };
   };
 
   // true when this click is past the monthly limit: it backfires (morale down) and gives nothing
@@ -2426,10 +2474,15 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     for (const r in P) { const e = b.spec[r]; if (!e) continue; for (const [lvl, k, v] of P[r]) if (k === key && e.skill >= lvl) t += v; }
     return t;
   };
-  S.raise = (g, b, empId) => {
+  // v9: raise by the usual % or straight to their market value. Bigger raises lift morale more.
+  S.raiseTo = (g, b, e, mode) => { const p = Math.round(e.wage * (1 + TG.CONFIG.staff.raisePct) / 10) * 10; if (mode !== 'market') return p; return Math.max(Math.round(S.mv(g, b, e) / 10) * 10, e.wage + 10); };
+  S.raisePreview = (g, b, e, mode) => { const to = S.raiseTo(g, b, e, mode); const now = S.poachOdds(g, b, e); const after = S.poachOdds(g, b, Object.assign({}, e, { wage: to, loyalty: Math.min(100, e.loyalty + 5) })); return { to, add: to - e.wage, cost: Math.round((to - e.wage) * (1 + TG.CONFIG.staff.payrollTax)), pNow: now.p, pAfter: after.p }; };
+  S.raise = (g, b, empId, mode) => {
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
     if (S.spam(g, e, 'raise')) return { spam: true };
-    e.wage = Math.round(e.wage * (1 + TG.CONFIG.staff.raisePct)); e.morale = U.clamp(e.morale + TG.CONFIG.staff.raiseMorale, 0, 100); e.loyalty = U.clamp(e.loyalty + 5, 0, 100);
+    const from = e.wage; const to = S.raiseTo(g, b, e, mode); const k = U.clamp((to - from) / Math.max(1, from) / TG.CONFIG.staff.raisePct, 0.5, 2.5);
+    e.wage = to; e.morale = U.clamp(e.morale + TG.CONFIG.staff.raiseMorale * k, 0, 100); e.loyalty = U.clamp(e.loyalty + 5, 0, 100);
+    return { from, to };
   };
   S.bonus = (g, b, empId) => {
     const e = S.allStaff(b).find((x) => x.id === empId); if (!e) return;
@@ -2463,16 +2516,15 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const payrollAdd = (b.fixesOn && b.fixesOn.payrollAdd) || 0;
     for (const e of all) {
       e.months++;
-      if (e.months >= 3) e.revealed.reliability = true;
+      if (e.months >= 3) { e.revealed.reliability = true; e.persSeen = true; }
       if (e.months >= 2) e.skillSeen = e.skill;
       // experience growth
       const growth = (b.fixesOn && b.fixesOn.skillGrowth) || 1;
-      if (e.skill < 95 && R.chance(0.5)) e.skill = U.clamp(e.skill + (cs.expSkillPerYear / 6) * e.learning * growth * (e.skill > 80 ? 0.4 : 1), 1, 99);
+      if (e.skill < 95 && R.chance(0.5)) { const s0 = e.skill; e.skill = U.clamp(e.skill + (cs.expSkillPerYear / 6) * e.learning * growth * (e.skill > 80 ? 0.4 : 1), 1, 99); e.expGain = (e.expGain || 0) + (e.skill - s0); } // v9: skill learned on YOUR job counts only partly to other companies (S.mv)
       e.loyalty = U.clamp(e.loyalty + 0.6, 0, 100);
       // morale target
-      const rd = S.roleDef(b, e.role) || { wage: [e.wage, e.wage] };
-      const fair = U.lerp(rd.wage[0], rd.wage[1], e.skill / 100) * g.world.wageIdx;
-      const payDelta = U.clamp((e.wage * (1 + payrollAdd) - fair) / fair, -0.5, 0.5);
+      const fair = S.mv(g, b, e); const pw = S.persDef(e).payWeight; // v9: market value for their skill; loyal people mind low pay less
+      const payDelta = U.clamp((e.wage * (1 + payrollAdd) - fair) / fair, -0.5, 0.5) * (e.wage < fair ? pw : 1);
       let target = 58 + payDelta * 60 + (hasHR ? 8 : 0) + (hasGM ? 4 : 0) + fixMorale - Math.max(0, (ctx.busy || 0) - 0.95) * 60;
       if (ctx.missedPayroll) target -= 30;
       if (b.ownerOp) target += 3;
@@ -2489,12 +2541,17 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         S.leave(g, b, e, e.morale < 35 ? `low morale (${Math.round(e.morale)}/100)` : 'personal reasons / better offer', true);
         continue;
       }
-      // poaching
-      if (e.skill >= cs.poachSkill && R.chance(cs.poachBase * (1.3 - e.loyalty / 100))) {
-        TG.D.add(g, { kind: 'poach', bizId: b.id, empId: e.id, title: `${e.name} is being poached`,
-          text: `A competitor offered ${e.name} (${S.roleDef(b, e.role).label}, skill ${Math.round(e.skill)}) about ${Math.round(cs.counterOfferPct * 100)}% more pay.`,
-          why: `High skill (${Math.round(e.skill)}) makes them a target; loyalty ${Math.round(e.loyalty)}/100.`,
-          options: [{ id: 'counter', label: `Counter-offer (+${Math.round(cs.counterOfferPct * 100)}% pay)` }, { id: 'let', label: 'Let them go' }], def: 'let' });
+      // v9 poaching: other companies go after people paid under their market value (odds and reasons in S.poachOdds)
+      const po = S.poachOdds(g, b, e);
+      if (R.chance(po.p)) {
+        const offer = Math.round(Math.max(po.mv, e.wage) * R.range(cs.poach.offer[0], cs.poach.offer[1]) / 10) * 10; const pd = S.persDef(e);
+        TG.D.add(g, { kind: 'poach', bizId: b.id, empId: e.id, offer, title: `${e.name} got a job offer`,
+          text: `Another company offered ${e.name} (${S.roleDef(b, e.role).label}, skill ${Math.round(e.skill)}) ${U.money(offer)}/mo. You pay ${U.money(e.wage)}/mo; their market value is about ${U.money(po.mv)}/mo.`,
+          why: po.reasons.join('; '),
+          options: [{ id: 'counter', label: `💵 Match: pay ${U.money(offer)}/mo (+${U.money(offer - e.wage)}) · ${U.pct(pd.accept)} they stay` }, { id: 'let', label: `👋 Let them go (you will need to hire someone; a new ${S.roleDef(b, e.role).label.toLowerCase()} costs about ${U.money(po.mv)}/mo at this skill)` }], def: 'let' });
+      } else if (po.p >= cs.poach.warnAt && (e.warnedM == null || g.month - e.warnedM >= 6)) {
+        e.warnedM = g.month; const hr = S.hrOf(b);
+        TG.rep.event(g, b, 'warn', hr ? `HR: ${e.name} may get poached (${U.pct(po.p, 1)} a month)` : `${e.name} seems to be looking around`, `${po.reasons.join('; ')}. A raise to about ${U.money(po.mv)}/mo cuts the odds to ${U.pct(S.poachOdds(g, b, Object.assign({}, e, { wage: po.mv })).p, 1)}.`);
       }
     }
     // theft
@@ -2530,6 +2587,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         }
       }
     }
+    for (const e of S.allStaff(b)) e.away = 0; // v9: training time only counts in the month it happened
     // strikes at big businesses
     const n = b.staff.length;
     if (n >= cs.strikeMinStaff) {
@@ -2559,6 +2617,60 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
 
   S.payroll = (b) => U.sum(S.allStaff(b), (e) => e.wage);
+
+  // ================= v9: market value, personalities, poaching odds, managers lending a hand =================
+  // What other companies would pay for this skill here (same formula that sets applicants' asking pay).
+  S.mv = (g, b, e) => {
+    const C = TG.CONFIG, rd = S.roleDef(b, e.role); if (!rd || !rd.wage) return e.wage;
+    const sk = (e.skill == null ? 50 : e.skill) - (e.expGain || 0) * (1 - (TG.CONFIG.staff.expMarket != null ? TG.CONFIG.staff.expMarket : 1)); /* v9: know-how learned on your job (not training) is worth less to other companies */
+    const f = U.clamp(0.125 + 0.75 * (sk - 20) / 60, 0, 1.15);
+    const region = b && b.region ? C.regions[b.region].wage : 1, loc = b && b.loc ? C.locations[b.loc].wage : 1;
+    const labor = b && b.labor != null ? U.clamp(b.labor, 0.02, 1) : 0.5;
+    return Math.round(U.lerp(rd.wage[0], rd.wage[1], f) * region * loc * (1 + (1 - labor) * 0.3) * g.world.wageIdx / 10) * 10;
+  };
+  S.persOf = (e) => { if (!e.pers) e.pers = e.ambition > 65 ? 'climber' : e.ambition < 30 ? 'loyal' : 'steady'; return e.pers; };
+  S.persDef = (e) => TG.CONFIG.staff.pers[S.persOf(e)] || TG.CONFIG.staff.pers.steady;
+  // monthly odds another company hires them away, with the reasons. guess=true ignores a personality you have not seen yet
+  S.poachOdds = (g, b, e, guess) => {
+    const cs = TG.CONFIG.staff, P = cs.poach; const mv = S.mv(g, b, e); const gap = (mv - e.wage) / Math.max(1, mv);
+    const isSpec = !!(TG.CONFIG.specialists[e.role] || e.role === 'ceo' || e.role === 'rem');
+    const demand = U.clamp((e.skill - P.skillFrom) / P.skillSpan, isSpec ? 0.2 : 0, 1);
+    const pd = guess && !e.persSeen ? cs.pers.steady : S.persDef(e); const hr = !!S.hrOf(b);
+    const loyalF = 1.2 - e.loyalty / 125; const moraleF = e.morale < 45 ? 1.3 : 1;
+    let p = demand * (P.base + P.gapK * Math.max(0, gap - (P.tol || 0))) * pd.poach * loyalF * moraleF * (hr ? 0.8 : 1);
+    if (gap < -0.1) p *= 0.5;
+    p = U.clamp(p, 0, P.max);
+    const reasons = [];
+    if (gap > 0.02 && gap <= (P.tol || 0)) reasons.push(`a gap under ${U.pct(P.tol)} is too small for most people to move for`);
+    reasons.unshift(gap > 0.02 ? `paid ${U.pct(gap)} under market (${U.money(e.wage)} vs about ${U.money(mv)})` : gap < -0.02 ? `paid ${U.pct(-gap)} over market (about ${U.money(mv)})` : `paid about market (${U.money(mv)})`);
+    reasons.push(demand >= 0.7 ? `skill ${Math.round(e.skill)}: lots of companies want them` : demand >= 0.3 ? `skill ${Math.round(e.skill)}: some companies want them` : `skill ${Math.round(e.skill)}: few offers at this skill`);
+    reasons.push(e.persSeen || !guess ? `${pd.icon} ${pd.label.toLowerCase()}` : '❓ personality not known yet');
+    reasons.push(`loyalty ${Math.round(e.loyalty)}/100`);
+    if (e.morale < 45) reasons.push(`unhappy (morale ${Math.round(e.morale)})`);
+    if (hr) reasons.push('HR keeps in touch (x0.8)');
+    return { p, mv, gap, demand, reasons, tone: p >= 0.06 ? 'bad' : p >= cs.poach.warnAt ? 'warn' : 'good' };
+  };
+  // managers who lend a hand on the job (GM, Ops), in "regular worker" units, already scaled by the fraction
+  S.mgrHelpers = (b) => { const cs = TG.CONFIG.staff; const out = []; for (const r of cs.mgrWorkRoles) { const e = b.spec && b.spec[r]; if (e) out.push({ role: r, e, frac: cs.mgrWorkFrac }); } return out; };
+  S.mgrW = (b) => U.sum(S.mgrHelpers(b), (x) => x.frac * TG.M.staffEff(x.e));
+  S.mgrNote = (b) => { const h = S.mgrHelpers(b); if (!h.length) return ''; return ` Managers lend a hand: ${h.map((x) => `${TG.CONFIG.specialists[x.role].label} works at ${Math.round(x.frac * 100)}% of a worker`).join(', ')}.`; };
+  // v8 -> v9 save: the Shift lead role is gone. A lead becomes the Ops manager (same pay and skill) if that seat is empty, else a crew member.
+  S.v9Migrate = (g) => {
+    const notes = [];
+    for (const b of g.businesses || []) {
+      for (const e of S.allStaff(b)) {
+        S.persOf(e); if (e.persSeen == null) e.persSeen = (e.months || 0) >= 3; if (e.away == null) e.away = 0;
+        // old saves: count their extra skill as learned on your job, so nobody is suddenly "underpaid" by the new market-value rule
+        const mv = S.mv(g, b, e); const k = 1 - TG.CONFIG.staff.expMarket;
+        if (mv > e.wage && k > 0 && e.expGain == null) { const per = (S.mv(g, b, Object.assign({}, e, { skill: e.skill + 10 })) - mv) / 10; if (per > 0) e.expGain = Math.min(e.skill, (mv - e.wage) / per / k); }
+      }
+      const lead = b.spec && b.spec.lead; if (b.spec && 'lead' in b.spec) delete b.spec.lead; if (!lead) continue;
+      if (!b.spec.ops) { lead.role = 'ops'; lead.trait = lead.trait || 'steady'; b.spec.ops = lead; notes.push(`${lead.name} (${b.name}) is now your Ops manager: same pay, orders supplies and also works at ${Math.round(TG.CONFIG.staff.mgrWorkFrac * 100)}% of a worker.`); }
+      else { const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); lead.role = kr; delete lead.trait; b.staff.push(lead); notes.push(`${lead.name} (${b.name}) moved from Shift lead to the crew (your Ops manager already orders supplies).`); }
+    }
+    for (const e of [g.ceo, g.re && g.re.manager]) if (e) S.persOf(e);
+    if (notes.length) g.v9notes = notes;
+  };
   TG.S = S;
 })();
 
@@ -2760,6 +2872,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const bc = E.breakChance(g, b, it);
       it.lastP = bc.p;
       if (bc.p >= eq.warnAt && R.chance(0.6)) ctx.warnings.push({ text: `${it.label} #${E.num(b, it)} is making a strange noise`, why: `${U.pct(bc.p, 0)} monthly break chance: ${bc.factors.join(', ')}`, p: bc.p });
+      if (g._pv) continue; /* v9: the live preview never breaks or steals machines (it showed 'Tractors x0' for a working tractor, and leaked next month's breakdowns) */
       if (R.chance(bc.p * (ctx.streakMult || 1))) E.breakItem(g, b, it, bc, ctx);
       // theft / vandalism for vehicles and sites without security
       if ((d.id === 'truck' || d.id === 'mower' || d.id === 'trailer' || d.heavy) && R.chance(eq.theftBase * (C.locations[b.loc] ? C.locations[b.loc].crime : 1) * (g.world.crime > 0 ? 2 : 1) * (b.fixes.gps ? 0.3 : 1))) {
@@ -3034,7 +3147,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (I.perAcre) p = (b.farm ? b.farm.acres : 0) * I.perAcre;
     if (I.perUnit) p = b.equip.filter((x) => x.type === 'truck').length * I.perUnit;
     if (type === 'malpractice') p = Math.max(p, I.min * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
-    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx);
+    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
   };
   F.claim = (g, b, type, loss, label) => {
     const C = TG.CONFIG.finance;
@@ -3462,7 +3575,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       skill: avg((e) => e.skill, own ? 55 : 35), attitude: avg((e) => e.attitude, own ? 65 : 45), reliability: avg((e) => e.reliability, 60),
       honesty: all.length ? U.avg(all, (e) => e.honesty) : 70, temper: avg((e) => e.temper, 30), morale: all.length ? U.avg(all, (e) => e.morale) : 60,
       ambition: avg((e) => e.ambition, 40), busy: b.lastUtil || 0.8, util: b.lastUtil || 0.8,
-      weather: TG.W.weatherOf(g, b.region), streakMult: 1,
+      weather: TG.W.weatherOf(g, b.region), streakMult: 1, mw: TG.S.mgrW(b),
     };
     const recentBad = (b.bad || []).filter((m) => g.month - m <= C.streak.window).length;
     if (recentBad >= C.streak.threshold) ctx.streakMult = C.streak.mult;
@@ -3685,21 +3798,25 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
 
   // ---------- fixed costs ----------
+  // v9: seasonal crews (lawn care) go on short hours in the off-season: wages drop to a share for those months
+  B.offSeasonPay = (g, b) => { const d = B.def(b), o = d.offSeason; if (!o) return 1; return (d.season[U.moy(g.month)] || 1) < o.below ? o.pay : 1; };
+  // v9: tech startups pay engineers partly in stock options until launch
+  B.payMult = (g, b) => B.offSeasonPay(g, b) * (b.tech && b.tech.phase === 'build' ? TG.CONFIG.businesses.tech.tech.buildPay : 1);
   B.fixedCosts = (g, b, ctx) => {
     const C = TG.CONFIG, d = B.def(b);
-    const payroll = TG.S.payroll(b) * (1 + ((b.fixesOn && b.fixesOn.payrollAdd) || 0));
+    const payroll = TG.S.payroll(b) * (1 + ((b.fixesOn && b.fixesOn.payrollAdd) || 0)) * B.payMult(g, b);
     if (g.cash < payroll && g.cash - payroll < -(TG.F.locLimit(g) - g.loc.balance)) ctx.missedPayroll = true;
     TG.F.spend(g, Math.round(payroll), 'Wages', b.id);
     TG.F.spend(g, Math.round(payroll * C.staff.payrollTax), 'Payroll tax', b.id);
     const prop = g.properties.find((p) => p.id === b.propId);
     if (prop) {
       b.propValue = prop.owned ? TG.P.value(g, prop) : 0;
-      if (prop.leased) TG.F.spend(g, prop.rent, 'Rent', b.id);
+      if (prop.leased) TG.F.spend(g, Math.round(prop.rent * (d.fixedCut || 1)), 'Rent', b.id);
       else TG.F.spend(g, TG.P.monthlyTax(g, prop), 'Property tax', b.id);
       const upkeep = Math.round(b.propValue * 0.0006 * (1.6 - prop.cond));
       if (upkeep) TG.F.spend(g, upkeep, 'Building upkeep', b.id);
     }
-    const util = Math.round((d.svc ? d.svc.utilPerSpace : d.space.unit === 'acres' ? 1.5 : 0.3) * Math.min(B.space(b), d.space.ideal * 4) * g.world.priceIdx);
+    const util = Math.round((d.svc ? d.svc.utilPerSpace : d.space.unit === 'acres' ? 1.5 : 0.3) * Math.min(B.space(b), d.space.ideal * 4) * g.world.priceIdx * (d.fixedCut || 1));
     TG.F.spend(g, util, 'Utilities', b.id);
     let ins = 0; for (const t in b.ins) if (b.ins[t]) ins += TG.F.premium(g, b, t);
     TG.F.spend(g, ins, 'Insurance', b.id);
@@ -3771,7 +3888,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     }
     if (B.owner(g, b)) g.player.exp[b.type] = (g.player.exp[b.type] || 0) + 1;
     TG.E.month(g, b, ctx);
-    B.rollRisks(g, b, ctx);
+    if (!g._pv) B.rollRisks(g, b, ctx); /* v9: no random disasters in the live preview */
     TG.M.month(g, b, ctx);
     B.shutCheck(g, b, ctx);
     B.fixedCosts(g, b, ctx);
@@ -3947,7 +4064,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const G0 = TG.G;
     try {
       const g2 = JSON.parse(JSON.stringify(g)); const b2 = g2.businesses.find((x) => x.id === b.id);
-      TG.G = g2; B.month(g2, b2);
+      g2._pv = true; TG.G = g2; B.month(g2, b2);
       if (b2.lastCtx) { out.work = b2.work || []; out.ctx = b2.lastCtx; out.ok = true; }
     } catch (e) { out.err = e.message; } finally { TG.G = G0; }
     const m0 = g.month; // the forecast is built "at the end of last month", so look from there
@@ -3972,7 +4089,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   M.extraRisks = (g, b, ctx) => (mdl(b).extraRisks ? mdl(b).extraRisks(g, b, ctx) : []);
   M.inventoryValue = (g, b) => (mdl(b).inventoryValue ? U.num(mdl(b).inventoryValue(g, b)) : 0) + Math.round(TG.ST.value(g, b));
   M.keyRole = (d) => Object.keys(d.roles).find((r) => d.roles[r].key);
-  M.staffEff = (e) => (0.6 + e.skill / 250) * (1 - TG.CONFIG.staff.noShowBase * (1.6 - e.reliability / 100));
+  M.staffEff = (e) => (0.6 + e.skill / 250) * (1 - TG.CONFIG.staff.noShowBase * (1.6 - e.reliability / 100)) * (1 - (e.away || 0)); // v9: time in training is time off the job
   M.paceMult = (b) => (b.pace === 'rush' ? 1.15 : b.pace === 'careful' ? 0.92 : 1);
   M.priceMult = (g, b) => TG.PR.ratio(g, b);
   M.repF = (b, exp) => U.clamp(Math.pow(Math.max(b.rep, 3) / 50, exp == null ? 1 : exp), 0.04, 2.6);
@@ -4010,7 +4127,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const C = TG.CONFIG, d = C.businesses[b.type];
       let keyCap = 0; const kr = M.keyRole(d);
       for (const e of ctx.key) keyCap += d.roles[e.role].cap * M.staffEff(e);
-      if (ctx.own && d.tier === 'small') keyCap += d.roles[kr].cap * 0.6;
+      if (ctx.mw) keyCap += d.roles[kr].cap * ctx.mw; // v9: GM / Ops lend a hand at a fraction of a worker
       keyCap *= 1 + TG.E.boost(b, 'staffBoost');
       let supCap = Infinity;
       for (const r in d.roles) if (d.roles[r].support) { const have = b.staff.filter((e) => e.role === r).length; supCap = Math.min(supCap, (have + 0.5) * d.roles[r].per); }
@@ -4117,7 +4234,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const roadM = 0.72 + 0.35 * b.traffic * 0 + 0.35 * (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
       const truckCap = U.sum(trucks, (x) => TG.E.out(x) * d.equip[0].cap) * roadM * (fo.loadMult || 1);
       let driverCap = U.sum(ctx.key, (e) => d.roles.driver.cap * (0.7 + e.skill / 300) * (1 - C.staff.noShowBase * (1.6 - e.reliability / 100)));
-      if (ctx.own) driverCap += d.roles.driver.cap * 0.6;
+      if (ctx.mw) driverCap += d.roles.driver.cap * ctx.mw;
       let cap = Math.min(truckCap, driverCap) * (w.hoursReg > 0 ? 0.9 : 1) * M.paceMult(b) * (1 - ctx.down);
       const st = g.markets.freight;
       const r = TG.PR.ratio(g, b);
@@ -4220,7 +4337,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const r = TG.PR.ratio(g, b);
       let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5) * TG.PR.demandF(r);
       if (R.chance(br.viral * (0.5 + b.rep / 100))) { const x = R.range(br.viralMult[0], br.viralMult[1]); orders *= x; TG.rep.event(g, b, 'good', `Went viral! Orders x${x.toFixed(1)} this month`, 'Rare viral moment'); }
-      let packCap = U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) * (fo.packerMult || 1) + (ctx.own ? 900 : 0);
+      let packCap = (U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) + d.roles.packer.cap * (ctx.mw || 0)) * (fo.packerMult || 1);
       if (b.equip.some((x) => x.type === 'shelving' && !x.broken)) packCap *= 1.15;
       packCap *= 1 + TG.E.boost(b, 'staffBoost');
       packCap *= M.paceMult(b) * (1 - ctx.down);
@@ -4294,7 +4411,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const C = TG.CONFIG, d = C.businesses.factory, fd = d.factory, f = b.factory, fo = b.fixesOn || {};
       const lineCap = TG.E.capacity(b, 'line');
       const wc = (fo.workerCut || 0);
-      const workerUnits = U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) / Math.max(0.2, 1 - wc) * (1 + TG.E.boost(b, 'staffBoost'));
+      const workerUnits = (U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) + d.roles.worker.cap * (ctx.mw || 0)) / Math.max(0.2, 1 - wc) * (1 + TG.E.boost(b, 'staffBoost'));
       let prod = Math.max(0, Math.min(lineCap, workerUnits) * M.paceMult(b) * (1 - ctx.down));
       const bulk = b.fixes.bulk && b.fixes.bulk.until > g.month;
       if (b.fixes.bulk && !bulk) { delete b.fixes.bulk; TG.rep.event(g, b, 'info', 'Bulk supplier contract ended', 'Contract term over'); }
@@ -4364,7 +4481,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     winChance(g, b, o, markup) { const P = this.cfg(); return U.clamp(P.winChance[markup] * (0.6 + b.rep / 100) * (b.fixes.contingency ? P.contingencyWinMult : 1) * Math.pow(g.world.econ, 0.5), 0.02, 0.95); },
     needs(g, b) { const need = b && b.proj ? Math.ceil(U.sum(b.proj.active, (p) => p.crew)) : 0; return { equip: [{ type: 'tools', count: Math.max(1, Math.ceil(need / 60)) }], staff: [{ role: 'laborer', count: Math.max(6, need) }] }; },
     baseRev(g, b) { return Math.max(150000, U.sum(b.proj ? b.proj.active : [], (p) => p.price / p.months)); },
-    crew(b, ctx) { return U.sum(ctx.key, M.staffEff) / 0.8; },
+    crew(b, ctx) { return (U.sum(ctx.key, M.staffEff) + (ctx.mw || 0)) / 0.8; },
     month(g, b, ctx) {
       const C = TG.CONFIG, P = this.cfg(), pr = b.proj;
       const toolsCap = TG.E.capacity(b, 'tools');
@@ -4445,21 +4562,22 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     baseRev(g, b) { return Math.max(40000, b.tech.users * TG.CONFIG.businesses.tech.tech.arpu * g.world.priceIdx); },
     month(g, b, ctx) {
       const C = TG.CONFIG, T = C.businesses.tech.tech, t = b.tech;
-      const engEff = (U.sum(ctx.key, (e) => 0.5 + e.skill / 100) + (ctx.own ? 0.4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
+      const engEff = (U.sum(ctx.key, (e) => (0.5 + e.skill / 100) * (1 - (e.away || 0))) + (ctx.mw || 0) * 1.1) * (1 + TG.E.boost(b, 'staffBoost'));
       if (t.phase === 'build') {
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
         ctx.note = `Building the app: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done after this month`;
         { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
-        if (t.dev >= T.devPoints) { t.phase = 'live'; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
+        if (t.dev >= T.devPoints) { t.phase = 'live'; t.liveAt = g.month; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;
       }
+      M.techRounds(g, b);
       const share = U.clamp(t.users / g.markets.software.demand12, 0, 1);
       const cac = T.cacBase * (1 + 4 * Math.pow(share, 1.5)) * g.world.priceIdx;
       const adMgr = b.spec.ads; const flop = b.ads.budget > 0 && R.chance(C.reputation.adChannels[b.ads.channel].flop * (adMgr ? 0.5 : 1));
       if (flop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped', 'Campaigns can flop');
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
-      let organic = t.users * T.organic * t.pmf * 2 * (b.rep / 50) + 150 * t.pmf;
+      let organic = t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf;
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
       let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
@@ -4470,7 +4588,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
-      const churnRate = Math.max(0.01, T.churnBase - 0.07 * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
+      const churnRate = Math.max(0.01, T.churnBase - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
       const prevU = t.users;
       const churn = t.users * churnRate;
       t.users = Math.max(0, Math.round(t.users + newU - churn));
@@ -4492,6 +4610,22 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     },
     extraRisks(g, b) { const T = TG.CONFIG.businesses.tech.tech; if (b.tech.phase !== 'live') return []; const over = b.tech.users > TG.E.capacity(b, 'server'); return [{ label: 'Server outage', p: T.outageBase * (over ? 5 : 1) * (b.fixes.backup ? 0.3 : 1), why: over ? 'servers overloaded' : 'normal load' }]; },
   };
+  // v9: milestone funding. Hitting a user milestone brings an investor offer (cash for a share of the company); you or a manager decide.
+  M.techRoundOffer = (g, b, r) => ({ cash: Math.round(Math.max(r.min, b.tech.users * r.perUser) * g.world.priceIdx / 1000) * 1000, pct: r.pct });
+  M.techRounds = (g, b) => {
+    const T = TG.CONFIG.businesses.tech.tech, t = b.tech; t.rounds = t.rounds || {};
+    for (const r of T.rounds) {
+      if (t.rounds[r.id] || t.users < r.users) continue;
+      t.rounds[r.id] = g.month; const o = M.techRoundOffer(g, b, r);
+      if ((b.outside || 0) + o.pct > 0.45) continue; // investors will not take a company you no longer control
+      TG.D.add(g, { kind: 'fund', bizId: b.id, round: r.id, cash: o.cash, pct: o.pct, title: `${r.label}: investors offer ${U.money(o.cash)} for ${U.pct(o.pct)}`,
+        text: `You passed ${r.users.toLocaleString()} users. Investors offer ${U.money(o.cash)} cash for ${U.pct(o.pct)} of ${b.name}. They then get ${U.pct(o.pct)} of its profits and of its value when sold.`,
+        why: `Milestone funding: ${U.money(r.perUser)} per user (at least ${U.money(r.min)}). Cash now lowers the risk of running out; you keep less of the upside.`,
+        options: [{ id: 'take', label: `✅ Take ${U.money(o.cash)} for ${U.pct(o.pct)}` }, { id: 'no', label: 'No thanks (keep 100%)' }], def: 'no' });
+    }
+  };
+  // v9: stalled = live for a year and still under 5,000 users: the Now tab suggests a pivot
+  M.techStalled = (g, b) => { const t = b.tech; return !!(t && t.phase === 'live' && t.liveAt != null && g.month - t.liveAt >= 12 && t.users < 5000); };
   M.techResearch = (g, b) => {
     const T = TG.CONFIG.businesses.tech.tech, t = b.tech;
     if (t.researched) return; t.researched = true;
@@ -4503,7 +4637,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const t = b.tech; const cost = Math.round(100000 * g.world.priceIdx);
     if (g.cash < cost) return { ok: false, msg: `Pivot costs ${U.money(cost)}.` };
     TG.F.spend(g, cost, 'Pivot', b.id, true);
-    t.phase = 'build'; t.dev = 0; t.users = Math.round(t.users * 0.2); t.pmf = U.clamp(Math.pow(R.next(), 1.5), 0.02, 0.98); t.pmfEst = null; t.researched = false;
+    t.phase = 'build'; t.dev = 0; t.users = Math.round(t.users * 0.2); t.pmf = U.clamp(Math.pow(R.next(), 1.5), 0.02, 0.98); t.pmfEst = null; t.researched = false; delete b.fixes.research; t.liveAt = null; t.pivots = (t.pivots || 0) + 1; /* v9: research can be bought again for the new idea */
     return { ok: true, cost };
   };
 
@@ -4529,7 +4663,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       }
       // locations
       const open = s.locations.filter((l) => l.status === 'open');
-      const regCap = (U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + (ctx.own ? 4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
+      const regCap = (U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + C.businesses.franchise.roles.regional.cap * (ctx.mw || 0)) * (1 + TG.E.boost(b, 'staffBoost'));
       const cov = open.length ? U.clamp(regCap / open.length, 0, 1) : 1;
       const sat = open.length / (fr.perRegion * Object.keys(C.regions).length);
       const cannibal = 1 / (1 + Math.pow(sat, 1.5) * (fo.cannibalCut ? 0.5 : 1));
@@ -4723,7 +4857,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       }
       const tneed = Math.max(0.01, this.tractorNeed(b));
       const robotShare = tcap > 0 ? robotCap / tcap : 0;
-      const heff = U.sum(b.staff.filter((e) => e.role === 'hand'), M.staffEff);
+      const heff = U.sum(b.staff.filter((e) => e.role === 'hand'), M.staffEff) + TG.S.mgrW(b); // v9: GM / Ops lend a hand
       const hneed = this.handNeed(b) * (1 - robotShare * 0.85 * Math.min(1, tcap / tneed));
       const gear = tcap > 0 ? 1 : 0;
       return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed, heff, hneed, plantX: plantX * gear, harvX: harvX * gear };
@@ -4809,7 +4943,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       { const over = M.farmStoreUsed(b) - M.farmStoreCap(b); if (over > 0.5) for (const good of ['grain', 'fruit']) { const x = Math.min(over, f.stored[good]); if (x > 0) { f.stored[good] -= x; A[good === 'grain' ? 'crops' : 'orchard'].m.lost = (A[good === 'grain' ? 'crops' : 'orchard'].m.lost || 0) + x; } } }
       f.plantBroken = false;
       if (b.fixes.plant && R.chance(0.012)) { f.plantBroken = true; const c = Math.round(9000000 * 0.02 * g.world.priceIdx); TG.F.spend(g, c, 'Repairs', b.id); TG.rep.event(g, b, 'major', `Processing plant broke down (${U.money(c)} repair, no price bonus this month)`, '1.2% monthly plant failure chance', { major: 'breakdown' }); }
-      for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.glitch && !it.broken && R.chance(ed.glitch)) { it.broken = 'major'; TG.rep.event(g, b, 'bad', 'Software glitch took a robot tractor offline', `${U.pct(ed.glitch)} monthly glitch chance; specialist repairs cost double`); TG.E.queueBroken(g, b, it); } }
+      for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.glitch && !it.broken && !g._pv && R.chance(ed.glitch)) { it.broken = 'major'; TG.rep.event(g, b, 'bad', 'Software glitch took a robot tractor offline', `${U.pct(ed.glitch)} monthly glitch chance; specialist repairs cost double`); TG.E.queueBroken(g, b, it); } }
       const inputCut = b.fixes.integrate ? 0.2 : 0;
       if (A.crops.acres || A.crops.planted || A.crops.toHarvest) this.crops(g, b, ctx, cov, moy, inputCut, qMult);
       if (A.orchard.acres) this.orchard(g, b, ctx, cov, moy, inputCut, qMult);
@@ -5166,6 +5300,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (spr.length) { const v = Math.round(spr.length * 25000 * g.world.priceIdx * 0.45); TG.F.earn(g, v, 'Asset sales', b.id, true); }
     b.equip = b.equip.filter((x) => x.type !== 'sprCow');
   };
+  // v9: dry/old cows piling up with nobody selling them (no farm manager, or the "Sell dry / old cows" order is off)
+  M.dryPile = (g, b) => {
+    const f = b.farm; if (!f || !f.areas || !f.areas.cows) return null; const a = f.areas.cows; const n = Math.floor((a.st && a.st.dry) || 0); if (n < 1) return null;
+    const h = TG.D.handler(g, b, 'farm'); const o = (f.orders && f.orders.cows) || M.cowOrderDefaults(); const auto = !!(h && o.cullDry);
+    const feed = Math.round(n * HC().stages.dry.feed * M.feedPrice(g)); const meat = Math.round(n * M.cowValue(g, 'dry') * HC().sellDrop);
+    const pile = !auto && n >= Math.max(3, (a.herd || 0) * 0.08);
+    return { n, feed, meat, auto, pile, why: h ? 'your manager\'s "Sell dry / old cows" order is off' : 'no farm manager: nobody sells them for you' };
+  };
   M.cowOrderDefaults = () => ({ sellReady: true, cullDry: true, keepRoom: true, feedMonths: 2 });
 })();
 
@@ -5178,8 +5320,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   const D = {};
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
-    pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm', 'lead'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    pr: ['ads', 'gm'], fund: ['gm', 'accountant'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
+    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
   };
 
   D.add = (g, dec) => {
@@ -5222,9 +5364,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       case 'poach': {
         const e = S.allStaff(b).find((x) => x.id === dec.empId); if (!e) break;
         if (opt === 'counter') {
-          e.wage = Math.round(e.wage * (1 + cs.counterOfferPct)); e.loyalty = U.clamp(e.loyalty + 15, 0, 100); e.morale = U.clamp(e.morale + 8, 0, 100);
-          if (R.chance(cs.counterAccept || 0.75)) TG.rep.staff(g, b, `${by ? by + ': ' : ''}${e.name} accepted a counter-offer (now ${U.money(e.wage)}/mo)`);
-          else S.leave(g, b, e, 'took the competitor offer anyway', false);
+          e.wage = dec.offer ? Math.max(e.wage, dec.offer) : Math.round(e.wage * (1 + cs.counterOfferPct)); e.loyalty = U.clamp(e.loyalty + 10, 0, 100); e.morale = U.clamp(e.morale + 8, 0, 100);
+          if (R.chance(S.persDef(e).accept)) TG.rep.staff(g, b, `${by ? by + ': ' : ''}${e.name} stayed for the matched pay (now ${U.money(e.wage)}/mo)`);
+          else S.leave(g, b, e, 'took the other offer anyway', false);
         } else S.leave(g, b, e, 'poached by a competitor', false);
         break;
       }
@@ -5234,6 +5376,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         break;
       }
       case 'pr': if (opt !== 'none') TG.B.doPR(g, b, opt, by); break;
+      case 'fund': if (opt === 'take') { b.outside = (b.outside || 0) + dec.pct; TG.F.earn(g, dec.cash, 'Investor funding', b.id, true); TG.rep.event(g, b, 'info', `${by ? by + ' took' : 'Took'} ${U.money(dec.cash)} for ${U.pct(dec.pct)} of ${b.name}`, `Investors now own ${U.pct(b.outside)}`); } break;
       case 'lawsuit': TG.B.resolveSuit(g, dec.suitId, opt, by); break;
       case 'evict': if (opt === 'evict') TG.RE.evict(g, dec.reId, dec.unit, by || 'You'); break;
       default: if (dec.apply) dec.apply(g, opt, by);
@@ -5269,9 +5412,15 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       }
       case 'poach': {
         const e = TG.S.allStaff(b).find((x) => x.id === dec.empId); if (!e) return { opt: null };
-        const worth = e.skill >= 65 && (e.role in (b.spec || {}) || TG.CONFIG.businesses[b.type].roles[e.role]?.licensed || e.skill >= 75);
+        const mv = TG.S.mv(g, b, e); const offer = dec.offer || e.wage * 1.15;
+        const key = (e.role in (b.spec || {})) || (TG.CONFIG.businesses[b.type].roles[e.role] || {}).licensed;
+        const worth = (e.skill >= 50 || key) && offer <= mv * 1.2; // v9: match fair offers for good people; let overpriced ones go
         let opt = worth ? 'counter' : 'let'; if (bad) opt = opt === 'counter' ? 'let' : 'counter';
-        return { opt, outcome: out, why: worth ? `${e.name} (skill ${Math.round(e.skill)}) is hard to replace` : `${e.name} can be replaced` };
+        return { opt, outcome: out, why: worth ? `${e.name} (skill ${Math.round(e.skill)}) is worth the market rate (${U.money(mv)}/mo)` : offer > mv * 1.2 ? `the offer is well above their market value (${U.money(mv)}/mo)` : `${e.name} can be replaced` };
+      }
+      case 'fund': { // take the money when cash would not last a year of losses, otherwise keep the equity
+        const burn = Math.max(1, -U.avg(b.hist.slice(-3), (x) => x.profit, 0)); const months = g.cash / burn; let opt = months < 12 || g.cash < dec.cash ? 'take' : 'no'; if (bad) opt = opt === 'take' ? 'no' : 'take';
+        return { opt, outcome: out, why: opt === 'take' ? `cash ${U.money(g.cash)} lasts about ${Math.round(Math.min(99, months))} months at the current burn` : `cash ${U.money(g.cash)} is enough; keeping the full company` };
       }
       case 'theft': return { opt: bad ? 'warn' : 'fire', outcome: out, why: bad ? 'went soft on it' : 'zero tolerance for theft' };
       case 'pr': {
@@ -5350,7 +5499,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     // 2) v6: machines are looked after by mechanics (staff), never by managers; see equipment.js E.mechMonth
     // 3) raises for unhappy good people
     h = D.handler(g, b, 'raise');
-    if (h) for (const e of S.allStaff(b)) if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); }
+    if (h) for (const e of S.allStaff(b)) {
+      if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); continue; }
+      // v9: an HR manager (or GM) raises good people who are likely to be poached, up to their market value
+      const po = S.poachOdds(g, b, e);
+      if (po.p >= TG.CONFIG.staff.poach.warnAt && e.skill >= 50 && profit3 > 0 && R.chance(h.p)) { const r = S.raise(g, b, e.id, po.gap > 0.2 ? 'market' : 'pct'); if (r && !r.spam) TG.rep.decision(g, b, h.label, `Raised ${e.name} to ${U.money(r.to)}/mo (poach odds were ${U.pct(po.p, 1)} a month)`, 'good'); }
+    }
     // 3b) your order: keep spare staff so call-outs don't leave work undone
     h = D.handler(g, b, 'hire');
     const spare = (b.orders && b.orders.spare) || 0;
@@ -6674,7 +6828,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 8;
+  const VERSION = 9;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -6947,6 +7101,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       g.v = 8;
     }
       if (g.settings.warnSupplies == null) g.settings.warnSupplies = true;
+    // v9: Shift lead role removed (managers order supplies, crew works the site); personalities and market pay for every worker
+    if (g.v < 9) { TG.S.v9Migrate(g); g.v = 9; }
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };
@@ -7059,8 +7215,17 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.S.tips = UI.S.tips || {};
   // (i) button: tap to show a short line, tap again to hide it
   UI.tipBtn = (key) => `<button class="tipb" data-act="tip" data-arg="${esc(key)}" data-nosave="1" aria-label="info">i</button>`;
-  UI.tipLine = (key, text) => (UI.S.tips[key] && text ? `<div class="tip">${esc(text)}</div>` : '');
-  UI.A.tip = (k) => { UI.S.tips[k] = !UI.S.tips[k]; UI.refresh(); };
+  /* v9: the text is always in the page (hidden until tapped) and the tap shows it in place. Before, a tap re-drew only the
+     main screen, so every "i" inside a popup (worker, loan, listing...) showed nothing. */
+  UI.tipLine = (key, text) => (text ? `<div class="tip" data-tip="${esc(key)}"${UI.S.tips[key] ? '' : ' style="display:none"'}>${esc(text)}</div>` : '');
+  UI.A.tip = (k, el) => {
+    UI.S.tips[k] = !UI.S.tips[k];
+    const root = (el && el.closest && el.closest('#modal')) || document;
+    const lines = [...root.querySelectorAll('.tip[data-tip]')].filter((t) => t.dataset.tip === k);
+    if (lines.length) { for (const t of lines) t.style.display = UI.S.tips[k] ? '' : 'none'; return; }
+    if (root !== document) { UI.toast('No more details for this one.'); return; }
+    UI.refresh();
+  };
   // icon row: icon, label (tap = info), value, actions
   UI.irow = (key, icon, label, value, tip, acts, sub) => `<div class="irow"><span class="ic">${icon}</span><span class="lb" data-act="tip" data-arg="${esc(key)}" data-nosave="1">${esc(label)}${sub ? `<small>${sub}</small>` : ''}</span>${tip ? UI.tipBtn(key) : ''}${value != null ? `<span class="vl">${value}</span>` : ''}${acts ? `<span class="acts">${acts}</span>` : ''}${UI.tipLine(key, tip)}</div>`;
   // big stat tile (tap = info)
@@ -7135,7 +7300,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     let body = '';
     try { body = fn(); } catch (e) { console.error(e); body = `<div class="card bad">Screen error: ${esc(e.message)}</div>`; }
     const sy = window.scrollY;
+    /* v9: keep folded sections (<details>) open across re-renders, so tapping an "i" inside one shows its text instead of folding it shut */
+    const dk = (d) => { const s = d.querySelector('summary'); return (s ? s.textContent : '').replace(/[\d$,.%()+-]+/g, '').trim(); };
+    const openK = new Set([...document.querySelectorAll('#app details[open]')].map(dk));
     $('#app').innerHTML = UI.header() + `<main>${body}</main>` + UI.footer() + UI.nav();
+    if (openK.size) for (const d of document.querySelectorAll('#app details')) if (openK.has(dk(d))) d.open = true;
     if (UI.keepScroll) window.scrollTo(0, sy); UI.keepScroll = false;
   };
   UI.refresh = () => { UI.keepScroll = true; UI.render(); };
@@ -7235,6 +7404,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     for (const ls of g.lawsuits) al.push(`<div class="ev bad">⚖️ Sued: ${esc(ls.label)} (${m(ls.amount)}), ${ls.left} month(s) left</div>`);
     for (const b of g.businesses) {
       const br = b.equip.filter((x) => x.broken); if (br.length) al.push(`<div class="ev bad" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">🔧 ${esc(b.name)}: ${br.length} broken</div>`);
+      { const d = b.farm && TG.M.dryPile && TG.M.dryPile(g, b); if (d && d.pile) al.push(`<div class="ev warn" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">👵 ${esc(b.name)}: ${Math.round(d.n)} dry cows piling up, eating up to ${m(d.feed)}/mo, no milk. Sell for ~${m(d.meat)}.</div>`); }
       if (b.lastCtx && b.lastCtx.note) al.push(`<div class="ev info" data-act="go" data-arg="bizd:${b.id}" style="cursor:pointer">💡 ${esc(b.name)}: ${esc(b.lastCtx.note)}</div>`);
     }
     if (g.lastReport && g.lastReport.warns) for (const w of g.lastReport.warns.slice(0, 3)) al.push(`<div class="ev warn">⚠️ ${w.biz ? esc(w.biz) + ': ' : ''}${esc(w.text)}</div>`);
@@ -7257,7 +7427,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const tone = !h ? '' : res < 0 || bad || shut ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');
     return `<div class="card tap" data-act="go" data-arg="bizd:${b.id}"><div class="row"><span class="ico">${d.icon}</span><div class="grow"><div class="row sp"><b>${esc(b.name)}</b><span class="row">${UI.dot(tone)}${h ? UI.signed(Math.round(res)) : '<span class="mute">new</span>'}</span></div>${shut ? `<div class="closed small">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}</div>` : ''}
-      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you run it' : b.spec.gm ? ' · 👔 GM runs it' : g.ceo ? ' · 👔 CEO oversees' : b.spec.ops ? ' · 🧑‍💼 ops mgr (no GM)' : b.spec.lead ? ' · 🧑‍🍳 shift lead (supplies only)' : ' · ⚠️ no manager: you do it all'}${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}% busy` : ''; const t = W.slice().sort((x, y) => y.util - x.util)[0]; return ` · ${t.util > 1 ? '🔴' : '📊'} busiest: ${esc(t.t.toLowerCase())} ${t.util >= 9 ? 'none working' : Math.round(t.util * 100) + '%'}`; })()}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
+      <div class="mute">${b.licensePending > 0 ? `⏳ license ${b.licensePending} mo · ` : ''}⭐ ${Math.round(b.rep)} · 👥 ${TG.S.allStaff(b).length} · 🛠️ ${b.equip.length}${g.player.ownerBiz === b.id ? ' · 👤 you run it' : b.spec.gm ? ' · 👔 GM runs it' : g.ceo ? ' · 👔 CEO oversees' : b.spec.ops ? ' · 🧑‍💼 ops mgr (no GM)' : ' · ⚠️ no manager: you do it all'}${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return lc.cap ? ` · 📊 ${Math.round((lc.served || 0) / lc.cap * 100)}% busy` : ''; const t = W.slice().sort((x, y) => y.util - x.util)[0]; return ` · ${t.util > 1 ? '🔴' : '📊'} busiest: ${esc(t.t.toLowerCase())} ${t.util >= 9 ? (t.brk ? 'all broken' : 'none owned') : Math.round(t.util * 100) + '%'}`; })()}</div>${top ? `<div style="margin-top:4px">${top}</div>` : ''}</div></div></div>`;
   };
   UI.A.goMoneyTab = (t) => { UI.tab.money = t; UI.go('money'); };
   UI.A.goMoreTab = (t) => { UI.tab.more = t; UI.go('more'); };
@@ -7375,7 +7545,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const g = TG.G, C = TG.CONFIG; const type = UI.S.mkType, d = C.businesses[type];
     let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn mkic ${k === type ? 'pri' : ''}" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}<small>${esc(x.name.split(' / ')[0])}</small></button>`).join('')}</div></div>`;
     o += `<div class="card"><div class="row"><span class="small">I want to start a</span><select data-change="mkType">${UI.typeOptions(type)}</select></div>
-      <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}</div>
+      <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}${UI.v9costNote ? ' ' + esc(UI.v9costNote(d)) : ''}</div>
       <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : type === 'foodtruck' ? `a small spot to park and prep (${d.space.min.toLocaleString()}-${d.space.ideal.toLocaleString()} sq ft: a cheap lot or tiny storefront is fine)` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
       <div class="row" style="margin-top:6px"><span class="small">Sort</span><select data-change="mkSort">${[['suit', 'Best fit'], ['price', 'Cheapest'], ['priceD', 'Most expensive'], ['size', 'Biggest'], ['loc', 'Location']].map(([v, l]) => `<option value="${v}"${UI.S.mkSort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <span class="small">Max price</span><input type="number" id="mkMax" value="${esc(UI.S.mkMax)}" placeholder="any" data-change="mkMax"></div></div>`;
@@ -7448,7 +7618,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     }
     const cost = TG.B.setupCost(g, type, p, d.model === 'farm' ? { ent: TG.M.bestEnterprise(p) } : null);
     UI.modal(`Start a ${esc(d.name)}`, `<div class="card"><div class="row sp"><b>${d.icon} ${esc(d.name)} at ${esc(p.name)}</b>${UI.pill(`${sl.label} fit`, sl.tone)}</div>
-      <div class="mute">${esc(d.blurb || '')}</div>
+      <div class="mute">${esc(d.blurb || '')}${UI.v9costNote ? ' ' + esc(UI.v9costNote(d)) : ''}</div>
       <div class="kv" style="margin-top:6px"><span>Name</span><span><input type="text" id="stName" value="${esc(d.name)}" maxlength="30"></span>
       <span>Setup cost (fit-out, permits${d.license ? ', license' : ''})</span><span>${m(cost)}</span><span>Your cash</span><span>${m(g.cash)}</span></div>${extra}
       ${s < 0.4 ? '<div class="ev bad">This property is a poor fit: expect weak demand or high costs.</div>' : ''}
@@ -7505,7 +7675,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       ${(() => { const v = last ? (last.cash != null ? last.cash : last.profit) : null; return UI.tile('t_profit', '💰', last ? (v >= 0 ? '+' : '−') + m(Math.abs(v)) : '–', 'Cash made last month (all in)', last ? (v >= 0 ? 'g' : 'r') : '', last ? `Everything this business really cost and made last month, including machines bought, repairs, damage and its loan payments. Profit on paper (without buying machines or paying down loans): ${UI.signed(last.profit).replace(/<[^>]+>/g, '')}.` : 'Not open a full month yet.'); })()}
       ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
       ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
-      ${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return ''; const top = W.slice().sort((x, y) => y.util - x.util)[0]; const u = top.util >= 9 ? 'none working' : Math.round(top.util * 100) + '%'; return UI.tile('t_cap', top.i || '📊', u, 'Busiest: ' + top.t, top.util > 1 ? 'r' : top.util > 0.9 ? 'y' : 'g', `The busiest part of the business next month: ${top.t} at ${u} of what it can handle. Over 100% = lost sales, unhappy staff and fast wear. See every part under 💪 Work.`); })() || UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
+      ${(() => { const L = TG.B.live(g, b); const W = ((L && L.work) || []).filter((w) => w.cap > 0 || w.util >= 9); if (!W.length) return ''; const top = W.slice().sort((x, y) => y.util - x.util)[0]; const u = top.util >= 9 ? (top.brk ? 'all broken' : 'none owned') : Math.round(top.util * 100) + '%'; /* v9: say WHY there is no capacity */ return UI.tile('t_cap', top.i || '📊', u, 'Busiest: ' + top.t, top.util > 1 ? 'r' : top.util > 0.9 ? 'y' : 'g', `The busiest part of the business next month: ${top.t} at ${u} of what it can handle. Over 100% = lost sales, unhappy staff and fast wear. See every part under 💪 Work.`); })() || UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
     const cb = UI.closedBanner(g, b); o += cb;
     if (lc.note && !cb) o += `<div class="ev info">💡 <b>Next month:</b> ${esc(lc.note.replace(/^Ran out of stock/, "will run out of stock"))}</div>`;
@@ -7612,14 +7782,16 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       <div class="mute">${esc((C.specialists[hr] || d.roles[hr] || {}).desc || '')}</div>
       ${UI.hrHiring(g, b, hr)}
       <div class="mute">${pool.length} applicant(s) this month. Skill shown is an interview estimate; a background check (${m(C.staff.backgroundCheck)}) reveals the truth.</div>`;
-    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}${UI.hrCand(c)}
+    for (const c of pool) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo</span></div><div class="small">${c.trainee ? `<span class="pill">🌱 trainee: cheap, learns on the job</span> ` : ''}Skill ~${c.skillSeen}${c.revealed.honesty ? ` (true ${c.skill})` : ''} · ${c.years} yrs exp · attitude ${c.attitude} · ${c.persSeen ? `${TG.S.persDef(c).icon} ${TG.S.persDef(c).label}${c.persByHR ? ' (HR read)' : ''}` : '❓ personality unknown'} · 📈 market ~${m(TG.S.mv(g, b, Object.assign({}, c, { skill: c.skillSeen })))}</div><div class="mute">${traitTxt(c)}</div>${candInfo(g, b, c)}${UI.hrCand(c)}
       <div class="btns">${UI.btn('Hire', 'hire', c.id, 'sm pri')}${c.revealed.honesty ? '' : UI.btn(`Check ${m(C.staff.backgroundCheck)}`, 'bgCheck', c.id, 'sm')}</div></div>`;
     if (!pool.length) o += `<div class="ev warn">Nobody applied this month. Small labor pools make hiring slow; try next month or move to a bigger town.</div>`;
     o += `</div>`;
     // current team
     const specs = Object.entries(b.spec || {}).filter(([, e]) => e);
-    if (specs.length) o += `<div class="card"><h3 style="margin-top:0">Managers & specialists</h3>${specs.map(([r, e]) => empRow(b, e, TG.S.roleDef(b, r).label)).join('')}</div>`;
-    o += `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length})</h3>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`;
+    const mh = TG.S.mgrHelpers(b); const kr = TG.M.keyRole(d); const krl = d.roles[kr] ? d.roles[kr].label.toLowerCase() : 'worker';
+    const mgrLine = `<div class="ev info">🛠️ Managers order supplies; your crew works the site. ${mh.length ? `${mh.map((h) => `${esc(h.e.name)} (${esc(C.specialists[h.role].label)})`).join(' and ')} also work${mh.length > 1 ? '' : 's'} at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)} each: +${TG.S.mgrW(b).toFixed(2)} ${esc(krl)}'s worth of work.` : `A GM or Ops manager would also work at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)}.`}</div>`;
+    o += `<div class="card"><h3 style="margin-top:0">Managers & specialists</h3>${mgrLine}${specs.map(([r, e]) => empRow(b, e, TG.S.roleDef(b, r).label)).join('')}</div>`;
+    o += `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length}) ${UI.tipBtn('stLeg' + b.id)}</h3>${UI.tipLine('stLeg' + b.id, `⭐ skill = how good they are. 💵 what you pay; 📈 market = what other companies would pay them. 🎯 = chance per month another company hires them away (higher when you pay under market, when they are skilled, and for 📈 climbers). Personality: 🤝 loyal (stays cheap) · 🙂 steady · 📈 climber (chases pay) · ❓ not known yet (shows after ~3 months). 🌱 trainee = cheap, low skill, train them up. Tap Manage for training and raises.`)}<div class="small mute">🤝 loyal · 🙂 steady · 📈 climber · ❓ not known yet · 🎯 = chance they get hired away this month</div>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`;
     return o;
   }
   // ---------- 🧑‍💼 manager: your standing orders (the manager carries them out; skill decides how well) ----------
@@ -7632,9 +7804,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     let o = `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
       ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
-      ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Shift lead, Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out.', null, stockH ? esc(stockH.label) : NOM) : ''}
+      ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out. (Managers order; your crew works the site.)', null, stockH ? esc(stockH.label) : NOM) : ''}
       ${b.farm ? UI.irow('mwf' + b.id, '🚜', 'Farm work', fh ? U.pct(fh.p) : '<span class="bad">nobody</span>', fh ? `${fh.label} sprays, buys seed and feed, and sells cattle by your orders below. Gets it right about ${U.pct(fh.p)} of the time.` : 'No GM or ops manager: nobody sprays, buys seed or feed, or sells cattle. You must do it yourself.', null, fh ? esc(fh.label) : NOM) : ''}
-      ${!hire || (TG.ST.def(b) && !stockH) ? `<div class="btns">${!hire ? UI.btn('➕ Hire a general manager (does everything)', 'hireRole', 'gm', 'sm pri') : ''}${TG.ST.def(b) && !stockH ? UI.btn('➕ Hire a Shift lead (supplies only, cheaper)', 'hireRole', 'lead', 'sm') : ''}</div>` : ''}</div>`;
+      ${!hire || (TG.ST.def(b) && !stockH) ? `<div class="btns">${!hire ? UI.btn('➕ Hire a general manager (does everything)', 'hireRole', 'gm', 'sm pri') : ''}${TG.ST.def(b) && !stockH ? UI.btn('➕ Hire an Ops manager (supplies + machines, cheaper than a GM)', 'hireRole', 'ops', 'sm') : ''}</div>` : ''}</div>`;
     // staffing numbers
     o += `<div class="card"><h3>👥 How many to keep</h3><div class="mute">Your manager hires replacements to keep these numbers.</div>`;
     for (const r of Object.keys(d.roles)) {
@@ -7647,7 +7819,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     o += `</div>`;
     // supplies
     const st = TG.ST.def(b) ? TG.ST.ensure(b) : null;
-    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Manager reorders supplies each month', stockH ? null : '<span class="bad">no manager</span>', stockH ? 'Your manager tops up supplies before they run out.' : 'Only works with a Shift lead, Ops manager, GM or CEO. Without one, nothing is bought for you: buy supplies yourself on the Now tab.', stockH ? onOff(st.auto, 'stAuto') : UI.btn('🤖 needs a manager', 'stAutoNo', null, 'xs'))}</div>`;
+    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Manager reorders supplies each month', stockH ? null : '<span class="bad">no manager</span>', stockH ? 'Your manager tops up supplies before they run out.' : 'Only works with an Ops manager, GM or CEO. Without one, nothing is bought for you: buy supplies yourself on the Now tab.', stockH ? onOff(st.auto, 'stAuto') : UI.btn('🤖 needs a manager', 'stAutoNo', null, 'xs'))}</div>`;
     // farm orders
     if (b.farm) {
       const f = TG.M.farmEnsure(b);
@@ -7694,8 +7866,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     return `<div class="small">📦 Does ~${each}${team} · 🕒 shows up ${rel}${c.revealed.reliability ? '' : ' (check to see)'}</div>`;
   }
   function empRow(b, e, label) {
-    const mt = e.morale < 35 ? 'bad' : e.morale < 55 ? 'warn' : 'good';
-    return `<div class="row sp" style="border-bottom:1px solid #eee;padding:4px 0"><div class="grow"><b>${esc(e.name)}</b> <span class="mute">${esc(label)}</span><div class="small">skill ${e.skillSeen != null ? e.skillSeen : e.skill} · ${UI.pill('morale ' + Math.round(e.morale), mt)} · ${m(e.wage)}/mo · ${Math.floor((e.months || 0) / 12)}y ${(e.months || 0) % 12}m</div></div>${UI.btn('Manage', 'emp', e.id, 'sm')}</div>`;
+    const g = TG.G, S = TG.S; const mt = e.morale < 35 ? 'bad' : e.morale < 55 ? 'warn' : 'good';
+    /* v9: skill, pay vs market value, personality and poach risk on every worker row */
+    const po = S.poachOdds(g, b, e, true); const pd = S.persDef(e); const gp = po.gap;
+    const payTxt = Math.abs(gp) < 0.03 ? 'fair pay' : gp > 0 ? `${U.pct(gp)} under market` : `${U.pct(-gp)} over market`;
+    const mgr = S.mgrHelpers(b).find((h) => h.e === e);
+    return `<div class="row sp" style="border-bottom:1px solid #eee;padding:4px 0"><div class="grow"><b>${esc(e.name)}</b> <span class="mute">${esc(label)}</span>${e.trainee ? ' <span class="pill">🌱 trainee</span>' : ''}<span title="personality"> ${e.persSeen ? pd.icon : '❓'}</span>
+      <div class="small">⭐ skill ${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)} · 💵 ${m(e.wage)}/mo · 📈 market ${m(po.mv)} <span class="${gp > (TG.CONFIG.staff.poach.tol || 0) ? 'warn' : ''}">(${payTxt})</span> · ${UI.pill('morale ' + Math.round(e.morale), mt)} · ${UI.pill('🎯 ' + U.pct(po.p, 1) + '/mo', po.tone)}${(e.away || 0) > 0 ? ` · 🎓 training ${U.pct(e.away)} of this month` : ''}${mgr ? ` · 🛠️ also works at ${Math.round(mgr.frac * 100)}% of a worker` : ''}</div></div>${UI.btn('Manage', 'emp', e.id, 'sm')}</div>`;
   }
   UI.A.tgt = (arg) => { const b = biz(); const [r, dv] = arg.split('|'); b.target[r] = Math.max(0, (b.target[r] || 0) + Number(dv)); UI.refresh(); };
   UI.A.hireRole = (v) => { UI.S.hireRole = v; UI.tab.biz = 'staff'; UI.refresh(); setTimeout(() => { const el = typeof document !== 'undefined' && document.getElementById('hireCard'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }, 0); };
@@ -7709,9 +7886,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.A.emp = (id) => {
     const g = TG.G, b = biz(), C = TG.CONFIG; const e = TG.S.allStaff(b).find((x) => x.id === id); if (!e) return UI.closeModal();
     const isSpec = !!C.specialists[e.role];
-    UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${e.skillSeen != null ? e.skillSeen : e.skill}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
-      ${UI.skillInfo(g, b, e)}
-      <div class="btns">${UI.btn(`Train basic ${m(C.staff.trainBasic.cost)}`, 'empDo', `${id}|train`, 'sm')}${UI.btn(`Train advanced ${m(C.staff.trainAdvanced.cost)}`, 'empDo', `${id}|trainA`, 'sm')}${UI.btn(`Raise +${U.pct(C.staff.raisePct)}`, 'empDo', `${id}|raise`, 'sm')}${UI.btn(`Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div><div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
+    UI.modal(esc(e.name), `<div class="card"><div class="kv"><span>Role</span><span>${esc(TG.S.roleDef(b, e.role).label)}</span><span>Skill</span><span>${Math.round(e.skillSeen != null ? e.skillSeen : e.skill)}</span><span>Morale</span><span>${Math.round(e.morale)}</span><span>Loyalty</span><span>${Math.round(e.loyalty)}</span><span>Attitude</span><span>${e.attitude}</span><span>Wage</span><span>${m(e.wage)}/mo</span></div><div class="mute">${traitTxt(e)}</div>
+      ${UI.skillInfo(g, b, e)}${UI.payCard(g, b, e)}${UI.trainCard(g, b, e)}
+      <div class="btns">${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'empDo', `${id}|bonus`, 'sm')}</div><div class="small">This month left: 🎓 ${TG.S.usesLeft(g, e, 'train')} · 💵 raise ${TG.S.usesLeft(g, e, 'raise')} · 🎁 bonus ${TG.S.usesLeft(g, e, 'bonus')} ${UI.tipBtn('spamE')}</div>${UI.tipLine('spamE', 'Each person can get 2 trainings, 1 raise and 1 bonus a month. Doing more backfires: it costs money, gives nothing and lowers morale.')}<div class="btns">
       ${UI.btn(`Fire (severance ${m(e.wage * C.staff.severanceMonths)})`, 'empDo', `${id}|fire`, 'sm badb')}</div>
       ${!isSpec ? `<div class="row" style="margin-top:8px"><span class="small">Promote to</span><select id="promRole">${Object.entries(C.specialists).map(([k, s]) => `<option value="${k}">${esc(s.label)}${b.spec[k] ? ' (replaces current)' : ''}</option>`).join('')}</select>${UI.btn('Promote', 'empDo', `${id}|promote`, 'sm')}</div><div class="mute">A promoted worker's management skill can surprise you either way.</div>` : ''}</div>`);
   };
@@ -7736,10 +7913,33 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     rows.push(['⭐', 'Team quality (avg skill)', Math.round(sk), Math.round(up)]);
     return `<div class="card"><h3 style="margin-top:0">🧠 What skill ${Math.round(sk)} does</h3>${rows.map(([i, t, a, z, u]) => UI.irow('sk' + e.id + t, i, t, `${typeof a === 'number' ? a.toLocaleString() : a} → ${typeof z === 'number' ? z.toLocaleString() : z}`, `Now ${a}${u ? ' ' + u : ''}. At skill ${up}: ${z}. Training raises skill; reliability (${e.reliability}) sets how often they show up.`)).join('')}</div>`;
   };
+  // v9: pay vs market value, personality, poach risk and raises, with numbers before you click
+  UI.payCard = (g, b, e) => {
+    const S = TG.S, C = TG.CONFIG; const po = S.poachOdds(g, b, e, true); const pd = S.persDef(e); const id = e.id;
+    const r1 = S.raisePreview(g, b, e, 'pct'), r2 = S.raisePreview(g, b, e, 'market'); const left = S.usesLeft(g, e, 'raise');
+    let o = `<div class="card"><h3 style="margin-top:0">💵 Pay & keeping them ${UI.tipBtn('pay' + id)}</h3>${UI.tipLine('pay' + id, `Market value = what other companies would pay for skill ${Math.round(e.skill)} here. Pay under it and they may get hired away: the 🎯 odds below are per month. Small gaps (under ${U.pct(C.staff.poach.tol || 0)}) rarely matter. Higher skill = more companies want them.`)}`;
+    o += UI.irow('pw' + id, '💵', 'Pay', `${m(e.wage)}/mo`, `What you pay now, plus ${U.pct(C.staff.payrollTax)} payroll tax.`);
+    o += UI.irow('pm' + id, '📈', 'Market value', `${m(po.mv)}/mo`, `Other companies would pay about this for skill ${Math.round(e.skill)} in this area. Skill from your training counts fully; skill they picked up just doing the job here counts ${U.pct(C.staff.expMarket)} (it is partly specific to your shop)${e.expGain ? `: ${Math.round(e.expGain)} of their skill points came that way` : ''}.`, null, po.gap > 0.02 ? `you pay ${U.pct(po.gap)} under` : po.gap < -0.02 ? `you pay ${U.pct(-po.gap)} over` : 'about fair');
+    o += UI.irow('pp' + id, e.persSeen ? pd.icon : '❓', 'Personality', e.persSeen ? pd.label : 'not known yet', e.persSeen ? `${pd.txt} Offers tempt them x${pd.poach}; if you match an offer they stay ${U.pct(pd.accept)} of the time.` : `Shows after about 3 months working for you (an HR manager can spot it when hiring). Until then we assume Steady. 🤝 Loyal stay cheap; 📈 Climbers chase pay.`);
+    o += UI.irow('pr' + id, '🎯', 'Chance another company hires them away', UI.pill(U.pct(po.p, 1) + '/mo', po.tone), `About ${U.pct(1 - Math.pow(1 - po.p, 12))} over a year at this pay. Why: ${po.reasons.join('; ')}. When it happens you get a card: match their offer or let them go.`);
+    o += `<div class="btns">${UI.btn(`💵 +${U.pct(C.staff.raisePct)} → ${m(r1.to)} (+${m(r1.cost)}/mo) · 🎯 ${r1.pNow < 0.001 ? 'no job-offer risk now' : `${U.pct(r1.pNow, 1)} → ${U.pct(r1.pAfter, 1)}`}`, 'empDo', `${id}|raise`, 'sm')}${r2.to > r1.to ? UI.btn(`📈 To market ${m(r2.to)} (+${m(r2.cost)}/mo)${r1.pNow < 0.001 ? '' : ` · 🎯 → ${U.pct(r2.pAfter, 1)}`}`, 'empDo', `${id}|raiseM`, 'sm') : ''}</div>`;
+    o += `<div class="mute">+/mo includes ${U.pct(C.staff.payrollTax)} payroll tax. Raises also lift morale and loyalty. ${left > 0 ? `${left} raise left this month.` : 'No more raises this month (another would backfire).'}</div></div>`;
+    return o;
+  };
+  UI.trainCard = (g, b, e) => {
+    const S = TG.S, C = TG.CONFIG; const id = e.id; const left = S.usesLeft(g, e, 'train');
+    const row = (lvl, act) => { const p = S.trainPreview(g, b, e, lvl); return `<div class="ev"><div class="row sp"><b>${lvl === 'advanced' ? '🎓 Advanced' : '📘 Basic'} training</b><span>${m(p.cost)}</span></div>
+      <div class="small">⭐ skill +${p.lo} to +${p.hi} (usually about +${p.avg}) · ⏳ away ${U.pct(p.away)} of this month · ${p.noStick ? `🎲 ${U.pct(p.noStick)} chance it barely sticks · ` : ''}📈 market value ${m(p.mv0)} → ~${m(p.mv1)}</div>
+      <div class="btns">${UI.btn(`${lvl === 'advanced' ? '🎓' : '📘'} Train ${m(p.cost)}`, 'empDo', `${id}|${act}`, 'sm' + (left > 0 ? '' : ' badb'))}</div></div>`; };
+    const dim = S.trainDim(e.skill);
+    return `<div class="card"><h3 style="margin-top:0">🎓 Training ${UI.tipBtn('tr' + id)}</h3>${UI.tipLine('tr' + id, `Training raises skill: more work done and better quality. It takes part of their month (less work done now) and how much they gain depends on how fast they learn. Above skill 60 gains shrink${dim < 1 ? ` (now x${dim.toFixed(2)})` : ''}. Skilled people are worth more to other companies, so you may need to raise their pay later to keep them.`)}
+      ${UI.irow('tl' + id, '🧠', 'How they learn', S.learnLabel(e), 'Found out at the first training. Fast learners gain much more; a few people barely learn.')}
+      ${row('basic', 'train')}${row('advanced', 'trainA')}<div class="mute">${left > 0 ? `${left} training${left > 1 ? 's' : ''} left this month.` : 'No more training this month: more would burn them out (morale down, no skill).'}</div></div>`;
+  };
   UI.A.empDo = (arg) => {
     const g = TG.G, b = biz(); const [id, act] = arg.split('|');
-    if (act === 'train' || act === 'trainA') { const r = TG.S.train(g, b, id, act === 'trainA' ? 'advanced' : 'basic'); if (!r) return UI.toast('Not enough cash.', true); UI.toast(r.spam ? 'Too much training this month: burned out (morale down, no skill).' : r.gain > 0 ? `Skill +${r.gain}` : 'Training did not stick (slow learner).', r.gain <= 0); }
-    if (act === 'raise') { const r = TG.S.raise(g, b, id); UI.toast(r && r.spam ? 'Another raise this month? Payroll said no and it felt like a broken promise (morale down).' : 'Raise given: morale and loyalty up.', r && r.spam); }
+    if (act === 'train' || act === 'trainA') { const r = TG.S.train(g, b, id, act === 'trainA' ? 'advanced' : 'basic'); if (!r) return UI.toast('Not enough cash.', true); UI.toast(r.spam ? 'Too much training this month: burned out (morale down, no skill).' : r.gain > 0 ? `Skill +${r.gain}. They spend ${U.pct(r.away)} of this month training. Market value ${m(r.mv0)} → ${m(r.mv1)}.` : 'Training did not stick (slow learner). Now you know how they learn.', r.gain <= 0); }
+    if (act === 'raise' || act === 'raiseM') { const r = TG.S.raise(g, b, id, act === 'raiseM' ? 'market' : 'pct'); UI.toast(r && r.spam ? 'Another raise this month? Payroll said no and it felt like a broken promise (morale down).' : r ? `Raise: ${m(r.from)} → ${m(r.to)}/mo. Morale and loyalty up.` : 'Not found.', r && r.spam); }
     if (act === 'bonus') { const r = TG.S.bonus(g, b, id); UI.toast(r && r.spam ? 'Another bonus this month means less each time (morale down).' : 'Bonus paid.', r && r.spam); }
     if (act === 'fire') { TG.S.fire(g, b, id, 'fired'); const c = {}; for (const e of b.staff) c[e.role] = (c[e.role] || 0) + 1; for (const r in b.target) b.target[r] = Math.min(b.target[r], Math.max(c[r] || 0, 0)); UI.closeModal(); UI.toast('Let go.'); return UI.refresh(); }
     if (act === 'promote') { const e = TG.S.promote(g, b, id, UI.val('promRole')); if (e) UI.toast(`${e.name} promoted. True manager skill: ${e.skill}.`); UI.closeModal(); return UI.refresh(); }
@@ -7947,7 +8147,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (!h) return fill + UI.btn('🤖 Auto: needs a manager', 'stAutoNo', null, 'xs');
     return fill + UI.btn(st.auto ? `🤖 Auto ✓ (${esc((TG.CONFIG.specialists[h.role] || { label: 'CEO' }).label)})` : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : ''));
   };
-  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire a Shift lead, Ops manager or GM in Staff to do it.', true);
+  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire an Ops manager or GM in Staff to do it.', true);
   // ================= STOCK CARD (every business) =================
   UI.stockCard = (g, b) => {
     const d = TG.B.def(b); let rows = ''; let title = '📦 What you have';
@@ -7997,11 +8197,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
       o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(a.herd, cap, true)}</div>`;
-      o += `<div class="small herdchips" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `<span title="${esc(HC.stages[k].what || '')}">${HC.stages[k].icon} ${N(Math.floor(a.st[k] || 0))} ${esc(HC.stages[k].label.toLowerCase())}</span>`).join('')}</div>`;
+      o += `<div class="small herdchips" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `<span data-act="tip" data-arg="hc${b.id}${k}" data-nosave="1" style="cursor:pointer">${HC.stages[k].icon} ${N(Math.floor(a.st[k] || 0))} ${esc(HC.stages[k].label.toLowerCase())}</span>`).join('')} ${UI.tipBtn('hc' + b.id + 'all')}</div>${UI.tipLine('hc' + b.id + 'all', 'Tap any group (calves, heifers...) to see what it does, what it costs and what to do with it.')}${TG.M.cowStages.map((k) => UI.cowStageTip ? UI.tipLine('hc' + b.id + k, `${HC.stages[k].icon} ${HC.stages[k].label}: ${UI.cowStageTip(g, b, k)}`) : '').join('')}`;
       const fm = TG.M.feedMonths(g, b);
       o += UI.irow('fd' + b.id, '🌽', 'Feed in storage', `${N(f.feed || 0)} t`, `Cows eat grass first, then feed from storage (winter and dry months need lots). Next month they need about ${N(fc.buy)} t of feed. Feed costs ${m(TG.M.feedPrice(g))}/t. No feed = hungry cows: less milk, more sickness and deaths.${mgr ? ' Your manager keeps it topped up (Manager tab).' : ' No manager: you must buy it yourself.'}`,
         qty('qFeed', Math.max(Math.round(fc.buy * 2 - (f.feed || 0)), Math.round(TG.M.feedNeed(a) || 1), 1)) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
-      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(Math.floor(a.st.ready || 0)), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', Math.floor(a.st.ready || 0) || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
+      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(Math.floor(a.st.ready || 0)), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', Math.floor(a.st.ready || 0) || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'), (() => { const n = Math.floor(a.st.ready || 0); return n ? `${m(Math.round(n * HC.stages.ready.feed * TG.M.feedPrice(g)))}/mo feed · worth ~${m(Math.round(n * TG.M.cowValue(g, 'ready') * HC.sellDrop))} as meat` : 'none ready yet'; })());
+      { const n = Math.floor(a.st.dry || 0); const auto = !!(mgr && (((f.orders && f.orders.cows) || TG.M.cowOrderDefaults()).cullDry));
+        o += UI.irow('dryN' + b.id, '👵', 'Dry / old cows', N(n), UI.cowStageTip ? UI.cowStageTip(g, b, 'dry') : HC.stages.dry.what, qty('qDry', n || 1) + UI.btn('💵 Sell', 'cowSell', 'dry', 'xs goodb'), n ? `no milk · ${m(Math.round(n * HC.stages.dry.feed * TG.M.feedPrice(g)))}/mo feed · worth ~${m(Math.round(n * TG.M.cowValue(g, 'dry') * HC.sellDrop))} as meat${auto ? ' · manager sells them monthly' : ''}` : (auto ? 'none · manager sells them monthly' : 'none right now')); }
       const pc = TG.M.farmParlorCap(b); o += UI.irow('mlk' + b.id, '🥛', 'Cows milked', `${N(Math.min(a.st.milker, pc))}/${N(a.st.milker)}`, `A milking parlor milks ${N(160)} cows. The dairy truck collects milk every day and sells it at your milk price. Unmilked cows make nothing.`, UI.btn('+ Parlor', 'tab', 'biz:equip', 'xs'), `about ${N(Math.min(a.st.milker, pc) * TG.M.areaE(b, 'cows').milkPerCow)} t milk / month`);
     }
     const cap = TG.M.farmStoreCap(b), used = TG.M.farmStoreUsed(b);
@@ -8017,7 +8219,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     return { title: '🚜 Farm', rows: o };
   }
   UI.A.cowBuy = (k) => after(TG.M.farmBuyCattle(TG.G, biz(), UI.num('qc_' + (k || 'milker'), 0), k || 'milker'), 'Bought.');
-  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${N(r.head)} for ${m(r.rev)}.` : null); };
+  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : k === 'dry' && document.getElementById('qDry') ? 'qDry' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${N(r.head)} for ${m(r.rev)}.` : null); };
   UI.A.feedBuy = () => { const want = Math.round(UI.num('qFeed', 0)); const r = TG.M.farmBuyFeed(TG.G, biz(), want, 'You'); after(r, r.ok ? `Bought ${N(r.tons)}${r.tons < want - 0.5 ? ` of ${N(want)}` : ''} t of feed for ${m(r.cost)}${r.tons < want - 0.5 ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
   UI.A.cropSell = (good) => { const g = TG.G, b = biz(); good = good || 'grain'; const t = Math.min(UI.num('q' + good, 0), b.farm.stored[good] || 0); if (!(t > 0)) return UI.toast('Nothing stored.', true); const v = TG.M.models.farm.sellStored(g, b, good, t); UI.toast(v > 0 ? `Sold for ${m(v)}.` : 'Buyers said no at your price.', !(v > 0)); UI.refresh(); };
   UI.A.seedBuy = () => { const g = TG.G, want = Math.round(UI.num('qSeed', 0)); const c0 = g.cash; const r = TG.M.farmBuySeeds(g, biz(), want); after(r, r.ok ? `Bought seed for ${N(r.acres)}${r.acres < want ? ` of ${N(want)}` : ''} acres for ${m(c0 - g.cash)}${r.acres < want ? ` (${TG.M.farmStoreFree(biz()) < 1 ? 'storage full' : 'not enough cash'})` : ''}.` : null); };
@@ -8225,7 +8427,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const t = TG.WK.tone(w.util); const k = 'wk' + b.id + i; const pct = w.cap ? Math.round(w.util * 100) : null;
       const each = w.n > 0 && w.cap ? ` About ${N(w.cap / w.n)} ${w.u} each.` : '';
       const eff = w.kind === 'eq' ? ` Wear speed x${TG.WK.wearMult(w.util).toFixed(1)} (busier = wears faster).` : w.kind === 'staff' ? (w.util > 1 ? ' Over 100%: they get tired, morale drops, mistakes rise.' : w.util < 0.4 ? ' Lots of idle time: you pay wages for little work.' : ' A healthy workload.') : '';
-      return `<div class="link ${i === worst && w.util > 0.9 ? 'weak' : ''}" data-act="tip" data-arg="${k}" data-nosave="1"><span class="ico">${w.i}</span><span class="grow">${esc(w.t)}${w.kind !== 'space' ? ` <span class="mute">x${w.n}</span>` : ''}${w.cap ? `<div class="bar ${t === 'r' ? 'bad' : t === 'y' ? 'warn' : ''}"><i style="width:${Math.round(Math.min(1, w.util) * 100)}%"></i></div>` : ''}</span><span style="text-align:right"><b>${N(w.load)}/${w.cap == null ? '–' : N(w.cap)}</b><br>${pct != null ? UI.pill(pct + '%', tone[t]) : UI.pill('none!', 'bad')}</span></div>${UI.tipLine(k, `${w.tip}${each}${eff} (${w.u})`)}`;
+      return `<div class="link ${i === worst && w.util > 0.9 ? 'weak' : ''}" data-act="tip" data-arg="${k}" data-nosave="1"><span class="ico">${w.i}</span><span class="grow">${esc(w.t)}${w.kind !== 'space' ? ` <span class="mute">x${w.own != null ? w.own : w.n}</span>${w.brk ? ` <span class="bad small">🔧 ${w.brk} broken</span>` : ''}` : ''}${w.cap ? `<div class="bar ${t === 'r' ? 'bad' : t === 'y' ? 'warn' : ''}"><i style="width:${Math.round(Math.min(1, w.util) * 100)}%"></i></div>` : ''}</span><span style="text-align:right"><b>${N(w.load)}/${w.cap == null ? '–' : N(w.cap)}</b><br>${pct != null ? UI.pill(pct + '%', tone[t]) : UI.pill(w.brk ? 'broken!' : 'none!', 'bad')}</span></div>${UI.tipLine(k, `${w.tip}${each}${eff} (${w.u})${w.brk ? ` You own ${w.own}; ${w.brk} ${w.brk > 1 ? 'are' : 'is'} broken and do${w.brk > 1 ? '' : 'es'} no work until fixed (🛠️ Gear tab).` : ''}`)}`;
     }).join('');
     return `<div class="card"><h3>💪 Work this month ${UI.tipBtn('wk' + b.id)}</h3>${UI.tipLine('wk' + b.id, 'Each team and machine group can do a set amount of work. Busy = number on the left, most they can do = right. The red one is what holds you back.')}${rows}
       <div class="btns">${UI.btn('👥 See staff', 'detail', 'staff', 'sm')}${UI.btn('🛠️ See machines', 'detail', 'equip', 'sm')}</div></div>`;
@@ -8291,7 +8493,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (b.farm && (b.farm.areas.cows.herd > 0 || b.farm.areas.cows.acres > 0)) {
       const a = b.farm.areas.cows, HC = TG.CONFIG.cows, M = TG.M; M.herdSync(a); const fc = M.herdForecast(g, b);
       o += `<div class="card"><h3>🐄 Herd by stage</h3><div class="mute">calf → heifer (no milk) → milking cow → dry/old cow → sell · calf → steer → market-ready → sell</div>${M.cowStages.map((k) => { const S = HC.stages[k];
-        return UI.irow('cw' + k, S.icon, S.label, N(a.st[k]), `${S.what} Eats ${S.feed} t a month. Worth about ${m(M.cowValue(g, k))} for meat.`, qty('qc_' + k, Math.max(1, Math.round(a.st[k] || 1))) + UI.btn('💵 Sell', 'cowSell', k, 'xs') + UI.btn('🛒 Buy', 'cowBuy', k, 'xs goodb'), `buy ${m(M.cowPrice(g, b, k))}`); }).join('')}
+        return UI.irow('cw' + k, S.icon, S.label, N(a.st[k]), (UI.cowStageTip ? UI.cowStageTip(g, b, k) : `${S.what} Eats ${S.feed} t a month. Worth about ${m(M.cowValue(g, k))} for meat.`), qty('qc_' + k, Math.max(1, Math.round(a.st[k] || 1))) + UI.btn('💵 Sell', 'cowSell', k, 'xs') + UI.btn('🛒 Buy', 'cowBuy', k, 'xs goodb'), `buy ${m(M.cowPrice(g, b, k))}`); }).join('')}
         <div class="mute">Total ${N(a.herd)} of ${N(M.farmHeadCap(b))} room · health ${U.pct(a.health || 0)}.</div></div>`;
       const bf = M.bullF(a), br = M.breeders(a);
       o += `<div class="card"><h3>🐮 Calves</h3>${UI.irow('cb1', '🐃', 'Bulls for your cows', `${N(a.st.bull)} for ${N(br)}`, `One bull covers about ${HC.breed.bullPer} cows. No bull = only ${U.pct(HC.breed.noBull)} of the calves (borrowed bulls).`, null, `breeding x${bf.toFixed(2)}`)}
@@ -8459,22 +8661,33 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   // ---------- investing ----------
   function inv(g) {
-    const I = TG.I, A = TG.CONFIG.invest.assets, iv = g.invest;
-    let o = `<div class="card"><div class="kv"><span>Portfolio</span><span>${m(I.posValue(g))}</span><span>Margin debt</span><span>${m(iv.marginDebt)}</span><span>Angel stakes (est.)</span><span>${m(I.angelValue(g))}</span></div>
-      ${iv.marginDebt > 0 ? `<div class="row" style="margin-top:6px"><input type="number" id="mgAmt" placeholder="amount">${UI.btn('Repay margin', 'mgRepay', null, 'sm')}</div><div class="mute">If equity falls below ${U.pct(TG.CONFIG.invest.margin.callAt)} of the position, a margin call force-sells.</div>` : ''}</div>`;
-    o += `<div class="card"><h3 style="margin-top:0">Markets</h3><div class="mute">Prices move randomly with the economy. Penny stocks and coins drift down on average and can go to zero. No patterns to exploit.</div>`;
+    const I = TG.I, IC = TG.CONFIG.invest, A = IC.assets, iv = g.invest, w = g.world;
+    const fee = U.pct(IC.tradeFee, 1), mgRate = U.pct(w.baseRate + IC.margin.spread, 1), callAt = U.pct(IC.margin.callAt);
+    /* v9: every number and section on the investing screen has an "i" that explains it */
+    let o = `<div class="card"><h3 style="margin-top:0">📈 Your investments ${UI.tipBtn('ivIntro')}</h3>${UI.tipLine('ivIntro', `Put spare cash into stocks to grow it. Prices go up and down every month, mostly with the economy (now: ${w.phase}). Nobody can predict next month: there are no patterns. Each buy and each sale costs a ${fee} fee. Money in stocks is not cash: sell first if you need it.`)}`;
+    o += UI.irow('ivPort', '💼', 'Portfolio', m(I.posValue(g)), 'What everything you own would sell for at today\'s prices (before the sale fee). It changes every month.');
+    o += UI.irow('ivMg', '🏦', 'Margin debt', m(iv.marginDebt), `Money the broker lent you to buy more ("Buy w/ margin"). You pay ${mgRate}/yr interest on it every month. If your stocks fall so that your own share is under ${callAt} of their value, the broker sells EVERYTHING (a margin call). Selling pays this back first.`);
+    o += UI.irow('ivAng', '👼', 'Angel stakes (est.)', m(I.angelValue(g)), 'Your money in startups. It is locked until each one ends. Until an update arrives we guess 70% of what you put in.');
+    o += iv.marginDebt > 0 ? `<div class="row" style="margin-top:6px"><input type="number" id="mgAmt" placeholder="amount">${UI.btn('Repay margin', 'mgRepay', null, 'sm')}</div><div class="mute">If equity falls below ${callAt} of the position, a margin call force-sells.</div>` : '';
+    o += '</div>';
+    o += `<div class="card"><h3 style="margin-top:0">Markets ${UI.tipBtn('ivMk')}</h3>${UI.tipLine('ivMk', `Price = what one share costs now. "1y" = change over the last 12 months (green up, red down). "Swings" = how far it typically moves in one month. The line shows the last 5 years. Booms push prices up, recessions down; now and then the whole market crashes 18-35%. Penny stocks and coins drift down on average and can go to zero.`)}<div class="mute">Prices move randomly with the economy. Penny stocks and coins drift down on average and can go to zero. No patterns to exploit.</div>`;
     for (const [s, a] of Object.entries(A)) {
       if (a.kind !== 'stock' && !g.settings.gambling) continue;
       const p = iv.prices[s]; const h = iv.hist[s] || []; const pos = iv.pos[s]; const val = pos ? pos.qty * p : 0; const prev = h.length > 12 ? h[h.length - 13] : h[0];
-      o += `<div class="ev ${a.kind !== 'stock' ? 'warn' : ''}"><div class="row sp"><b>${s} · ${esc(a.label)}</b><span>${p > 0 ? p.toFixed(p < 5 ? 3 : 2) : 'delisted'} ${prev ? `<span class="${UI.tone(p - prev)} small">${p >= prev ? '+' : ''}${U.pct((p - prev) / prev)} 1y</span>` : ''}</span></div>
-        <div class="small">${a.kind === 'stock' ? `volatility ${U.pct(a.sd)}/mo` : UI.pill(`high risk: ${U.pct(a.zero || 0, 1)}/mo chance of going to zero`, 'bad')}${pos ? ` · you own ${m(val)} (cost ${m(pos.cost)}, ${UI.signed(val - pos.cost)})` : ''}</div>
+      const yr = Math.exp(12 * (a.mu - a.sd * a.sd / 2)) - 1, yrSd = a.sd * Math.sqrt(12);
+      const tk = 'iv_' + s;
+      const tip = `${a.desc || ''} On its own it averages about ${yr >= 0 ? '+' : ''}${U.pct(yr, 1)} a year, plus ${a.beta}x whatever the whole market does. In a normal year it can easily end anywhere from ${U.pct(Math.max(-0.95, Math.exp(-yrSd) - 1))} to +${U.pct(Math.exp(yrSd) - 1)}.${a.zero ? ` Each month there is a ${U.pct(a.zero, 1)} chance it goes to zero (about ${U.pct(1 - Math.pow(1 - a.zero, 12))} a year): you lose everything in it.` : ''}${pos ? ` You paid ${m(pos.cost)} in total; it is worth ${m(val)} now.` : ''}`;
+      o += `<div class="ev ${a.kind !== 'stock' ? 'warn' : ''}"><div class="row sp"><b data-act="tip" data-arg="${tk}" data-nosave="1">${s} · ${esc(a.label)}</b><span>${p > 0 ? p.toFixed(p < 5 ? 3 : 2) : 'delisted'} ${prev ? `<span class="${UI.tone(p - prev)} small">${p >= prev ? '+' : ''}${U.pct((p - prev) / prev)} 1y</span>` : ''}${UI.tipBtn(tk)}</span></div>${UI.tipLine(tk, tip)}
+        <div class="small">${a.kind === 'stock' ? `swings ±${U.pct(a.sd)}/mo` : UI.pill(`high risk: ${U.pct(a.zero || 0, 1)}/mo chance of going to zero`, 'bad')}${pos ? ` · you own ${m(val)} (cost ${m(pos.cost)}, ${UI.signed(val - pos.cost)})` : ''}</div>
         ${UI.spark(h.slice(-60), '#1d4ed8')}
         <div class="row"><input type="number" id="amt_${s}" placeholder="$ amount">${UI.btn('Buy', 'invBuy', `${s}|0`, 'sm')}${g.settings.gambling ? UI.btn('Buy w/ margin', 'invBuy', `${s}|1`, 'sm') : ''}${pos ? UI.btn('Sell half', 'invSell', `${s}|0.5`, 'sm') + UI.btn('Sell all', 'invSell', `${s}|1`, 'sm') : ''}</div></div>`;
     }
+    o += `<div class="row" style="margin-top:6px"><span class="small">How buying works</span>${UI.tipBtn('ivBuy')}</div>${UI.tipLine('ivBuy', `Type a dollar amount and tap Buy: that much cash turns into shares, plus a ${fee} fee. Sell half / Sell all turns shares back into cash at today's price, minus ${fee}.${g.settings.gambling ? ` Buy w/ margin: the broker lends up to half (you can borrow up to ${IC.margin.maxLev}x your own money). Gains AND losses are bigger, you pay ${mgRate}/yr interest, and if prices fall far you lose everything in a margin call.` : ''}`)}`;
     o += '</div>';
     if (g.settings.gambling) {
-      o += `<div class="card"><h3 style="margin-top:0">Angel investing</h3><div class="mute">Most startups fail (about two in three return nothing). A rare few return 15x+. Money is locked for years.</div>
-        ${iv.angelOffers.map((a) => `<div class="ev"><div class="row sp"><b>${esc(a.name)}</b><span>min ${m(a.min)}</span></div><div class="small">${esc(a.sector)} · ${esc(a.buzz)}</div><div class="row"><input type="number" id="ang_${a.id}" value="${a.min}">${UI.btn('Invest', 'angel', a.id, 'sm')}</div></div>`).join('') || '<div class="mute">No pitches right now.</div>'}
+      const oc = IC.angel.outcomes;
+      o += `<div class="card"><h3 style="margin-top:0">Angel investing ${UI.tipBtn('ivAngel')}</h3>${UI.tipLine('ivAngel', `You give a young startup money for a small piece of it. The money is locked for ${Math.round(IC.angel.horizon[0] / 12)}-${Math.round(IC.angel.horizon[1] / 12)} years. Odds for each one: ${U.pct(oc[0][0])} fail (you get $0), ${U.pct(oc[1][0])} return ${oc[1][1]}-${oc[1][2]}x, ${U.pct(oc[2][0], 1)} return ${oc[2][1]}-${oc[2][2]}x, ${U.pct(oc[3][0], 1)} return ${oc[3][1]}-${oc[3][2]}x. Halfway through you get an update. Spread small amounts over many startups.`)}<div class="mute">Most startups fail (about two in three return nothing). A rare few return 15x+. Money is locked for years.</div>
+        ${iv.angelOffers.map((a) => `<div class="ev"><div class="row sp"><b>${esc(a.name)}</b><span>min ${m(a.min)}${UI.tipBtn('ivAo' + a.id)}</span></div>${UI.tipLine('ivAo' + a.id, `${a.name} makes ${a.sector}. "${a.buzz}." The buzz is only a hint: about ${a.buzz[0] === 'S' ? '58' : a.buzz[0] === 'P' ? '38' : '20'}% of pitches that sound like this return any money (34% on average). Even good-sounding ones often fail. The least you can put in is ${m(a.min)}.`)}<div class="small">${esc(a.sector)} · ${esc(a.buzz)}</div><div class="row"><input type="number" id="ang_${a.id}" value="${a.min}">${UI.btn('Invest', 'angel', a.id, 'sm')}</div></div>`).join('') || '<div class="mute">No pitches right now.</div>'}
         ${iv.angels.length ? `<h3>Your stakes</h3>${iv.angels.map((a) => `<div class="small">${esc(a.name)} (${esc(a.sector)}): ${m(a.amt)} in, ${a.left} mo to exit${a.mark != null ? `, marked at ${a.mark.toFixed(2)}x` : ''}</div>`).join('')}` : ''}</div>`;
     }
     return o;
@@ -8492,11 +8705,11 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       <div class="row" style="margin-top:6px"><span>Bet</span><input type="number" id="betAmt" value="${amt}" min="${CC.minBet}" max="${I.betLimit(g)}"></div>
       <div class="mute">Every game has a house edge: over time you lose. Limits keep it from becoming a strategy.${g.invest.habit > 40 ? ' <b class="warn">Your gambling habit is growing: you may start chasing losses on your own.</b>' : ''}${c.banned ? ' <b class="bad">You are banned from the casino.</b>' : ''}</div>
       ${UI.S.lastBet ? `<div class="ev ${UI.S.lastBet.win ? 'good' : 'bad'}">${esc(UI.S.lastBet.text)}</div>` : ''}</div>`;
-    o += `<div class="card"><h3 style="margin-top:0">🎰 Casino</h3><div class="btns">${Object.entries(CC.games).map(([k, gm]) => UI.btn(`${esc(gm.label)}${gm.pays ? ` (pays ${gm.pays}:1)` : ` (${U.pct(gm.rtp)} return)`}`, 'bet', `c|${k}`, 'sm')).join('')}</div></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">🎰 Casino ${UI.tipBtn('csCas')}</h3>${UI.tipLine('csCas', `Pick a game; your bet is the amount above. Roulette red/black wins 18 in 37 (pays 1:1), dozen 12 in 37 (pays 2:1), one number 1 in 37 (pays 35:1). Dice wins 15 in 36 (pays 1.3:1). Slots pay back ${U.pct(CC.games.slots.rtp)} of bets on average. Every game loses a little each bet on average, so the more you play, the surer you lose. Max ${CC.betsPerMonth} bets a month, bets of ${U.money(CC.minBet)}-${U.money(I.betLimit(g))}.`)}<div class="btns">${Object.entries(CC.games).map(([k, gm]) => UI.btn(`${esc(gm.label)}${gm.pays ? ` (pays ${gm.pays}:1)` : ` (${U.pct(gm.rtp)} return)`}`, 'bet', `c|${k}`, 'sm')).join('')}</div></div>`;
     const r = g.invest.race;
-    o += `<div class="card"><h3 style="margin-top:0">🏇 Horse race</h3>${r.horses.map((h, i) => `<div class="row sp small"><span>${esc(h.name)}</span><span>${h.odds.toFixed(2)}x ${UI.btn('Bet', 'bet', `h|${i}`, 'sm')}</span></div>`).join('')}</div>`;
+    o += `<div class="card"><h3 style="margin-top:0">🏇 Horse race ${UI.tipBtn('csHr')}</h3>${UI.tipLine('csHr', `The number is what you get back per $1 if that horse wins (2.50x = $250 back on a $100 bet). Lower number = more likely to win. The track keeps about ${U.pct(1 - 1 / CC.horses.overround)} of all bets, so on average you lose.`)}${r.horses.map((h, i) => `<div class="row sp small"><span>${esc(h.name)}</span><span>${h.odds.toFixed(2)}x ${UI.btn('Bet', 'bet', `h|${i}`, 'sm')}</span></div>`).join('')}</div>`;
     const gm = g.invest.game;
-    o += `<div class="card"><h3 style="margin-top:0">🏈 Sports</h3><div class="row sp small"><span>${esc(gm.a)}</span><span>${gm.oddsA.toFixed(2)}x ${UI.btn('Bet', 'bet', 's|a', 'sm')}</span></div><div class="row sp small"><span>${esc(gm.b)}</span><span>${gm.oddsB.toFixed(2)}x ${UI.btn('Bet', 'bet', 's|b', 'sm')}</span></div></div>`;
+    o += `<div class="card"><h3 style="margin-top:0">🏈 Sports ${UI.tipBtn('csSp')}</h3>${UI.tipLine('csSp', `Bet on which team wins. The number is what you get back per $1 if you are right. The favorite has the lower number. The bookmaker keeps about ${U.pct(CC.sports.vig, 1)}, so on average you lose.`)}<div class="row sp small"><span>${esc(gm.a)}</span><span>${gm.oddsA.toFixed(2)}x ${UI.btn('Bet', 'bet', 's|a', 'sm')}</span></div><div class="row sp small"><span>${esc(gm.b)}</span><span>${gm.oddsB.toFixed(2)}x ${UI.btn('Bet', 'bet', 's|b', 'sm')}</span></div></div>`;
     return o;
   }
   UI.A.bet = (arg) => {
@@ -8617,7 +8830,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     lawn: ['Winter is slow: do not overhire in spring.', 'Mowers wear quickly when every crew is maxed.'],
     auto: ['Each tech needs a lift and the scanner keeps up with all of them.', 'Cutting corners raises lawsuit odds.'],
     gym: ['Members leave after the January rush.', 'Cardio and weights each cap how many members fit.'],
-    farm: ['Split your acres into 🐄 cow, 🌾 crop and 🍎 orchard areas (Land tab). Moving acres costs money and a month or two.', 'Crop and orchard areas have soil % (drops monthly; only YOUR spray brings it back) and water % (sprinkler cover). Cows need grass plus FEED from storage: no feed = sick, thin cows.', 'Cows: calf → heifer → milking cow → dry cow; calf → steer → market-ready. Bulls are needed for calves. Small herds breed faster per cow.', 'No manager = nothing is automatic: you buy seed, feed and supplies, sell cattle and fix machines yourself.', 'Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
+    farm: ['Split your acres into 🐄 cow, 🌾 crop and 🍎 orchard areas (Land tab). Moving acres costs money and a month or two.', 'Crop and orchard areas have soil % (drops monthly; only YOUR spray brings it back) and water % (sprinkler cover). Cows need grass plus FEED from storage: no feed = sick, thin cows.', 'Cows: calf → heifer → milking cow → dry cow; calf → steer → market-ready. Bulls are needed for calves. Small herds breed faster per cow. Tap any group on the herd row to see what it does, costs and what to do.', '👵 Dry / old cows: after about 6 years a milking cow goes dry. Dry cows make NO milk, still eat 0.4 t of feed a month (40% of a full ration), take pasture room and count only 30% as mothers; about 0.4% die each month. Sold for meat they bring about 60% of a market-ready steer\'s price. With no manager they pile up until YOU sell them (farm Now tab: the 👵 Dry / old cows row sits right under 🥩 Market-ready, with a number box and 💵 Sell, just like steers). A GM or Ops manager with the "Sell dry / old cows" order (on by default) sells them every month.', '🥩 Market-ready steers will not get more valuable: sell them. 🐃 Keep one bull per 40 mothers.', 'No manager = nothing is automatic: you buy seed, feed and supplies, sell cattle and fix machines yourself.', 'Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
     freight: ['Diesel is about a third of costs: fill the yard tank when fuel is cheap.', 'Trucks without drivers earn nothing.'],
     brand: ['Test with small batches before a big order.', 'Unsold stock costs storage and loses value.'],
     hotel: ['Housekeepers and laundry both cap rooms cleaned.', 'Reviews drive occupancy: worn rooms hurt.'],
@@ -8660,10 +8873,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       <ul class="plain small"><li>Crime can pay big, and it ruins people often. Careful play earns about as much as a good legit business, with far bigger swings.</li><li>Nothing is guaranteed.</li></ul></div>`;
   }
   function howTo(C) {
-    const rows = [['🏪', 'Start', 'Pick a business and a place in 🗺️ Shop (bottom bar). The place decides how many customers come. Quick setup buys the basics for you and shows the full cost first.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'],
-      ['📦', 'Supplies', 'Most shops sell from supplies (ingredients, parts, fuel). Buy them yourself on the business Now tab before every month (📦 Fill buys about one month). No supplies = shop closed, but wages still get paid. A manager (Shift lead, Ops manager, GM or CEO) can reorder for you: then 🤖 Auto works.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
+    const rows = [['🏪', 'Start', 'Pick a business and a place in 🗺️ Shop (bottom bar). The place decides how many customers come. Quick setup buys the basics for you and shows the full cost first.'], ['🛠️', 'Equip', 'Machines and space set how much you can make or serve each month.'], ['👥', 'Staff', 'Each worker handles a set amount. Training raises it. Too much work makes people unhappy.'], ['🎓', 'Cheap hires & training', 'Trainees (🌱) cost less but know little. Training costs money and part of their month, and raises skill by a range you see first. Higher skill = they are worth more to other companies (📈 market value).'], ['🎯', 'Keeping people', 'Pay someone well under their market value and other companies may hire them away: the 🎯 risk on each worker shows the monthly odds and why. A raise lowers it. 🤝 Loyal people stay cheap; 📈 climbers chase pay.'],
+      ['📦', 'Supplies', 'Most shops sell from supplies (ingredients, parts, fuel). Buy them yourself on the business Now tab before every month (📦 Fill buys about one month). No supplies = shop closed, but wages still get paid. A manager (Ops manager, GM or CEO) can reorder for you: then 🤖 Auto works. GM and Ops managers also work on the job at 25% of a worker.'], ['🏷️', 'Price', 'Follow the market, or set your own price. Higher = fewer buyers.'], ['📊', 'Work bars', 'Green = fine, yellow = busy or idle, red = over 100%: lost sales and fast wear.'],
       ['▶️', 'Next month', 'Press it to play a month. The report shows money in and out and why things happened.'], ['⏩', 'Skip', 'Type a number of months and press Skip to play many months at once. By default it stops early on serious trouble (shop closed, cash below zero, arrests): change it next to the Skip button or in Settings.'],
-      ['👔', 'Managers', 'Without managers you do everything: buy supplies, fix machines, answer decision cards. Hire them in a business Staff tab (Shift lead = supplies only; Ops manager = supplies + machines; General manager = everything). A CEO (More → Managers) covers all businesses.'],
+      ['👔', 'Managers', 'Without managers you do everything: buy supplies, fix machines, answer decision cards. Hire them in a business Staff tab (Ops manager = supplies + machines; General manager = everything). A CEO (More → Managers) covers all businesses.'],
       ['💰', 'Money tab', 'Report shows where every dollar came from and went. Loans: apply and see your approval odds and why. 🏘️ Real estate: buy homes or buildings and rent them out (rent is shown per unit, then the total when every unit is rented). 📈 Investing: stocks and more.'],
       ['🏦', 'Loans & credit', 'Your credit score (Home) sets loan odds and rates. It rises when you pay on time and falls with late payments, cash below zero and lots of applications. Each loan screen lists what helps and what would raise your odds.'],
       ['🌾', 'Farm', 'Fields (plant in spring, harvest in fall), cows (calves grow up, cows give milk, sell cattle when market-ready) and an orchard. Seed and feed are bought on the farm Now tab and share storage.'],
@@ -9230,7 +9443,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const shut = Math.max(b.shut || 0, 1); const st = b.stock; const q = TG.ST.suggest(b, g);
     const pq = U.avg(b.staff, (e) => TG.B.shutQuitP(Object.assign({}, b, { shut: shut + 1 }), e), 0);
     return `<div class="closed">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}<div class="small" style="font-weight:600;margin-top:4px">No sales while closed. Wages (${m(TG.S.payroll(b))}/mo), rent and bills keep coming. Idle staff may quit: about ${U.pct(pq)} each next month (more each closed month and when unhappy). ${st ? `You have ${N(st.qty)} supplies.` : ''}</div>
-      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire a Shift lead to reorder', 'hireRole', 'lead', 'sm')}</div></div>`;
+      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire an Ops manager to reorder', 'hireRole', 'ops', 'sm')}</div></div>`;
   };
 
   UI.A.stBuyN = (arg) => { const [id, q] = String(arg).split('|'); const g = TG.G, b = TG.B.get(g, id); if (!b) return; const c0 = g.cash; const n = TG.ST.buy(g, b, Number(q), 0); UI.res(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)} supplies for ${m(c0 - g.cash)}${n < Number(q) - 0.5 ? ` (wanted ${N(q)}: not enough cash or room)` : ''}.`); UI.refresh(); };
@@ -9295,8 +9508,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const reEmpty = g.re && !g.re.manager ? U.sum(g.re.holdings.filter((h) => h.mode === 'rent'), (h) => TG.RE.vacant(h)) : 0;
       if (W.length || noMgr.length || reEmpty) {
         UI.modal('⏩ Before you skip', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}</div>`).join('')}${noMgr.map((b) => `<div class="ev warn"><b>${esc(b.name)}</b> has no manager to reorder supplies: it closes when they run out (about ${N((b.stock || {}).qty)} left).</div>`).join('')}${reEmpty ? `<div class="ev warn">🏘️ <b>${reEmpty} empty rental unit${reEmpty > 1 ? 's' : ''}</b>: with no property manager nobody looks for tenants during a skip, and repairs wait for you.</div>` : ''}
-          <div class="mute">During a skip nobody buys supplies for a business without a Shift lead, Ops manager, GM or CEO.${g.settings.stopOnMajor ? ' The skip will stop early if a shop closes.' : ''}</div>
-          <div class="btns">${W[0] || noMgr[0] ? UI.btn('🧑‍💼 Hire a Shift lead', 'hireLeadFor', (W[0] ? W[0].b : noMgr[0]).id, 'pri') : UI.btn('🧑‍💼 Property manager', 'goMoneyTab', 're', 'pri')}${UI.btn(`Skip ${n} months anyway`, 'skipAnyway', null, '')}</div></div>`);
+          <div class="mute">During a skip nobody buys supplies for a business without an Ops manager, GM or CEO.${g.settings.stopOnMajor ? ' The skip will stop early if a shop closes.' : ''}</div>
+          <div class="btns">${W[0] || noMgr[0] ? UI.btn('🧑‍💼 Hire an Ops manager', 'hireLeadFor', (W[0] ? W[0].b : noMgr[0]).id, 'pri') : UI.btn('🧑‍💼 Property manager', 'goMoneyTab', 're', 'pri')}${UI.btn(`Skip ${n} months anyway`, 'skipAnyway', null, '')}</div></div>`);
         return;
       }
     }
@@ -9305,7 +9518,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   { const gm0 = UI.A.goMoneyTab; UI.A.goMoneyTab = (t) => { UI.closeModal(); gm0(t); }; }
   UI.A.skipAnyway = () => { UI.S.skipOK = TG.G.month; UI.closeModal(); UI.A.skip(); };
-  UI.A.hireLeadFor = (id) => { UI.closeModal(); UI.bizId = id; UI.go('bizd'); UI.A.hireRole('lead'); };
+  UI.A.hireLeadFor = (id) => { UI.closeModal(); UI.bizId = id; UI.go('bizd'); UI.A.hireRole('ops'); }; /* v9: Shift lead is gone; the Ops manager orders supplies */
   // ================= 📦 WARN BEFORE NEXT MONTH IF A SHOP WILL RUN OUT =================
   UI.supplyWarnings = (g) => {
     const out = [];
@@ -9324,8 +9537,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (g.settings.warnSupplies !== false && UI.S.supOK !== g.month && force !== 'sup') {
       const W = UI.supplyWarnings(g);
       if (W.length) {
-        const tot = U.sum(W, (w) => w.q * TG.ST.unitCost(g, w.b));
-        UI.modal('📦 Supplies running low', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}${w.q > 0 ? `<div class="btns">${UI.btn(`📦 Buy ${N(w.q)} (${m(w.q * TG.ST.unitCost(g, w.b))})`, 'supFill', w.b.id, 'sm pri')}</div>` : ''}</div>`).join('')}
+        const tot = U.sum(W, (w) => (w.q > 0 ? w.q * TG.ST.unitCost(g, w.b) : 0));
+        UI.modal(W.every((w) => w.dry) ? '👵 Before next month' : '📦 Supplies running low', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}${w.q > 0 ? `<div class="btns">${UI.btn(`📦 Buy ${N(w.q)} (${m(w.q * TG.ST.unitCost(g, w.b))})`, 'supFill', w.b.id, 'sm pri')}</div>` : ''}${w.dry ? `<div class="btns">${UI.btn(`💵 Sell ${N(w.dry.n)} dry cows (~${m(w.dry.meat)})`, 'cowSellDry', w.b.id, 'sm pri')}</div>` : ''}</div>`).join('')}
           <div class="mute">Nobody reorders for you unless a manager handles supplies (🤖 Auto).</div>
           <div class="btns">${W.length > 1 && tot > 0 ? UI.btn(`📦 Buy for all (${m(tot)})`, 'supFillAll', null, 'pri') : ''}${UI.btn('Play the month anyway', 'nextAnyway', null, '')}</div>
           <div class="btns">${UI.btn("Don't warn me again", 'supNoWarn', null, 'xs')}</div></div>`);
@@ -9450,6 +9663,81 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.A.newGame = (scenario) => { newGame0(scenario); TG.Game.stale = false; TG.Game.save(TG.G, true); UI.render(); };
   const importGo0 = UI.A.importGo;
   if (importGo0) UI.A.importGo = () => { TG.Game.stale = false; TG.Game.markSeen && TG.Game.markSeen(); importGo0(); };
+})();
+
+</script>
+<script>/* js/ui/ui-v9.js */
+/* ui-v9.js - v9: what's-new note after an update (Shift lead migration), cheaper fixed costs explained,
+   tech funding rounds and "stalled: consider a pivot" hints. Loaded after ui-v8.js. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI; const U = TG.U; const esc = UI.esc; const m = UI.m;
+  // ---- one-time note after loading a v8 save ----
+  const render0 = UI.render;
+  UI.render = () => {
+    render0();
+    const g = TG.G; if (!g || !g.v9notes || !g.v9notes.length || document.getElementById('modal')) return;
+    UI.modal('🆕 Game updated (v9)', `<div class="card"><div class="mute">Some things changed. Here is what happened in your game:</div>
+      ${g.v9notes.map((t) => `<div class="ev info">${esc(t)}</div>`).join('')}
+      <div class="small" style="margin-top:6px">🛠️ No more Shift leads: managers (Ops, GM, CEO) order supplies and your crew works the site. GM and Ops managers also work at ${Math.round(TG.CONFIG.staff.mgrWorkFrac * 100)}% of a worker.<br>
+      📈 Every worker now has a market value. Pay well under it and other companies may hire them away (see 🎯 on each worker). 🌱 Cheap trainees can be trained up.<br>
+      🏢 Apartment rents are about 10% higher. 🌮🌿 Food trucks and lawn care have lower fixed costs. 💻 Tech startups burn less while building and get investor offers at user milestones.</div>
+      <div class="btns">${UI.btn('👍 Got it', 'v9ok', null, 'pri')}</div></div>`);
+  };
+  UI.A.v9ok = () => { const g = TG.G; if (g) delete g.v9notes; UI.save(); UI.closeModal(); UI.render(); };
+  // ---- tech: stalled hint, lean build pay, funding-round status (under the "What you have" card) ----
+  const sc0 = UI.stockCard;
+  UI.stockCard = (g, b) => {
+    const o = sc0(g, b); if (!b.tech) return o;
+    const T = TG.CONFIG.businesses.tech.tech, t = b.tech; let x = '';
+    if (TG.M.techStalled && TG.M.techStalled(g, b)) x += `<div class="ev warn">🧊 Stalled: live for ${g.month - t.liveAt} months and still under 5,000 users. Most apps that stall never take off. Consider 🔄 pivoting (start over with a new idea and a fresh chance at fit).</div>`;
+    if (t.phase === 'build' && T.buildPay < 1) x += `<div class="mute">⏳ While building, engineers take ${U.pct(1 - T.buildPay)} of their pay in stock options: you pay ${U.pct(T.buildPay)} of wages until launch.</div>`;
+    if (T.rounds) x += UI.irow('tfr' + b.id, '💰', 'Investor rounds', T.rounds.map((r) => `${(t.rounds || {})[r.id] != null ? '✅' : '⬜'} ${N(r.users)}`).join(' · '), `When you pass a user milestone, investors offer cash for a share: ${T.rounds.map((r) => `${r.label} at ${N(r.users)} users: about ${m(r.perUser)} per user (at least ${m(r.min)}) for ${U.pct(r.pct)}`).join('; ')}. You decide (or your GM or accountant does). Cash now lowers the risk of running out; you keep less of the upside. Investors stop at 45% outside ownership.`, null, 'users needed');
+    return o + (x ? `<div class="card"><h3>💻 Startup</h3>${x}</div>` : '');
+  };
+  // ---- why some businesses have lower fixed costs (shop listing + start dialog) ----
+  UI.v9costNote = (d) => [d.fixedCutWhy ? `💸 ${d.fixedCutWhy}` : '', d.offSeason ? `❄️ ${d.offSeason.why}` : ''].filter(Boolean).join(' ');
+  const N = (x) => Math.round(x).toLocaleString();
+})();
+/* v9: every herd stage explains itself in plain numbers (what it does, what it costs, what to do), plus dry/old cows:
+   a count with feed cost and meat value next to a Sell button, and a heads-up when they pile up with nobody selling them. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI; const U = TG.U; const m = UI.m;
+  const N = (x) => Math.round(x).toLocaleString();
+  UI.cowStageTip = (g, b, k) => {
+    const HC = TG.CONFIG.cows, S = HC.stages[k], M = TG.M, a = b.farm.areas.cows; const n = Math.floor(a.st[k] || 0);
+    const fp = M.feedPrice(g); const feedEach = S.feed * fp; const val = M.cowValue(g, k) * HC.sellDrop;
+    const yrs = (r) => (1 / r / 12 >= 1 ? `${(1 / r / 12).toFixed(1).replace(/\.0$/, '')} year${1 / r / 12 >= 1.5 ? 's' : ''}` : `${Math.round(1 / r)} months`);
+    const cost = `Each eats ${S.feed} t of food a month (grass first; when grass is short that is ${m(feedEach)} of bought feed) and takes 1 head of room on your pasture. About ${U.pct(S.death, 1)} die each month. Sells for about ${m(val)} each as meat.`;
+    const bp = M.breeders(a), bulls = Math.floor(a.st.bull || 0), need = Math.ceil(bp / HC.breed.bullPer);
+    const milkPer = M.areaE(b, 'cows').milkPerCow || 0.75; const milkVal = milkPer * TG.W.price(g, 'milk', 0);
+    const T = {
+      calf: `Born to your milking cows (and some dry cows). ${cost} After about ${yrs(HC.grow.calf)} half become heifers (future milkers) and half become steers (meat). What to do: let them grow. Sell calves only if the pasture is over-full.`,
+      heifer: `Young females. No milk yet. ${cost} After about ${yrs(HC.grow.heifer)} they have their first calf and start milking. What to do: keep them, they are your future milking cows. Sell a few only if room is short.`,
+      steer: `Young males raised for meat. No milk. ${cost} After about ${yrs(HC.grow.steer)} they reach market weight (🥩 market-ready). What to do: keep them until then.`,
+      ready: `Steers at full market weight: worth the most now. ${cost} They will not get more valuable, so keeping them only costs food and room. What to do: sell them (💵 Sell, or your manager's "Sell market-ready cattle" order).`,
+      milker: `Your money makers: each makes about ${milkPer} t of milk a month (about ${m(milkVal)} at today's price) if a parlor milks her (one parlor = ${HC.parlorCows || 160} cows) and she is fed. She also has calves. ${cost} After about ${yrs(HC.grow.milkerDry)} on average she goes dry (old). What to do: keep them fed and milked.`,
+      dry: `Old cows that stopped milking: they make NO milk. They still eat ${S.feed} t of feed a month (${U.pct(S.feed)} of a full ration; a milking cow eats ${HC.stages.milker.feed} t; ${m(feedEach)} of feed when grass is short), take pasture room, and count only 30% as a mother for calves. About ${U.pct(S.death, 1)} die each month. Sold for meat they bring about ${m(val)} each (meat price: ${U.pct(S.value / HC.stages.ready.value)} of a market-ready steer). With no farm manager they pile up until YOU sell them. A GM or Ops manager with the "Sell dry / old cows" order (on by default) sells them every month. What to do: sell them.`,
+      bull: `Needed for calves: one bull covers about ${HC.breed.bullPer} mothers. You have ${N(bulls)} for ${N(bp)} mothers (${N(need)} needed). Without a bull only ${U.pct(HC.breed.noBull)} of the calves come. ${cost} What to do: keep ${N(Math.max(1, need))}; sell extras.`,
+    };
+    return `${n ? `You have ${N(n)}. ` : ''}${T[k] || S.what}`;
+  };
+  // Now page: dry-cow line with Sell button (added under the farm's "What you have" card)
+  const sc0 = UI.stockCard;
+  UI.stockCard = (g, b) => {
+    let o = sc0(g, b); if (!b.farm || !TG.M.dryPile) return o;
+    const d = TG.M.dryPile(g, b); if (!d) return o;
+    // v9: the dry-cow row with its Sell control now sits on the herd card right under Market-ready (UI farmRows); only the heads-up stays here
+    if (!d.pile) return o;
+    return o + `<div class="card"><div class="ev warn">👵 Dry cows are piling up: ${N(d.n)} eating up to ${m(d.feed)} of feed a month and making no milk (${d.why}). Sell them for about ${m(d.meat)} (👵 row under 🥩 Market-ready, or the button here). ${UI.btn(`💵 Sell all for ~${m(d.meat)}`, 'cowSellDry', b.id, 'xs goodb')}</div></div>`;
+  };
+  UI.A.cowSellDry = (id) => { const g = TG.G; const b = g.businesses.find((x) => x.id === id); if (!b) return; const r = TG.M.farmSellCattle(g, b, Math.floor(b.farm.areas.cows.st.dry || 0), 'dry'); if (r && r.ok) UI.toast(`Sold ${N(r.head)} dry cows for ${m(r.rev)}.`); else UI.toast((r && r.msg) || 'Nothing to sell.', true); UI.closeModal(); UI.refresh(); };
+  // heads-up before Next Month / Skip (joins the supplies warning list)
+  const sw0 = UI.supplyWarnings;
+  UI.supplyWarnings = (g) => {
+    const out = sw0(g);
+    for (const b of g.businesses) { const d = b.farm && TG.M.dryPile && TG.M.dryPile(g, b); if (d && d.pile) out.push({ b, q: 0, bad: false, dry: d, text: `has ${N(d.n)} dry / old cows piling up (${d.why}): they make no milk and eat up to ${m(d.feed)} of feed a month. Sell them for about ${m(d.meat)} (farm Now tab).` }); }
+    return out;
+  };
 })();
 
 </script>

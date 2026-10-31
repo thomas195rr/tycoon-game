@@ -141,9 +141,10 @@
     poolSize: [3, 7], skillByQuals: [20, 60], skillNoise: 14,
     trainBasic: { cost: 1500, skill: [3, 10], attitude: [0, 5] },
     trainAdvanced: { cost: 5000, skill: [8, 20], attitude: [2, 8] },
-    learnNoResponse: 0.15, expSkillPerYear: 3,
+    learnNoResponse: 0.15, expSkillPerYear: 3, expMarket: 0.4, // v9: share of on-the-job skill that raises market value (training counts fully)
+   
     moraleDrift: 0.15, quitBase: 0.01, quitLowMorale: 0.08,
-    poachSkill: 72, poachBase: 0.012, counterOfferPct: 0.15,
+    counterOfferPct: 0.15,
     theftBase: 0.012, fightBase: 0.006, noShowBase: 0.04,
     strikeMinStaff: 40, strikeBase: 0.012,
     backgroundCheck: 250, severanceMonths: 0.5, wrongfulFireChance: 0.05,
@@ -152,11 +153,24 @@
     // per person per month: 1 raise, 1 bonus, 2 trainings. Past that it backfires (morale drops) and gives nothing
     perMonth: { raise: 1, bonus: 1, train: 2 }, spamMorale: 3,
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
+    // v9: managers (GM, Ops) also lend a hand on the job, at this share of one regular worker
+    mgrWorkFrac: 0.25, mgrWorkRoles: ['gm', 'ops'],
+    // v9: personalities. poach = how hard they look for better pay; payWeight = how much pay below market hurts morale
+    pers: {
+      loyal:   { w: 0.25, poach: 0.3, payWeight: 0.4, accept: 0.95, icon: '🤝', label: 'Loyal', txt: 'Happy where they are: stays even when paid a bit below market.' },
+      steady:  { w: 0.5, poach: 1, payWeight: 1, accept: 0.8, icon: '🙂', label: 'Steady', txt: 'Stays if paid fairly; listens to good offers.' },
+      climber: { w: 0.25, poach: 1.9, payWeight: 1.4, accept: 0.6, icon: '📈', label: 'Climber', txt: 'Wants top pay: looks for better offers when underpaid.' },
+    },
+    // v9: other companies try to hire away people paid under their market value. Monthly odds =
+    // demand(skill) x (base + gapK x share underpaid) x personality x loyalty x (HR 0.8)
+    poach: { base: 0.001, gapK: 0.2, tol: 0.12, skillFrom: 30, skillSpan: 50, warnAt: 0.03, offer: [1.0, 1.08], max: 0.35 },
+    // v9: trainees: low skill, cheap, eager to learn
+    trainee: { n: [1, 2], quals: [0, 0.12], pay: [0.82, 0.94], learn: [0.7, 1.5] },
+    trainAway: { basic: 0.15, advanced: 0.35 }, // share of their month spent in training (not working)
   };
   C.specialists = {
-    lead:       { label: 'Shift lead', icon: '🧑‍🍳', wage: [2600, 3800], desc: 'Cheap first manager for a small shop: only reorders supplies each month (sometimes a bit too much or too little). Makes no other decisions.' },
-    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there.' },
-    ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and stock decisions.' },
+    gm:         { label: 'General manager', icon: '🧑‍💼', wage: [3500, 12000], desc: 'Runs the business and makes day-to-day calls when you are not there. Orders supplies. Also works on the job at 25% of a worker.' },
+    ops:        { label: 'Ops manager', icon: '📋', wage: [3800, 11000], desc: 'Lowers mistakes everywhere; handles equipment and orders supplies. Also works on the job at 25% of a worker.' },
     hr:         { label: 'HR manager', icon: '🤝', wage: [3500, 9000], desc: 'Better hires, fewer conflicts, better morale; replaces staff who leave.' },
     accountant: { label: 'Accountant', icon: '🧮', wage: [3200, 8500], desc: 'Lowers taxes legally, catches theft and errors, uses credit in a crunch.' },
     mechanic:   { label: 'Mechanic', icon: '🔧', wage: [3400, 7500], desc: 'Services equipment: much lower wear and breakdowns. Covers about 12 machines.' },
@@ -220,13 +234,13 @@
 
   C.invest = {
     assets: {
-      IDX:  { label: 'Total Market Index', kind: 'stock', mu: 0.005, sd: 0.035, beta: 1.0, start: 100 },
-      BLUE: { label: 'Bluechip Industrials', kind: 'stock', mu: 0.005, sd: 0.05, beta: 1.1, start: 80 },
-      GROW: { label: 'Growth Tech Co', kind: 'stock', mu: 0.006, sd: 0.09, beta: 1.6, start: 50 },
-      SAFE: { label: 'Utility & Bonds Fund', kind: 'stock', mu: 0.0028, sd: 0.012, beta: 0.2, start: 50 },
-      PNY:  { label: 'Penny Miner', kind: 'penny', mu: -0.004, sd: 0.22, beta: 1.5, start: 1, zero: 0.006 },
-      MOON: { label: 'MoonCoin', kind: 'coin', mu: -0.006, sd: 0.28, beta: 0.8, start: 1, zero: 0.008 },
-      HYPE: { label: 'HypeToken', kind: 'coin', mu: -0.01, sd: 0.35, beta: 0.5, start: 0.5, zero: 0.012 },
+      IDX:  { label: 'Total Market Index', kind: 'stock', desc: 'A basket of all big companies. Moves with the economy: up in booms, down in recessions. The safest way to own stocks.', mu: 0.005, sd: 0.035, beta: 1.0, start: 100 },
+      BLUE: { label: 'Bluechip Industrials', kind: 'stock', desc: 'Big, old factory companies. A bit bumpier than the index and moves a little more with the economy.', mu: 0.005, sd: 0.05, beta: 1.1, start: 80 },
+      GROW: { label: 'Growth Tech Co', kind: 'stock', desc: 'A fast-growing tech company. Big swings both ways and it moves 1.6x as hard as the economy, so it falls hardest in crashes.', mu: 0.006, sd: 0.09, beta: 1.6, start: 50 },
+      SAFE: { label: 'Utility & Bonds Fund', kind: 'stock', desc: 'Power companies and bonds. Small, steady gains and tiny swings. Barely moves with the economy.', mu: 0.0028, sd: 0.012, beta: 0.2, start: 50 },
+      PNY:  { label: 'Penny Miner', kind: 'penny', desc: 'A tiny mining company. Wild swings, drifts DOWN on average, and can go bust (price to zero) any month.', mu: -0.004, sd: 0.22, beta: 1.5, start: 1, zero: 0.006 },
+      MOON: { label: 'MoonCoin', kind: 'coin', desc: 'A made-up crypto coin. Huge swings, drifts DOWN on average, and can crash to zero any month.', mu: -0.006, sd: 0.28, beta: 0.8, start: 1, zero: 0.008 },
+      HYPE: { label: 'HypeToken', kind: 'coin', desc: 'A hyped crypto token. The wildest swings, the worst average drift, and the highest chance of going to zero.', mu: -0.01, sd: 0.35, beta: 0.5, start: 0.5, zero: 0.012 },
     },
     econShockSd: 0.03, crashDrop: [0.18, 0.35], tradeFee: 0.002,
     margin: { maxLev: 2, spread: 0.03, callAt: 0.3 },
@@ -250,8 +264,8 @@
       condo:      { label: 'Condo', units: 1, price: [90000, 260000], rentPct: 0.0085, icon: '🏢' },
       house:      { label: 'Single-family house', units: 1, price: [120000, 420000], rentPct: 0.008, icon: '🏠' },
       duplex:     { label: 'Duplex', units: 2, price: [200000, 520000], rentPct: 0.0085, icon: '🏘️' },
-      smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0088, commercial: true, icon: '🏬' },
-      apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0082, commercial: true, icon: '🏙️' },
+      smallapt:   { label: 'Small apartment building', units: [4, 12], price: [500000, 2200000], rentPct: 0.0097, commercial: true, icon: '🏬' },
+      apartment:  { label: 'Apartment building', units: [20, 120], price: [3000000, 22000000], rentPct: 0.0090, commercial: true, icon: '🏙️' },
       strip:      { label: 'Strip mall', units: [4, 10], price: [1500000, 6000000], rentPct: 0.0078, commercial: true, lease: 36, icon: '🛍️' },
       officebldg: { label: 'Office building', units: [3, 15], price: [4000000, 30000000], rentPct: 0.0072, commercial: true, lease: 60, icon: '🏢' },
       warehouse:  { label: 'Warehouse (leased out)', units: 1, price: [1200000, 8000000], rentPct: 0.0075, commercial: true, lease: 60, icon: '🏭' },

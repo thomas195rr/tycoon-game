@@ -159,7 +159,7 @@
     const shut = Math.max(b.shut || 0, 1); const st = b.stock; const q = TG.ST.suggest(b, g);
     const pq = U.avg(b.staff, (e) => TG.B.shutQuitP(Object.assign({}, b, { shut: shut + 1 }), e), 0);
     return `<div class="closed">🚫 ${esc(lc.note || 'Closed: no supplies, no manager')}<div class="small" style="font-weight:600;margin-top:4px">No sales while closed. Wages (${m(TG.S.payroll(b))}/mo), rent and bills keep coming. Idle staff may quit: about ${U.pct(pq)} each next month (more each closed month and when unhappy). ${st ? `You have ${N(st.qty)} supplies.` : ''}</div>
-      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire a Shift lead to reorder', 'hireRole', 'lead', 'sm')}</div></div>`;
+      <div class="btns">${q > 0 ? UI.btn(`📦 Buy ${N(q)} supplies (${m(q * TG.ST.unitCost(g, b))})`, 'stBuyN', `${b.id}|${q}`, 'sm pri') : ''}${UI.btn('🧑‍💼 Hire an Ops manager to reorder', 'hireRole', 'ops', 'sm')}</div></div>`;
   };
 
   UI.A.stBuyN = (arg) => { const [id, q] = String(arg).split('|'); const g = TG.G, b = TG.B.get(g, id); if (!b) return; const c0 = g.cash; const n = TG.ST.buy(g, b, Number(q), 0); UI.res(n > 0 ? { ok: true } : { ok: false, msg: 'No room or not enough cash.' }, `Bought ${N(n)} supplies for ${m(c0 - g.cash)}${n < Number(q) - 0.5 ? ` (wanted ${N(q)}: not enough cash or room)` : ''}.`); UI.refresh(); };

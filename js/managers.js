@@ -5,8 +5,8 @@
   const D = {};
   const COVER = {
     broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
-    pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm', 'lead'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
+    pr: ['ads', 'gm'], fund: ['gm', 'accountant'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
+    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
   };
 
   D.add = (g, dec) => {
@@ -49,9 +49,9 @@
       case 'poach': {
         const e = S.allStaff(b).find((x) => x.id === dec.empId); if (!e) break;
         if (opt === 'counter') {
-          e.wage = Math.round(e.wage * (1 + cs.counterOfferPct)); e.loyalty = U.clamp(e.loyalty + 15, 0, 100); e.morale = U.clamp(e.morale + 8, 0, 100);
-          if (R.chance(cs.counterAccept || 0.75)) TG.rep.staff(g, b, `${by ? by + ': ' : ''}${e.name} accepted a counter-offer (now ${U.money(e.wage)}/mo)`);
-          else S.leave(g, b, e, 'took the competitor offer anyway', false);
+          e.wage = dec.offer ? Math.max(e.wage, dec.offer) : Math.round(e.wage * (1 + cs.counterOfferPct)); e.loyalty = U.clamp(e.loyalty + 10, 0, 100); e.morale = U.clamp(e.morale + 8, 0, 100);
+          if (R.chance(S.persDef(e).accept)) TG.rep.staff(g, b, `${by ? by + ': ' : ''}${e.name} stayed for the matched pay (now ${U.money(e.wage)}/mo)`);
+          else S.leave(g, b, e, 'took the other offer anyway', false);
         } else S.leave(g, b, e, 'poached by a competitor', false);
         break;
       }
@@ -61,6 +61,7 @@
         break;
       }
       case 'pr': if (opt !== 'none') TG.B.doPR(g, b, opt, by); break;
+      case 'fund': if (opt === 'take') { b.outside = (b.outside || 0) + dec.pct; TG.F.earn(g, dec.cash, 'Investor funding', b.id, true); TG.rep.event(g, b, 'info', `${by ? by + ' took' : 'Took'} ${U.money(dec.cash)} for ${U.pct(dec.pct)} of ${b.name}`, `Investors now own ${U.pct(b.outside)}`); } break;
       case 'lawsuit': TG.B.resolveSuit(g, dec.suitId, opt, by); break;
       case 'evict': if (opt === 'evict') TG.RE.evict(g, dec.reId, dec.unit, by || 'You'); break;
       default: if (dec.apply) dec.apply(g, opt, by);
@@ -96,9 +97,15 @@
       }
       case 'poach': {
         const e = TG.S.allStaff(b).find((x) => x.id === dec.empId); if (!e) return { opt: null };
-        const worth = e.skill >= 65 && (e.role in (b.spec || {}) || TG.CONFIG.businesses[b.type].roles[e.role]?.licensed || e.skill >= 75);
+        const mv = TG.S.mv(g, b, e); const offer = dec.offer || e.wage * 1.15;
+        const key = (e.role in (b.spec || {})) || (TG.CONFIG.businesses[b.type].roles[e.role] || {}).licensed;
+        const worth = (e.skill >= 50 || key) && offer <= mv * 1.2; // v9: match fair offers for good people; let overpriced ones go
         let opt = worth ? 'counter' : 'let'; if (bad) opt = opt === 'counter' ? 'let' : 'counter';
-        return { opt, outcome: out, why: worth ? `${e.name} (skill ${Math.round(e.skill)}) is hard to replace` : `${e.name} can be replaced` };
+        return { opt, outcome: out, why: worth ? `${e.name} (skill ${Math.round(e.skill)}) is worth the market rate (${U.money(mv)}/mo)` : offer > mv * 1.2 ? `the offer is well above their market value (${U.money(mv)}/mo)` : `${e.name} can be replaced` };
+      }
+      case 'fund': { // take the money when cash would not last a year of losses, otherwise keep the equity
+        const burn = Math.max(1, -U.avg(b.hist.slice(-3), (x) => x.profit, 0)); const months = g.cash / burn; let opt = months < 12 || g.cash < dec.cash ? 'take' : 'no'; if (bad) opt = opt === 'take' ? 'no' : 'take';
+        return { opt, outcome: out, why: opt === 'take' ? `cash ${U.money(g.cash)} lasts about ${Math.round(Math.min(99, months))} months at the current burn` : `cash ${U.money(g.cash)} is enough; keeping the full company` };
       }
       case 'theft': return { opt: bad ? 'warn' : 'fire', outcome: out, why: bad ? 'went soft on it' : 'zero tolerance for theft' };
       case 'pr': {
@@ -177,7 +184,12 @@
     // 2) v6: machines are looked after by mechanics (staff), never by managers; see equipment.js E.mechMonth
     // 3) raises for unhappy good people
     h = D.handler(g, b, 'raise');
-    if (h) for (const e of S.allStaff(b)) if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); }
+    if (h) for (const e of S.allStaff(b)) {
+      if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); continue; }
+      // v9: an HR manager (or GM) raises good people who are likely to be poached, up to their market value
+      const po = S.poachOdds(g, b, e);
+      if (po.p >= TG.CONFIG.staff.poach.warnAt && e.skill >= 50 && profit3 > 0 && R.chance(h.p)) { const r = S.raise(g, b, e.id, po.gap > 0.2 ? 'market' : 'pct'); if (r && !r.spam) TG.rep.decision(g, b, h.label, `Raised ${e.name} to ${U.money(r.to)}/mo (poach odds were ${U.pct(po.p, 1)} a month)`, 'good'); }
+    }
     // 3b) your order: keep spare staff so call-outs don't leave work undone
     h = D.handler(g, b, 'hire');
     const spare = (b.orders && b.orders.spare) || 0;

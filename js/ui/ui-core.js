@@ -28,8 +28,17 @@
   UI.S.tips = UI.S.tips || {};
   // (i) button: tap to show a short line, tap again to hide it
   UI.tipBtn = (key) => `<button class="tipb" data-act="tip" data-arg="${esc(key)}" data-nosave="1" aria-label="info">i</button>`;
-  UI.tipLine = (key, text) => (UI.S.tips[key] && text ? `<div class="tip">${esc(text)}</div>` : '');
-  UI.A.tip = (k) => { UI.S.tips[k] = !UI.S.tips[k]; UI.refresh(); };
+  /* v9: the text is always in the page (hidden until tapped) and the tap shows it in place. Before, a tap re-drew only the
+     main screen, so every "i" inside a popup (worker, loan, listing...) showed nothing. */
+  UI.tipLine = (key, text) => (text ? `<div class="tip" data-tip="${esc(key)}"${UI.S.tips[key] ? '' : ' style="display:none"'}>${esc(text)}</div>` : '');
+  UI.A.tip = (k, el) => {
+    UI.S.tips[k] = !UI.S.tips[k];
+    const root = (el && el.closest && el.closest('#modal')) || document;
+    const lines = [...root.querySelectorAll('.tip[data-tip]')].filter((t) => t.dataset.tip === k);
+    if (lines.length) { for (const t of lines) t.style.display = UI.S.tips[k] ? '' : 'none'; return; }
+    if (root !== document) { UI.toast('No more details for this one.'); return; }
+    UI.refresh();
+  };
   // icon row: icon, label (tap = info), value, actions
   UI.irow = (key, icon, label, value, tip, acts, sub) => `<div class="irow"><span class="ic">${icon}</span><span class="lb" data-act="tip" data-arg="${esc(key)}" data-nosave="1">${esc(label)}${sub ? `<small>${sub}</small>` : ''}</span>${tip ? UI.tipBtn(key) : ''}${value != null ? `<span class="vl">${value}</span>` : ''}${acts ? `<span class="acts">${acts}</span>` : ''}${UI.tipLine(key, tip)}</div>`;
   // big stat tile (tap = info)
@@ -104,7 +113,11 @@
     let body = '';
     try { body = fn(); } catch (e) { console.error(e); body = `<div class="card bad">Screen error: ${esc(e.message)}</div>`; }
     const sy = window.scrollY;
+    /* v9: keep folded sections (<details>) open across re-renders, so tapping an "i" inside one shows its text instead of folding it shut */
+    const dk = (d) => { const s = d.querySelector('summary'); return (s ? s.textContent : '').replace(/[\d$,.%()+-]+/g, '').trim(); };
+    const openK = new Set([...document.querySelectorAll('#app details[open]')].map(dk));
     $('#app').innerHTML = UI.header() + `<main>${body}</main>` + UI.footer() + UI.nav();
+    if (openK.size) for (const d of document.querySelectorAll('#app details')) if (openK.has(dk(d))) d.open = true;
     if (UI.keepScroll) window.scrollTo(0, sy); UI.keepScroll = false;
   };
   UI.refresh = () => { UI.keepScroll = true; UI.render(); };

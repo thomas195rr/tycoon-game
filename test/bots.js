@@ -117,6 +117,10 @@ module.exports = function makeBots(TG) {
     }
     if (b.factory) { const lines = TG.M.models.factory.lines(b).length; if (lc.util > 0.95 && p3 > 50000 && lines < TG.M.models.factory.maxLines(b) && g.cash > TG.E.price(g, b, 'line', 'standard') * 2.5) TG.E.buy(g, b, 'line', 'standard'); }
     if (b.tech && !b.tech.researched && g.cash > 80000) { const f = d.fixes.find((x) => x.id === 'research'); if (f) TG.B.buyFix(g, b, 'research'); }
+    // v9: a careful owner keeps good people: when the staff screen shows a poach warning, raise them to market pay
+    if (p3 > 0 && TG.S.poachOdds) for (const e of TG.S.allStaff(b)) { const po = TG.S.poachOdds(g, b, e, true); if (po.p >= TG.CONFIG.staff.poach.warnAt && e.skill >= 45 && TG.S.usesLeft(g, e, 'raise') > 0) TG.S.raise(g, b, e.id, po.gap > 0.18 ? 'market' : 'pct'); }
+    // v9: a careful founder pivots a product nobody wants (the Now tab suggests it): a year after launch, still few users, cash to try again
+    if (b.tech && TG.M.techStalled && TG.M.techStalled(g, b) && (b.tech.pivots || 0) < 2 && g.cash > 100000 * g.world.priceIdx * 4) TG.M.techPivot(g, b);
     // keep a cash buffer: pay down the credit line
     if (g.loc.balance > 0 && g.cash > 50000) TG.F.locRepay(g, g.cash - 50000);
   }

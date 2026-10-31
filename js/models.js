@@ -10,7 +10,7 @@
   M.extraRisks = (g, b, ctx) => (mdl(b).extraRisks ? mdl(b).extraRisks(g, b, ctx) : []);
   M.inventoryValue = (g, b) => (mdl(b).inventoryValue ? U.num(mdl(b).inventoryValue(g, b)) : 0) + Math.round(TG.ST.value(g, b));
   M.keyRole = (d) => Object.keys(d.roles).find((r) => d.roles[r].key);
-  M.staffEff = (e) => (0.6 + e.skill / 250) * (1 - TG.CONFIG.staff.noShowBase * (1.6 - e.reliability / 100));
+  M.staffEff = (e) => (0.6 + e.skill / 250) * (1 - TG.CONFIG.staff.noShowBase * (1.6 - e.reliability / 100)) * (1 - (e.away || 0)); // v9: time in training is time off the job
   M.paceMult = (b) => (b.pace === 'rush' ? 1.15 : b.pace === 'careful' ? 0.92 : 1);
   M.priceMult = (g, b) => TG.PR.ratio(g, b);
   M.repF = (b, exp) => U.clamp(Math.pow(Math.max(b.rep, 3) / 50, exp == null ? 1 : exp), 0.04, 2.6);
@@ -48,7 +48,7 @@
       const C = TG.CONFIG, d = C.businesses[b.type];
       let keyCap = 0; const kr = M.keyRole(d);
       for (const e of ctx.key) keyCap += d.roles[e.role].cap * M.staffEff(e);
-      if (ctx.own && d.tier === 'small') keyCap += d.roles[kr].cap * 0.6;
+      if (ctx.mw) keyCap += d.roles[kr].cap * ctx.mw; // v9: GM / Ops lend a hand at a fraction of a worker
       keyCap *= 1 + TG.E.boost(b, 'staffBoost');
       let supCap = Infinity;
       for (const r in d.roles) if (d.roles[r].support) { const have = b.staff.filter((e) => e.role === r).length; supCap = Math.min(supCap, (have + 0.5) * d.roles[r].per); }
@@ -155,7 +155,7 @@
       const roadM = 0.72 + 0.35 * b.traffic * 0 + 0.35 * (g.properties.find((p) => p.id === b.propId) || { road: 0.6 }).road;
       const truckCap = U.sum(trucks, (x) => TG.E.out(x) * d.equip[0].cap) * roadM * (fo.loadMult || 1);
       let driverCap = U.sum(ctx.key, (e) => d.roles.driver.cap * (0.7 + e.skill / 300) * (1 - C.staff.noShowBase * (1.6 - e.reliability / 100)));
-      if (ctx.own) driverCap += d.roles.driver.cap * 0.6;
+      if (ctx.mw) driverCap += d.roles.driver.cap * ctx.mw;
       let cap = Math.min(truckCap, driverCap) * (w.hoursReg > 0 ? 0.9 : 1) * M.paceMult(b) * (1 - ctx.down);
       const st = g.markets.freight;
       const r = TG.PR.ratio(g, b);

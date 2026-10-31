@@ -32,7 +32,7 @@
       const r = TG.PR.ratio(g, b);
       let orders = (visitors * br.conv * qualF + s.followers * br.followerConv) * dm * (1 - share * 0.5) * TG.PR.demandF(r);
       if (R.chance(br.viral * (0.5 + b.rep / 100))) { const x = R.range(br.viralMult[0], br.viralMult[1]); orders *= x; TG.rep.event(g, b, 'good', `Went viral! Orders x${x.toFixed(1)} this month`, 'Rare viral moment'); }
-      let packCap = U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) * (fo.packerMult || 1) + (ctx.own ? 900 : 0);
+      let packCap = (U.sum(ctx.key, (e) => d.roles.packer.cap * M.staffEff(e)) + d.roles.packer.cap * (ctx.mw || 0)) * (fo.packerMult || 1);
       if (b.equip.some((x) => x.type === 'shelving' && !x.broken)) packCap *= 1.15;
       packCap *= 1 + TG.E.boost(b, 'staffBoost');
       packCap *= M.paceMult(b) * (1 - ctx.down);
@@ -106,7 +106,7 @@
       const C = TG.CONFIG, d = C.businesses.factory, fd = d.factory, f = b.factory, fo = b.fixesOn || {};
       const lineCap = TG.E.capacity(b, 'line');
       const wc = (fo.workerCut || 0);
-      const workerUnits = U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) / Math.max(0.2, 1 - wc) * (1 + TG.E.boost(b, 'staffBoost'));
+      const workerUnits = (U.sum(ctx.key, (e) => d.roles.worker.cap * M.staffEff(e)) + d.roles.worker.cap * (ctx.mw || 0)) / Math.max(0.2, 1 - wc) * (1 + TG.E.boost(b, 'staffBoost'));
       let prod = Math.max(0, Math.min(lineCap, workerUnits) * M.paceMult(b) * (1 - ctx.down));
       const bulk = b.fixes.bulk && b.fixes.bulk.until > g.month;
       if (b.fixes.bulk && !bulk) { delete b.fixes.bulk; TG.rep.event(g, b, 'info', 'Bulk supplier contract ended', 'Contract term over'); }
@@ -176,7 +176,7 @@
     winChance(g, b, o, markup) { const P = this.cfg(); return U.clamp(P.winChance[markup] * (0.6 + b.rep / 100) * (b.fixes.contingency ? P.contingencyWinMult : 1) * Math.pow(g.world.econ, 0.5), 0.02, 0.95); },
     needs(g, b) { const need = b && b.proj ? Math.ceil(U.sum(b.proj.active, (p) => p.crew)) : 0; return { equip: [{ type: 'tools', count: Math.max(1, Math.ceil(need / 60)) }], staff: [{ role: 'laborer', count: Math.max(6, need) }] }; },
     baseRev(g, b) { return Math.max(150000, U.sum(b.proj ? b.proj.active : [], (p) => p.price / p.months)); },
-    crew(b, ctx) { return U.sum(ctx.key, M.staffEff) / 0.8; },
+    crew(b, ctx) { return (U.sum(ctx.key, M.staffEff) + (ctx.mw || 0)) / 0.8; },
     month(g, b, ctx) {
       const C = TG.CONFIG, P = this.cfg(), pr = b.proj;
       const toolsCap = TG.E.capacity(b, 'tools');
@@ -257,21 +257,22 @@
     baseRev(g, b) { return Math.max(40000, b.tech.users * TG.CONFIG.businesses.tech.tech.arpu * g.world.priceIdx); },
     month(g, b, ctx) {
       const C = TG.CONFIG, T = C.businesses.tech.tech, t = b.tech;
-      const engEff = (U.sum(ctx.key, (e) => 0.5 + e.skill / 100) + (ctx.own ? 0.4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
+      const engEff = (U.sum(ctx.key, (e) => (0.5 + e.skill / 100) * (1 - (e.away || 0))) + (ctx.mw || 0) * 1.1) * (1 + TG.E.boost(b, 'staffBoost'));
       if (t.phase === 'build') {
         t.dev += engEff * M.paceMult(b) * (1 - ctx.down);
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
         ctx.note = `Building the app: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done after this month`;
         { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
-        if (t.dev >= T.devPoints) { t.phase = 'live'; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
+        if (t.dev >= T.devPoints) { t.phase = 'live'; t.liveAt = g.month; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;
       }
+      M.techRounds(g, b);
       const share = U.clamp(t.users / g.markets.software.demand12, 0, 1);
       const cac = T.cacBase * (1 + 4 * Math.pow(share, 1.5)) * g.world.priceIdx;
       const adMgr = b.spec.ads; const flop = b.ads.budget > 0 && R.chance(C.reputation.adChannels[b.ads.channel].flop * (adMgr ? 0.5 : 1));
       if (flop) TG.rep.event(g, b, 'bad', 'Ad campaign flopped', 'Campaigns can flop');
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
-      let organic = t.users * T.organic * t.pmf * 2 * (b.rep / 50) + 150 * t.pmf;
+      let organic = t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf;
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
       let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
@@ -282,7 +283,7 @@
       const overload = t.users > serverCap;
       const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
-      const churnRate = Math.max(0.01, T.churnBase - 0.07 * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
+      const churnRate = Math.max(0.01, T.churnBase - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
       const prevU = t.users;
       const churn = t.users * churnRate;
       t.users = Math.max(0, Math.round(t.users + newU - churn));
@@ -304,6 +305,22 @@
     },
     extraRisks(g, b) { const T = TG.CONFIG.businesses.tech.tech; if (b.tech.phase !== 'live') return []; const over = b.tech.users > TG.E.capacity(b, 'server'); return [{ label: 'Server outage', p: T.outageBase * (over ? 5 : 1) * (b.fixes.backup ? 0.3 : 1), why: over ? 'servers overloaded' : 'normal load' }]; },
   };
+  // v9: milestone funding. Hitting a user milestone brings an investor offer (cash for a share of the company); you or a manager decide.
+  M.techRoundOffer = (g, b, r) => ({ cash: Math.round(Math.max(r.min, b.tech.users * r.perUser) * g.world.priceIdx / 1000) * 1000, pct: r.pct });
+  M.techRounds = (g, b) => {
+    const T = TG.CONFIG.businesses.tech.tech, t = b.tech; t.rounds = t.rounds || {};
+    for (const r of T.rounds) {
+      if (t.rounds[r.id] || t.users < r.users) continue;
+      t.rounds[r.id] = g.month; const o = M.techRoundOffer(g, b, r);
+      if ((b.outside || 0) + o.pct > 0.45) continue; // investors will not take a company you no longer control
+      TG.D.add(g, { kind: 'fund', bizId: b.id, round: r.id, cash: o.cash, pct: o.pct, title: `${r.label}: investors offer ${U.money(o.cash)} for ${U.pct(o.pct)}`,
+        text: `You passed ${r.users.toLocaleString()} users. Investors offer ${U.money(o.cash)} cash for ${U.pct(o.pct)} of ${b.name}. They then get ${U.pct(o.pct)} of its profits and of its value when sold.`,
+        why: `Milestone funding: ${U.money(r.perUser)} per user (at least ${U.money(r.min)}). Cash now lowers the risk of running out; you keep less of the upside.`,
+        options: [{ id: 'take', label: `✅ Take ${U.money(o.cash)} for ${U.pct(o.pct)}` }, { id: 'no', label: 'No thanks (keep 100%)' }], def: 'no' });
+    }
+  };
+  // v9: stalled = live for a year and still under 5,000 users: the Now tab suggests a pivot
+  M.techStalled = (g, b) => { const t = b.tech; return !!(t && t.phase === 'live' && t.liveAt != null && g.month - t.liveAt >= 12 && t.users < 5000); };
   M.techResearch = (g, b) => {
     const T = TG.CONFIG.businesses.tech.tech, t = b.tech;
     if (t.researched) return; t.researched = true;
@@ -315,7 +332,7 @@
     const t = b.tech; const cost = Math.round(100000 * g.world.priceIdx);
     if (g.cash < cost) return { ok: false, msg: `Pivot costs ${U.money(cost)}.` };
     TG.F.spend(g, cost, 'Pivot', b.id, true);
-    t.phase = 'build'; t.dev = 0; t.users = Math.round(t.users * 0.2); t.pmf = U.clamp(Math.pow(R.next(), 1.5), 0.02, 0.98); t.pmfEst = null; t.researched = false;
+    t.phase = 'build'; t.dev = 0; t.users = Math.round(t.users * 0.2); t.pmf = U.clamp(Math.pow(R.next(), 1.5), 0.02, 0.98); t.pmfEst = null; t.researched = false; delete b.fixes.research; t.liveAt = null; t.pivots = (t.pivots || 0) + 1; /* v9: research can be bought again for the new idea */
     return { ok: true, cost };
   };
 
@@ -341,7 +358,7 @@
       }
       // locations
       const open = s.locations.filter((l) => l.status === 'open');
-      const regCap = (U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + (ctx.own ? 4 : 0)) * (1 + TG.E.boost(b, 'staffBoost'));
+      const regCap = (U.sum(ctx.key, (e) => C.businesses.franchise.roles.regional.cap * M.staffEff(e)) + C.businesses.franchise.roles.regional.cap * (ctx.mw || 0)) * (1 + TG.E.boost(b, 'staffBoost'));
       const cov = open.length ? U.clamp(regCap / open.length, 0, 1) : 1;
       const sat = open.length / (fr.perRegion * Object.keys(C.regions).length);
       const cannibal = 1 / (1 + Math.pow(sat, 1.5) * (fo.cannibalCut ? 0.5 : 1));

@@ -136,5 +136,13 @@
     if (spr.length) { const v = Math.round(spr.length * 25000 * g.world.priceIdx * 0.45); TG.F.earn(g, v, 'Asset sales', b.id, true); }
     b.equip = b.equip.filter((x) => x.type !== 'sprCow');
   };
+  // v9: dry/old cows piling up with nobody selling them (no farm manager, or the "Sell dry / old cows" order is off)
+  M.dryPile = (g, b) => {
+    const f = b.farm; if (!f || !f.areas || !f.areas.cows) return null; const a = f.areas.cows; const n = Math.floor((a.st && a.st.dry) || 0); if (n < 1) return null;
+    const h = TG.D.handler(g, b, 'farm'); const o = (f.orders && f.orders.cows) || M.cowOrderDefaults(); const auto = !!(h && o.cullDry);
+    const feed = Math.round(n * HC().stages.dry.feed * M.feedPrice(g)); const meat = Math.round(n * M.cowValue(g, 'dry') * HC().sellDrop);
+    const pile = !auto && n >= Math.max(3, (a.herd || 0) * 0.08);
+    return { n, feed, meat, auto, pile, why: h ? 'your manager\'s "Sell dry / old cows" order is off' : 'no farm manager: nobody sells them for you' };
+  };
   M.cowOrderDefaults = () => ({ sellReady: true, cullDry: true, keepRoom: true, feedMonths: 2 });
 })();

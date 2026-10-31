@@ -194,7 +194,7 @@
     if (I.perAcre) p = (b.farm ? b.farm.acres : 0) * I.perAcre;
     if (I.perUnit) p = b.equip.filter((x) => x.type === 'truck').length * I.perUnit;
     if (type === 'malpractice') p = Math.max(p, I.min * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
-    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx);
+    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
   };
   F.claim = (g, b, type, loss, label) => {
     const C = TG.CONFIG.finance;

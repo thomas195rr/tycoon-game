@@ -15,16 +15,23 @@
   };
   // equipment pools of a business -> group per pool (service-type)
   WK.poolGroups = (g, b, ctx, load, unit) => {
-    const C = TG.CONFIG; for (const pl of TG.E.pools(b)) {
+    const C = TG.CONFIG; const PL = TG.E.pools(b); const catN = {}; for (const pl of PL) catN[pl.primary.cat] = (catN[pl.primary.cat] || 0) + 1;
+    for (const pl of PL) {
       const ed = pl.primary; const items = b.equip.filter((x) => { const d = TG.E.def(b, x.type); return d && TG.E.poolOf(d) === pl.pool && !x.broken; });
-      const cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      let cat = C.equipCats[ed.cat] || ['⚙️', ed.label];
+      if (catN[ed.cat] > 1) cat = [cat[0], ed.label + 's']; /* v9: two groups in one category (bakery ovens + mixers) get their own names, not "Machines" twice */
       WK.add(ctx, 'eq', cat[0], cat[1], items.length, TG.E.capacity(b, pl.pool), load, unit, [pl.pool], `${items.length} working, about ${Math.round(TG.E.capacity(b, pl.pool) / Math.max(1, items.length)).toLocaleString()} ${unit} each. Work is shared evenly.`);
     }
   };
   // end of month: keep the report and per-pool utilization (drives next month's wear)
   WK.commit = (b, ctx) => {
     b.work = ctx.wk || []; const P = {};
-    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); for (const w of b.work) if (w.kind === 'staff' && !w.role) { w.role = kr; break; }
+    const kr = TG.M.keyRole(TG.CONFIG.businesses[b.type]); for (const w of b.work) if (w.kind === 'staff' && !w.role) { w.role = kr; const mw = TG.S.mgrW(b); if (mw > 0) { w.mw = Math.round(mw * 100) / 100; w.tip += TG.S.mgrNote(b); } break; } // v9: managers' share of the main work
+    /* v9: machine groups show what you OWN (w.own) and how many are broken (w.brk), not just the working ones */
+    for (const w of b.work) if (w.kind === 'eq' && w.pools.length) {
+      const mine = b.equip.filter((x) => { if (x.broken === 'destroyed') return false; const d = TG.E.def(b, x.type); return w.pools.includes(x.type) || (d && (w.pools.includes(TG.E.poolOf(d)) || w.pools.includes(d.countsAs))); });
+      const brk = mine.filter((x) => x.broken).length; w.brk = brk; w.own = Math.max(w.n + brk, mine.length);
+    }
     for (const w of b.work) if (w.kind === 'eq') for (const p of w.pools) P[p] = Math.min(1.5, w.util);
     b.workPool = P;
   };

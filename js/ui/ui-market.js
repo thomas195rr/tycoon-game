@@ -18,7 +18,7 @@
     const g = TG.G, C = TG.CONFIG; const type = UI.S.mkType, d = C.businesses[type];
     let o = `<h2>🗺️ Pick a business</h2><div class="card"><div class="btns">${Object.entries(C.businesses).map(([k, x]) => `<button class="btn mkic ${k === type ? 'pri' : ''}" data-act="mkType" data-arg="${k}" title="${esc(x.name)}">${x.icon}<small>${esc(x.name.split(' / ')[0])}</small></button>`).join('')}</div></div>`;
     o += `<div class="card"><div class="row"><span class="small">I want to start a</span><select data-change="mkType">${UI.typeOptions(type)}</select></div>
-      <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}</div>
+      <div class="mute" style="margin-top:4px">${d.icon} <b>${esc(d.name)}</b> (${tierLbl[d.tier]}): ${esc(d.blurb || '')}${UI.v9costNote ? ' ' + esc(UI.v9costNote(d)) : ''}</div>
       <div class="mute">Setup ${m(TG.B.setupCost(g, type, { acres: 0 }, null))} plus equipment and staff · needs ${d.space.unit === 'acres' ? `about ${d.space.ideal} acres` : type === 'foodtruck' ? `a small spot to park and prep (${d.space.min.toLocaleString()}-${d.space.ideal.toLocaleString()} sq ft: a cheap lot or tiny storefront is fine)` : `about ${d.space.ideal.toLocaleString()} sq ft`}${d.license ? ` · license takes ${d.license.months} months` : ''}</div>
       <div class="row" style="margin-top:6px"><span class="small">Sort</span><select data-change="mkSort">${[['suit', 'Best fit'], ['price', 'Cheapest'], ['priceD', 'Most expensive'], ['size', 'Biggest'], ['loc', 'Location']].map(([v, l]) => `<option value="${v}"${UI.S.mkSort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <span class="small">Max price</span><input type="number" id="mkMax" value="${esc(UI.S.mkMax)}" placeholder="any" data-change="mkMax"></div></div>`;
@@ -91,7 +91,7 @@
     }
     const cost = TG.B.setupCost(g, type, p, d.model === 'farm' ? { ent: TG.M.bestEnterprise(p) } : null);
     UI.modal(`Start a ${esc(d.name)}`, `<div class="card"><div class="row sp"><b>${d.icon} ${esc(d.name)} at ${esc(p.name)}</b>${UI.pill(`${sl.label} fit`, sl.tone)}</div>
-      <div class="mute">${esc(d.blurb || '')}</div>
+      <div class="mute">${esc(d.blurb || '')}${UI.v9costNote ? ' ' + esc(UI.v9costNote(d)) : ''}</div>
       <div class="kv" style="margin-top:6px"><span>Name</span><span><input type="text" id="stName" value="${esc(d.name)}" maxlength="30"></span>
       <span>Setup cost (fit-out, permits${d.license ? ', license' : ''})</span><span>${m(cost)}</span><span>Your cash</span><span>${m(g.cash)}</span></div>${extra}
       ${s < 0.4 ? '<div class="ev bad">This property is a poor fit: expect weak demand or high costs.</div>' : ''}

@@ -138,7 +138,7 @@
       }
       const tneed = Math.max(0.01, this.tractorNeed(b));
       const robotShare = tcap > 0 ? robotCap / tcap : 0;
-      const heff = U.sum(b.staff.filter((e) => e.role === 'hand'), M.staffEff);
+      const heff = U.sum(b.staff.filter((e) => e.role === 'hand'), M.staffEff) + TG.S.mgrW(b); // v9: GM / Ops lend a hand
       const hneed = this.handNeed(b) * (1 - robotShare * 0.85 * Math.min(1, tcap / tneed));
       const gear = tcap > 0 ? 1 : 0;
       return { tcov: U.clamp(tcap / tneed, 0, 1), pcov: U.clamp((tcap + plantX * gear) / tneed, 0, 1), hvcov: U.clamp((tcap + harvX * gear) / tneed, 0, 1), combines, hcov: U.clamp(heff / Math.max(0.3, hneed), 0, 1), tcap, tneed, heff, hneed, plantX: plantX * gear, harvX: harvX * gear };
@@ -224,7 +224,7 @@
       { const over = M.farmStoreUsed(b) - M.farmStoreCap(b); if (over > 0.5) for (const good of ['grain', 'fruit']) { const x = Math.min(over, f.stored[good]); if (x > 0) { f.stored[good] -= x; A[good === 'grain' ? 'crops' : 'orchard'].m.lost = (A[good === 'grain' ? 'crops' : 'orchard'].m.lost || 0) + x; } } }
       f.plantBroken = false;
       if (b.fixes.plant && R.chance(0.012)) { f.plantBroken = true; const c = Math.round(9000000 * 0.02 * g.world.priceIdx); TG.F.spend(g, c, 'Repairs', b.id); TG.rep.event(g, b, 'major', `Processing plant broke down (${U.money(c)} repair, no price bonus this month)`, '1.2% monthly plant failure chance', { major: 'breakdown' }); }
-      for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.glitch && !it.broken && R.chance(ed.glitch)) { it.broken = 'major'; TG.rep.event(g, b, 'bad', 'Software glitch took a robot tractor offline', `${U.pct(ed.glitch)} monthly glitch chance; specialist repairs cost double`); TG.E.queueBroken(g, b, it); } }
+      for (const it of b.equip) { const ed = TG.E.def(b, it.type); if (ed && ed.glitch && !it.broken && !g._pv && R.chance(ed.glitch)) { it.broken = 'major'; TG.rep.event(g, b, 'bad', 'Software glitch took a robot tractor offline', `${U.pct(ed.glitch)} monthly glitch chance; specialist repairs cost double`); TG.E.queueBroken(g, b, it); } }
       const inputCut = b.fixes.integrate ? 0.2 : 0;
       if (A.crops.acres || A.crops.planted || A.crops.toHarvest) this.crops(g, b, ctx, cov, moy, inputCut, qMult);
       if (A.orchard.acres) this.orchard(g, b, ctx, cov, moy, inputCut, qMult);

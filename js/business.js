@@ -118,7 +118,7 @@
       skill: avg((e) => e.skill, own ? 55 : 35), attitude: avg((e) => e.attitude, own ? 65 : 45), reliability: avg((e) => e.reliability, 60),
       honesty: all.length ? U.avg(all, (e) => e.honesty) : 70, temper: avg((e) => e.temper, 30), morale: all.length ? U.avg(all, (e) => e.morale) : 60,
       ambition: avg((e) => e.ambition, 40), busy: b.lastUtil || 0.8, util: b.lastUtil || 0.8,
-      weather: TG.W.weatherOf(g, b.region), streakMult: 1,
+      weather: TG.W.weatherOf(g, b.region), streakMult: 1, mw: TG.S.mgrW(b),
     };
     const recentBad = (b.bad || []).filter((m) => g.month - m <= C.streak.window).length;
     if (recentBad >= C.streak.threshold) ctx.streakMult = C.streak.mult;
@@ -341,21 +341,25 @@
   };
 
   // ---------- fixed costs ----------
+  // v9: seasonal crews (lawn care) go on short hours in the off-season: wages drop to a share for those months
+  B.offSeasonPay = (g, b) => { const d = B.def(b), o = d.offSeason; if (!o) return 1; return (d.season[U.moy(g.month)] || 1) < o.below ? o.pay : 1; };
+  // v9: tech startups pay engineers partly in stock options until launch
+  B.payMult = (g, b) => B.offSeasonPay(g, b) * (b.tech && b.tech.phase === 'build' ? TG.CONFIG.businesses.tech.tech.buildPay : 1);
   B.fixedCosts = (g, b, ctx) => {
     const C = TG.CONFIG, d = B.def(b);
-    const payroll = TG.S.payroll(b) * (1 + ((b.fixesOn && b.fixesOn.payrollAdd) || 0));
+    const payroll = TG.S.payroll(b) * (1 + ((b.fixesOn && b.fixesOn.payrollAdd) || 0)) * B.payMult(g, b);
     if (g.cash < payroll && g.cash - payroll < -(TG.F.locLimit(g) - g.loc.balance)) ctx.missedPayroll = true;
     TG.F.spend(g, Math.round(payroll), 'Wages', b.id);
     TG.F.spend(g, Math.round(payroll * C.staff.payrollTax), 'Payroll tax', b.id);
     const prop = g.properties.find((p) => p.id === b.propId);
     if (prop) {
       b.propValue = prop.owned ? TG.P.value(g, prop) : 0;
-      if (prop.leased) TG.F.spend(g, prop.rent, 'Rent', b.id);
+      if (prop.leased) TG.F.spend(g, Math.round(prop.rent * (d.fixedCut || 1)), 'Rent', b.id);
       else TG.F.spend(g, TG.P.monthlyTax(g, prop), 'Property tax', b.id);
       const upkeep = Math.round(b.propValue * 0.0006 * (1.6 - prop.cond));
       if (upkeep) TG.F.spend(g, upkeep, 'Building upkeep', b.id);
     }
-    const util = Math.round((d.svc ? d.svc.utilPerSpace : d.space.unit === 'acres' ? 1.5 : 0.3) * Math.min(B.space(b), d.space.ideal * 4) * g.world.priceIdx);
+    const util = Math.round((d.svc ? d.svc.utilPerSpace : d.space.unit === 'acres' ? 1.5 : 0.3) * Math.min(B.space(b), d.space.ideal * 4) * g.world.priceIdx * (d.fixedCut || 1));
     TG.F.spend(g, util, 'Utilities', b.id);
     let ins = 0; for (const t in b.ins) if (b.ins[t]) ins += TG.F.premium(g, b, t);
     TG.F.spend(g, ins, 'Insurance', b.id);
@@ -427,7 +431,7 @@
     }
     if (B.owner(g, b)) g.player.exp[b.type] = (g.player.exp[b.type] || 0) + 1;
     TG.E.month(g, b, ctx);
-    B.rollRisks(g, b, ctx);
+    if (!g._pv) B.rollRisks(g, b, ctx); /* v9: no random disasters in the live preview */
     TG.M.month(g, b, ctx);
     B.shutCheck(g, b, ctx);
     B.fixedCosts(g, b, ctx);
@@ -603,7 +607,7 @@
     const G0 = TG.G;
     try {
       const g2 = JSON.parse(JSON.stringify(g)); const b2 = g2.businesses.find((x) => x.id === b.id);
-      TG.G = g2; B.month(g2, b2);
+      g2._pv = true; TG.G = g2; B.month(g2, b2);
       if (b2.lastCtx) { out.work = b2.work || []; out.ctx = b2.lastCtx; out.ok = true; }
     } catch (e) { out.err = e.message; } finally { TG.G = G0; }
     const m0 = g.month; // the forecast is built "at the end of last month", so look from there

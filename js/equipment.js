@@ -194,6 +194,7 @@
       const bc = E.breakChance(g, b, it);
       it.lastP = bc.p;
       if (bc.p >= eq.warnAt && R.chance(0.6)) ctx.warnings.push({ text: `${it.label} #${E.num(b, it)} is making a strange noise`, why: `${U.pct(bc.p, 0)} monthly break chance: ${bc.factors.join(', ')}`, p: bc.p });
+      if (g._pv) continue; /* v9: the live preview never breaks or steals machines (it showed 'Tractors x0' for a working tractor, and leaked next month's breakdowns) */
       if (R.chance(bc.p * (ctx.streakMult || 1))) E.breakItem(g, b, it, bc, ctx);
       // theft / vandalism for vehicles and sites without security
       if ((d.id === 'truck' || d.id === 'mower' || d.id === 'trailer' || d.heavy) && R.chance(eq.theftBase * (C.locations[b.loc] ? C.locations[b.loc].crime : 1) * (g.world.crime > 0 ? 2 : 1) * (b.fixes.gps ? 0.3 : 1))) {

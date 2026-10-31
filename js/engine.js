@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 8;
+  const VERSION = 9;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -274,6 +274,8 @@
       g.v = 8;
     }
       if (g.settings.warnSupplies == null) g.settings.warnSupplies = true;
+    // v9: Shift lead role removed (managers order supplies, crew works the site); personalities and market pay for every worker
+    if (g.v < 9) { TG.S.v9Migrate(g); g.v = 9; }
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };

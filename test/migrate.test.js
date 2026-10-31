@@ -68,7 +68,7 @@ for (const ent of ['crops', 'cattle', 'dairy', 'orchard']) {
   const s = JSON.parse(TG.Game.serialize(g)); s.v = 7; s.settings.stopOnMajor = false; delete s.settings.warnSupplies; s.settings.majorTypes = { breakdown: true };
   const a0 = s.businesses[0].farm.areas.cows; a0.st.calf += 0.37; a0.st.milker += 0.61; delete a0.rem;
   let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v7 save failed to load: ' + e.message); }
-  if (g2) { TG.G = g2; ok(g2.v === 8, 'version bumped to 8'); const a = g2.businesses[0].farm.areas.cows;
+  if (g2) { TG.G = g2; ok(g2.v === TG.Game.VERSION || g2.v === 9, 'version bumped to current (v9)'); const a = g2.businesses[0].farm.areas.cows;
     ok(Object.values(a.st).every((x) => Number.isInteger(x)), 'cattle are whole numbers after migration: ' + JSON.stringify(a.st));
     ok(g2.settings.stopOnMajor === true && g2.settings.majorTypes.closed && g2.settings.majorTypes.cash && g2.settings.majorTypes.crime && g2.settings.majorTypes.breakdown, 'skip stops on trouble by default, old choices kept');
     ok(g2.settings.warnSupplies === true, 'supplies warning on');

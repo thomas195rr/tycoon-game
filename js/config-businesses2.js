@@ -252,8 +252,10 @@
       locPref: { city: 1, suburb: 0.75, town: 0.35, rural: 0.1, remote: 0.05 },
       site: { labor: 0.6, space: 0.1, loc: 0.3 },
       econSens: 0.5, weatherSens: 0, season: flat(1),
-      tech: { market: 'software', devPoints: 30, arpu: 10, serverCostPerUser: 1.4, cacBase: 24, churnBase: 0.08, organic: 0.03, researchCost: 60000, pmfNoise: 0.25, outageBase: 0.02 },
-      roles: { engineer: { label: 'Software engineer', wage: [8500, 18000], cap: 1, key: true, min: 1 } },
+      tech: { market: 'software', devPoints: 30, arpu: 10, serverCostPerUser: 1.4, cacBase: 24, churnBase: 0.06, churnFit: 0.04, orgFit: 1.2, orgFloor: 400, organic: 0.03, researchCost: 60000, pmfNoise: 0.25, outageBase: 0.02,
+        // v9: lean build phase (engineers take part of their pay in stock options until launch) and milestone funding rounds
+        buildPay: 0.65, rounds: [{ id: 'seed', label: 'Seed round', users: 1000, perUser: 120, min: 200000, pct: 0.15 }, { id: 'a', label: 'Series A', users: 40000, perUser: 30, min: 1500000, pct: 0.2 }] },
+      roles: { engineer: { label: 'Software engineer', wage: [6500, 14000], cap: 1, key: true, min: 1 } },
       equip: [{ id: 'server', label: 'Server cluster', price: 45000, cap: 60000, critical: false, brk: 0.012, life: 60 }],
       insurance: ['liability', 'property'],
       risks: [
