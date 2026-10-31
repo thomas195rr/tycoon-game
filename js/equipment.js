@@ -33,11 +33,46 @@
   };
 
   E.effWear = (it) => U.clamp(it.wear + (it.hidden || 0), 0, 100);
-  E.hasMech = (b) => !!(b.spec && b.spec.mechanic);
-  E.mechCoverage = (b) => {
-    if (!E.hasMech(b)) return 0;
-    const m = b.spec.mechanic; const n = Math.max(1, b.equip.length);
-    return U.clamp((TG.CONFIG.equipment.mechanicCovers * (0.6 + m.skill / 125)) / n, 0, 1);
+  // v6: mechanics are staff (role 'mech'). Coverage = machines they can look after / machines you own.
+  const MC = () => TG.CONFIG.mechanic;
+  const lerp = (a, s) => a[0] + (a[1] - a[0]) * U.clamp(s / 100, 0, 1);
+  E.mechs = (b) => (b.staff || []).filter((e) => e.role === 'mech');
+  E.hasMech = (b) => E.mechs(b).length > 0;
+  E.mechSkill = (b) => { const l = E.mechs(b); return l.length ? U.avg(l, (e) => e.skill) : 0; };
+  E.mechCapOf = (e) => MC().per * (0.6 + e.skill / 125) * (1 - TG.CONFIG.staff.noShowBase * (1.6 - (e.reliability == null ? 75 : e.reliability) / 100));
+  E.mechCap = (b) => U.sum(E.mechs(b), E.mechCapOf);
+  E.machines = (b) => b.equip.filter((x) => x.broken !== 'destroyed').length;
+  E.mechCoverage = (b) => (E.hasMech(b) ? U.clamp(E.mechCap(b) / Math.max(1, E.machines(b)), 0, 1) : 0);
+  E.mechRepairMult = (b) => (E.hasMech(b) ? lerp(MC().repairMult, E.mechSkill(b)) : 1);
+  E.mechServiceMult = (b) => (E.hasMech(b) ? lerp(MC().serviceMult, E.mechSkill(b)) : 1);
+  E.mechServiceAt = (b) => lerp(MC().serviceAt, E.mechSkill(b));
+  // each month (before wear and breakdowns): the mechanics repair what is broken, then service the machines that need it most.
+  // Better mechanics: cheaper, service closer to the best wear point, find hidden problems early, forget less.
+  E.mechMonth = (g, b) => {
+    const ms = E.mechs(b); if (!ms.length) { b.mechLog = null; return; }
+    const sk = E.mechSkill(b), cfg = MC(); let units = E.mechCap(b); const log = { fixed: 0, serviced: 0, cost: 0, caught: 0, missed: 0, left: 0, at: Math.round(E.mechServiceAt(b)) };
+    const who = ms.length === 1 ? `Mechanic ${ms[0].name}` : `Mechanics (${ms.length})`;
+    const list = b.equip.filter((x) => x.broken !== 'destroyed').sort((x, y) => (y.broken ? 1000 : 0) + E.effWear(y) - ((x.broken ? 1000 : 0) + E.effWear(x)));
+    for (const it of list) {
+      if (it.broken) {
+        if (units < cfg.repairUnits * 0.5) { log.left++; continue; }
+        const cost = it.warranty > 0 || it.leased ? 0 : E.repairCost(g, b, it);
+        if (g.cash < cost) { log.left++; continue; }
+        TG.F.spend(g, cost, 'Repairs', b.id); it.broken = null; it.wear = U.clamp(it.wear - 15, 0, 100); log.fixed++; log.cost += cost; units -= cfg.repairUnits;
+        if (TG.D) TG.D.removeFor(g, (d) => d.kind === 'broken' && d.itemId === it.id);
+        continue;
+      }
+      if (units < 1) break;
+      if (it.hidden > 3 && R.chance(lerp(cfg.catchHidden, sk))) { it.wear = E.effWear(it); it.hidden = 0; log.caught++; }
+      const at = E.mechServiceAt(b) + R.normal(0, lerp(cfg.slop, sk));
+      if (E.effWear(it) > at && !it.maint) {
+        if (R.chance(lerp(cfg.miss, sk))) { log.missed++; units -= 0.5; continue; }
+        const r = E.service(g, b, it.id, true); if (r === true) { log.serviced++; log.cost += it.lastSvc || 0; units -= 1; }
+      }
+    }
+    b.mechLog = log;
+    if (log.fixed || log.serviced || log.caught) TG.rep.decision(g, b, who, `${log.fixed ? `Repaired ${log.fixed}` : ''}${log.fixed && log.serviced ? ', ' : ''}${log.serviced ? `serviced ${log.serviced} (wear over ~${log.at}%)` : ''}${log.caught ? `${log.fixed || log.serviced ? ', ' : ''}found hidden wear on ${log.caught}` : ''}: ${U.money(log.cost)} total${log.missed ? `; overlooked ${log.missed}` : ''}`, log.missed ? 'ok' : 'good');
+    if (log.left) TG.rep.decision(g, b, who, `${log.left} broken machine(s) still waiting: ${units < 1 ? 'not enough mechanics for all your machines' : 'not enough cash for the repair'}`, 'bad');
   };
 
   // monthly break chance for an item; returns {p, factors[]}
@@ -48,7 +83,7 @@
     const w = E.effWear(it) / 100;
     const wearF = f.wearBase + f.wearMult * w * w;
     const cov = E.mechCoverage(b);
-    const mechF = 1 - (1 - eq.mechanicBreakMult) * cov * (0.6 + (b.spec && b.spec.mechanic ? b.spec.mechanic.skill : 0) / 250);
+    const mechF = 1 - (1 - eq.mechanicBreakMult) * cov * (0.6 + E.mechSkill(b) / 250);
     const fixF = (b.fixesOn && b.fixesOn.equipBreak && b.fixesOn.equipBreak[it.type]) || 1;
     const paceF = b.pace === 'rush' ? 1.35 : b.pace === 'careful' ? 0.85 : 1;
     let advF = 1;
@@ -100,7 +135,7 @@
   E.repairCost = (g, b, it) => {
     const eq = TG.CONFIG.equipment, d = E.def(b, it.type);
     let c = d.price * g.world.priceIdx * (it.broken === 'major' ? eq.repairPct.major : eq.repairPct.minor);
-    if (E.hasMech(b)) c *= eq.mechanicRepairMult;
+    c *= E.mechRepairMult(b); // v6: your mechanic's skill sets the discount
     if (TG.CONFIG.equipTiers[it.tier].advanced && !E.hasMech(b)) c *= eq.advancedNoMechRepairMult;
     if (d.efficiency) c *= 2;
     return Math.round(c);
@@ -109,14 +144,17 @@
   E.repair = (g, b, itId, by) => {
     const it = b.equip.find((x) => x.id === itId); if (!it || !it.broken || it.broken === 'destroyed') return false;
     const cost = it.warranty > 0 || it.leased ? 0 : E.repairCost(g, b, it);
+    if (g.cash < cost) return false;
     TG.F.spend(g, cost, 'Repairs', b.id);
+    if (TG.D) TG.D.removeFor(g, (d) => d.kind === 'broken' && d.itemId === it.id);
     it.broken = null; it.wear = U.clamp(it.wear - 15, 0, 100);
     TG.rep.decision(g, b, by, `Repaired ${it.label}${cost ? ' for ' + U.money(cost) : ' (covered)'}`);
     return true;
   };
+  E.serviceCost = (g, b, it) => Math.round(E.def(b, it.type).price * TG.CONFIG.equipment.serviceCostPct * g.world.priceIdx * E.mechServiceMult(b));
   E.service = (g, b, itId) => {
     const it = b.equip.find((x) => x.id === itId); if (!it || it.broken) return false;
-    const eq = TG.CONFIG.equipment; const cost = Math.round(E.def(b, it.type).price * eq.serviceCostPct * g.world.priceIdx);
+    const eq = TG.CONFIG.equipment; const cost = E.serviceCost(g, b, it); it.lastSvc = cost;
     TG.F.spend(g, cost, 'Maintenance', b.id);
     if (TG.USES.take(it, 'service', g.month) > 1) return 'again'; // one service a month per machine; more just costs money
     it.wear = U.clamp(it.wear - eq.serviceWearCut, 0, 100); it.hidden = Math.max(0, (it.hidden || 0) - 10);
@@ -138,6 +176,7 @@
   // Monthly wear, breakdowns, theft. Returns nothing; pushes events and decisions.
   E.month = (g, b, ctx) => {
     const C = TG.CONFIG, eq = C.equipment;
+    E.mechMonth(g, b);
     const cov = E.mechCoverage(b);
     const wearFix = (b.fixesOn && b.fixesOn.wearMult) || 1;
     for (const it of b.equip.slice()) {
@@ -208,7 +247,7 @@
     opts.push({ id: 'leave', label: destroyed ? 'Scrap it, no replacement' : 'Leave it broken' });
     TG.D.add(g, { kind: 'broken', bizId: b.id, itemId: it.id, title: `${d.label} ${destroyed ? 'destroyed' : 'broken'}`,
       text: `${it.label} #${E.num(b, it)} (${TG.CONFIG.equipTiers[it.tier].label}, ${(it.age / 12).toFixed(1)} yrs, ${Math.round(E.effWear(it))}% wear) is out of action.${d.critical ? ' It is critical: capacity drops until it is fixed.' : ''}`,
-      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.`, options: opts, def: 'leave' });
+      why: `Break chance was ${U.pct(it.lastP || 0, 1)} per month.${destroyed ? '' : E.hasMech(b) ? ' Your mechanic will fix it next month if cash allows.' : ' No mechanic: it stays broken until you repair it.'}`, options: opts, def: destroyed ? 'leave' : null });
   };
 
   // replace a broken/destroyed item (or add new)

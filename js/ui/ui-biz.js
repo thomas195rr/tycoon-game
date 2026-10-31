@@ -16,11 +16,11 @@
   UI.screens.bizd = () => {
     const g = TG.G, b = biz(); if (!b) { UI.screen = 'biz'; return UI.screens.biz(); }
     const d = TG.B.def(b);
-    const tabs = [['overview', '📋 Now'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Extras'], ['mkt', '📣 Ads']];
-    if (TG.UI.modelPanel[d.model]) tabs.splice(1, 0, ['model', TG.UI.modelPanel[d.model].label]);
+    const tabs = [['overview', '📋 Now'], ['rep', '📊 Reports'], ['staff', '👥 Staff'], ['mgr', '🧑‍💼 Manager'], ['equip', '🛠️ Gear'], ['upg', '⬆️ Extras'], ['mkt', '📣 Ads']];
+    if (TG.UI.modelPanel[d.model]) tabs.splice(2, 0, ['model', TG.UI.modelPanel[d.model].label]);
     tabs.push(['own', '🔑 Owner']);
     const t = UI.curTab('biz', 'overview');
-    const body = { overview, staff, mgr, equip, upg, mkt, own, model: () => TG.UI.modelPanel[d.model].render(g, b) }[t] || overview;
+    const body = { overview, rep: () => UI.reportsTab(g, b), staff, mgr, equip, upg, mkt, own, model: () => TG.UI.modelPanel[d.model].render(g, b) }[t] || overview;
     return `<div class="row sp"><h2>${d.icon} ${esc(b.name)}</h2>${UI.btn('◀ All', 'go', 'biz', 'sm')}</div>${UI.tabs('biz', tabs)}${body(g, b)}`;
   };
 
@@ -28,28 +28,23 @@
   const PR = () => TG.PR;
   const toneRep = (v) => (v >= 60 ? 'g' : v >= 35 ? 'y' : 'r');
   function overview(g, b) {
-    const d = TG.B.def(b), lc = b.lastCtx || {}; const h = b.hist; const last = h[h.length - 1];
+    const d = TG.B.def(b), lc = UI.lc(b); const h = b.hist; const last = h[h.length - 1];
     let o = `<div class="tiles">
       ${UI.tile('t_profit', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Profit last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', last ? `Money in ${m(last.rev)} − money out ${m(last.cost)}.` : 'Not open a full month yet.')}
       ${UI.tile('t_rep', '⭐', Math.round(b.rep), 'Reputation', toneRep(b.rep), 'What customers think of you (0-100). Good quality and fair prices raise it.')}
       ${UI.tile('t_q', '🎯', lc.quality != null ? lc.quality : '–', 'Quality', lc.quality == null ? '' : toneRep(lc.quality), `Staff skill ${lc.skill != null ? lc.skill : '?'}, morale ${lc.morale != null ? lc.morale : '?'}, equipment condition.`)}
-      ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `Did ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible. Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
+      ${UI.tile('t_cap', '📊', lc.cap ? Math.round((lc.served || 0) / lc.cap * 100) + '%' : '–', 'Busy', lc.cap ? ((lc.served || 0) / lc.cap > 0.95 ? 'y' : 'g') : '', lc.cap ? `This month with your setup as it is now: about ${Math.round(lc.served || 0).toLocaleString()} of ${Math.round(lc.cap).toLocaleString()} possible (updates as soon as you change something). Customers wanted ${Math.round(lc.demand || 0).toLocaleString()}.` : '')}</div>`;
     if (b.licensePending > 0) o += `<div class="banner">⏳ License: ${b.licensePending} month(s) to go. No sales yet.</div>`;
     if (lc.note) o += `<div class="ev info">💡 ${esc(lc.note)}</div>`;
-    o += UI.flowCard(g, b);
-    o += UI.forecastCard(g, b);
+    o += UI.todoCard(g, b); // v6: jobs nobody does for you (no manager)
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
-    o += UI.salesCard(g, b);
+    { const ss = UI.salesSummary(g, b); if (ss) o += `<div class="card">${ss}</div>`; }
     o += UI.workCard(g, b);
     // how it runs
     o += `<div class="card"><h3>⚙️ How it runs</h3>
       ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}</div>`;
-    const risks = TG.B.topRisks(g, b).slice(0, 8);
-    o += `<div class="card"><details><summary>⚠️ Risks next month</summary><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></details></div>`;
-    if (last) o += `<div class="card"><details><summary>🧾 Money in & out</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table>${h.length > 2 ? UI.spark(h.slice(-36).map((x) => x.profit), '#2563eb') : ''}</details></div>`;
-    const ev = g.log.filter((e) => e.bizId === b.id || e.biz === b.name).slice(-12).reverse();
-    if (ev.length) o += `<div class="card"><details><summary>📰 What happened</summary>${ev.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> ${e.type === 'decision' ? `<b>${esc(e.by)}</b>: ` : ''}${esc(e.text)}</div>`).join('')}</details></div>`;
+    o += `<div class="btns">${UI.btn('📊 Reports: this month, next month, forecast', 'tab', 'biz:rep', 'sm')}</div>`;
     return o;
   }
   UI.A.bizPace = (p) => { biz().pace = p; UI.refresh(); };
@@ -77,7 +72,7 @@
 
   // capacity = weakest link
   UI.linksCard = (g, b) => {
-    const d = TG.B.def(b); const ctx = TG.B.ctx(g, b); const lc = b.lastCtx || {}; let L = [];
+    const d = TG.B.def(b); const ctx = TG.B.ctx(g, b); const lc = UI.lc(b); let L = [];
     const cats = TG.CONFIG.equipCats;
     if (d.model === 'service') {
       const k = TG.M.models.service.caps(g, b, ctx);
@@ -114,7 +109,7 @@
   const spareTone = (sp) => (sp < 0.05 ? 'bad' : sp < 0.15 ? 'warn' : 'good');
   UI.staffWorkCard = (g, b) => {
     const C = TG.CONFIG, d = TG.B.def(b); const bl = TG.B.backlogMult(b); const unf = b.unf || 0;
-    const W = (b.work || []).filter((w) => w.kind === 'staff' && w.role);
+    const W = UI.wk(b).filter((w) => w.kind === 'staff' && w.role);
     const risk = (C.unfinishedRisk && C.unfinishedRisk[b.type]) || 'accidents, unhappy customers and failed inspections';
     let o = `<div class="card"><h3>🧯 Work vs your team ${UI.tipBtn('uw' + b.id)}</h3>${UI.tipLine('uw' + b.id, `Every month some people call out sick or slack off (about ${U.pct(C.staff.calloutBase)} each; more if unreliable or unhappy). Spare people cover for them. With no spare, work is left undone and the odds of ${risk} go up until it is caught up.`)}
       <div class="tiles">${UI.tile('uwu' + b.id, '🧺', b.hist.length ? U.pct(unf) : '–', 'Left undone', unf > 0.05 ? 'r' : unf > 0 ? 'y' : 'g', 'Share of last month\'s work nobody got to.')}
@@ -158,40 +153,43 @@
   function mgr(g, b) {
     const d = TG.B.def(b), D = TG.D; if (!b.target) D.syncTargets(b); const o0 = b.orders || (b.orders = {});
     const who = (kind) => D.handler(g, b, kind);
-    const hire = who('hire'), maint = who('maint'); const fh = b.farm ? D.orderTaker(g, b, 'farm') : null;
+    const hire = who('hire'), stockH = TG.ST.def(b) ? who('stock') : null; const fh = b.farm ? D.orderTaker(g, b, 'farm') : null;
+    const mechs = TG.E.mechs(b), hasEq = b.equip.length > 0 && !!TG.S.roleDef(b, 'mech'); const NOM = '<span class="bad">No manager: you must do this yourself</span>';
     let o = `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
-      ${UI.irow('mwm' + b.id, '🔧', 'Machines', maint ? U.pct(maint.p) : '<span class="bad">nobody</span>', maint ? `${maint.label} services and repairs machines by your rules below. Gets it right about ${U.pct(maint.p)} of the time.` : 'No mechanic, ops manager or GM: machines only get serviced when you do it.', null, maint ? esc(maint.label) : 'no manager')}
-      ${b.farm ? UI.irow('mwf' + b.id, '🚜', 'Farm work', fh ? U.pct(fh.p) : '<span class="bad">nobody</span>', fh && fh.foreman ? `No GM or ops manager, so ${fh.label} does it, less reliably (right about ${U.pct(fh.p)} of the time).` : fh ? `${fh.label} sprays and buys seed by your orders below. Gets it right about ${U.pct(fh.p)} of the time.` : 'Nobody to carry out farm orders.', null, fh ? esc(fh.label) : 'nobody') : ''}
-      ${!hire && !maint ? `<div class="btns">${UI.btn('➕ Hire a manager', 'hireRole', 'gm', 'sm pri')}</div>` : ''}</div>`;
+      ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
+      ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out.', null, stockH ? esc(stockH.label) : NOM) : ''}
+      ${b.farm ? UI.irow('mwf' + b.id, '🚜', 'Farm work', fh ? U.pct(fh.p) : '<span class="bad">nobody</span>', fh ? `${fh.label} sprays, buys seed and feed, and sells cattle by your orders below. Gets it right about ${U.pct(fh.p)} of the time.` : 'No GM or ops manager: nobody sprays, buys seed or feed, or sells cattle. You must do it yourself.', null, fh ? esc(fh.label) : NOM) : ''}
+      ${!hire ? `<div class="btns">${UI.btn('➕ Hire a manager', 'hireRole', 'gm', 'sm pri')}</div>` : ''}</div>`;
     // staffing numbers
     o += `<div class="card"><h3>👥 How many to keep</h3><div class="mute">Your manager hires replacements to keep these numbers.</div>`;
     for (const r of Object.keys(d.roles)) {
       const rd = d.roles[r]; const have = b.staff.filter((e) => e.role === r).length; const tgt = b.target[r] || 0;
-      o += UI.irow('tg' + b.id + r, rd.key ? '⭐' : '🧹', rd.label, `${have} → ${tgt}`, `${m(rd.wage[0])}-${m(rd.wage[1])}/mo each.${rd.key ? ' Key role: they do the main work.' : ''}`, UI.btn('−', 'tgt', `${r}|-1`, 'xs') + UI.btn('+', 'tgt', `${r}|1`, 'xs'), 'now → keep');
+      o += UI.irow('tg' + b.id + r, rd.icon || (rd.key ? '⭐' : '🧹'), rd.label, `${have} → ${tgt}`, `${m(rd.wage[0])}-${m(rd.wage[1])}/mo each.${rd.key ? ' Key role: they do the main work.' : ''}`, UI.btn('−', 'tgt', `${r}|-1`, 'xs') + UI.btn('+', 'tgt', `${r}|1`, 'xs'), 'now → keep');
     }
     const sp = o0.spare || 0;
     o += UI.irow('spr' + b.id, '🛟', 'Keep spare staff', null, 'Your manager adds people when the team has less spare room than this. Spare people cover sick days, so less work is left undone (fewer disasters). They cost wages.',
       [0, 0.1, 0.25].map((v) => UI.btn(v ? '+' + U.pct(v) : 'none', 'ordSpare', v, 'xs' + (sp === v ? ' pri' : ''))).join(''), 'extra room on top of the work');
     o += `</div>`;
-    // machines
-    const sa = o0.serviceAt == null ? 58 : o0.serviceAt;
-    o += `<div class="card"><h3>🔧 Machines</h3>${UI.irow('sva' + b.id, '🧰', 'Service when wear is over', sa >= 100 ? 'never' : sa + '%', 'Servicing lowers wear (fewer breakdowns) but costs money each time. Lower = more services, fewer breakdowns.',
-      [40, 58, 75, 100].map((v) => UI.btn(v >= 100 ? 'never' : v + '%', 'ordSvc', v, 'xs' + (sa === v ? ' pri' : ''))).join(''))}
-      ${UI.irow('fxn' + b.id, '🛠️', 'Fix broken machines right away', null, 'Your manager pays for repairs as soon as something breaks (if cash allows). Off = it waits for you.', onOff(o0.fix !== false, 'ordFix'))}</div>`;
     // supplies
     const st = TG.ST.def(b) ? TG.ST.ensure(b) : null;
-    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Reorder supplies each month', null, 'Your staff or manager tops up supplies before they run out.', onOff(st.auto, 'stAuto'))}</div>`;
+    if (st) o += `<div class="card"><h3>📦 Supplies</h3>${UI.irow('sau' + b.id, '🤖', 'Manager reorders supplies each month', stockH ? null : '<span class="bad">no manager</span>', stockH ? 'Your manager tops up supplies before they run out.' : 'Only works with an ops manager, GM or CEO. Without one, nothing is bought for you.', onOff(st.auto, 'stAuto'))}</div>`;
     // farm orders
     if (b.farm) {
       const f = TG.M.farmEnsure(b);
       o += `<div class="card"><h3>🚜 Farm orders</h3>`;
       for (const k of TG.M.farmAreas) {
-        const a = f.areas[k]; if (!a.acres) continue; const so = f.orders.spray[k]; const ad = TG.CONFIG.businesses.farm.farm.areas[k];
+        const a = f.areas[k]; if (!a.acres || k === 'cows') continue; const so = f.orders.spray[k]; if (!so) continue; const ad = TG.CONFIG.businesses.farm.farm.areas[k];
         o += UI.irow('osp' + b.id + k, '🧪', `${ad.icon} Spray ${ad.label.toLowerCase()} when soil < ${U.pct(so.below)}`, `now ${U.pct(a.soil)}`, `Each spray costs about ${m(TG.M.farmTreatCost(g, b, k))} and lifts soil about +${Math.round(TG.M.soilAdd(so.below) * 100)} points at that level. Higher line = better soil but more sprays (high soil wears out faster).`,
           onOff(so.on, 'ordSpray', k) + UI.btn('−5', 'ordBelow', `${k}|-0.05`, 'xs') + UI.btn('+5', 'ordBelow', `${k}|0.05`, 'xs'));
       }
-      if (f.areas.crops.acres) o += UI.irow('osd' + b.id, '🌱', 'Buy seed before planting', `${N(f.seeds)} acres' worth`, 'Buys just enough seed in planting months. A farmhand doing it pays a little more.', onOff(f.orders.seed, 'ordSeed'));
+      if (!fh) o += `<div class="ev warn">${NOM}: these orders only run when you hire a GM or ops manager.</div>`;
+      if (f.areas.cows.acres) { const co = f.orders.cows || (f.orders.cows = TG.M.cowOrderDefaults());
+        o += UI.irow('oc1' + b.id, '🥩', 'Sell market-ready cattle', null, 'Every month, sell steers that reached market weight.', onOff(co.sellReady, 'ordCow', 'sellReady'));
+        o += UI.irow('oc2' + b.id, '👵', 'Sell dry / old cows', null, 'Cows that stopped milking are sold for meat.', onOff(co.cullDry, 'ordCow', 'cullDry'));
+        o += UI.irow('oc3' + b.id, '🐄', 'Keep the herd within room', null, 'Sells young stock when the herd is over 95% of room.', onOff(co.keepRoom, 'ordCow', 'keepRoom'));
+        o += UI.irow('oc4' + b.id, '🌽', 'Keep feed in storage', co.feedMonths ? `${co.feedMonths} months` : 'off', 'Buys feed so storage holds this many months of what grass will not cover.', [0, 1, 2, 3].map((v) => UI.btn(v ? v + ' mo' : 'off', 'ordFeed', v, 'xs' + (co.feedMonths === v ? ' pri' : ''))).join('')); }
+      if (f.areas.crops.acres) o += UI.irow('osd' + b.id, '🌱', 'Buy seed before planting', `${N(f.seeds)} acres' worth`, 'Buys just enough seed in planting months.', onOff(f.orders.seed, 'ordSeed'));
       if (f.areas.crops.acres || f.areas.orchard.acres) o += UI.irow('opo' + b.id, '🧺', 'At harvest', null, 'Sell right away, store and wait for a better price, or let your manager judge the price each month.', ['sell', 'store', 'auto'].map((p) => UI.btn({ sell: '💵 Sell', store: '🏚️ Store', auto: '🤖 Manager' }[p], 'farmPol', p, 'xs' + (f.sellPolicy === p ? ' pri' : ''))).join(''));
       o += `</div>`;
     }
@@ -200,8 +198,8 @@
     return o;
   }
   UI.A.ordSpare = (v) => { biz().orders.spare = Number(v); UI.refresh(); };
-  UI.A.ordSvc = (v) => { biz().orders.serviceAt = Number(v); UI.refresh(); };
-  UI.A.ordFix = () => { const o = biz().orders; o.fix = o.fix === false; UI.refresh(); };
+  UI.A.ordCow = (k) => { const co = biz().farm.orders.cows; co[k] = !co[k]; UI.refresh(); };
+  UI.A.ordFeed = (v) => { biz().farm.orders.cows.feedMonths = Number(v); UI.refresh(); };
   UI.A.ordSpray = (k) => { const so = biz().farm.orders.spray[k]; so.on = !so.on; UI.refresh(); };
   UI.A.ordBelow = (arg) => { const [k, dv] = arg.split('|'); const so = biz().farm.orders.spray[k]; so.below = U.clamp(Math.round((so.below + Number(dv)) * 100) / 100, 0.3, 0.95); UI.refresh(); };
   UI.A.ordSeed = () => { const f = biz().farm; f.orders.seed = !f.orders.seed; UI.refresh(); };
@@ -253,7 +251,7 @@
       const P = C.perks[e.role] || [];
       let o = `<div class="card"><h3 style="margin-top:0">🧠 What skill ${Math.round(sk)} does</h3>` + rows.map(([i, t, a, z]) => UI.irow('sk' + e.id + t, i, t, `${a} → ${z}`, `Now ${a}. At skill ${up}: ${z}.`)).join('');
       if (P.length) o += '<h4>🏅 Perks</h4>' + P.map(([lvl, , , txt]) => `<div class="irow"><span class="ic">${sk >= lvl ? '✅' : '🔒'}</span><span class="lb">${esc(txt)}<small>skill ${lvl}+</small></span></div>`).join('');
-      if (e.role === 'mechanic') o += `<div class="small">Covers about 12 machines. Breakdowns fall more the higher the skill.</div>`;
+      if (e.role === 'mech') o += `<div class="small">Covers about ${N(TG.E.mechCapOf(e))} machines. Higher skill = cheaper repairs, better-timed services, hidden problems caught earlier.</div>`;
       return o + '</div>';
     }
     const rd = TG.S.roleDef(b, e.role) || {}; const eff = (s) => M.staffEff(at(s));

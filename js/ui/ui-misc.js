@@ -5,7 +5,7 @@
   UI.screens.more = () => {
     const tabs = [['mgr', '👔 Managers'], ['news', '📰 News'], ['log', '📜 Log'], ['ach', '🏆 Goals'], ['set', '⚙️ Settings'], ['help', '❓ Help']];
     const t = UI.curTab('more', 'mgr');
-    return `<h2>☰ More</h2>${UI.tabs('more', tabs)}${({ mgr, news, log, ach, set, help }[t] || mgr)(TG.G)}`;
+    return `<div class="row sp"><h2>☰ More</h2>${UI.btn('📈 Industry Outlook', 'go', 'ind', 'sm')}</div>${UI.tabs('more', tabs)}${({ mgr, news, log, ach, set, help }[t] || mgr)(TG.G)}`;
   };
 
   // ---------- managers & CEO ----------
@@ -65,7 +65,6 @@
       ${tg('gambling', 'Gambling & high-risk investing', 'Casino, betting, penny stocks, coins, margin, angel deals')}
       ${tg('crime', '🕶️ Crime side', 'Street deals, bank jobs, sabotage. Off hides it and freezes everything there.')}
       ${tg('habit', 'Gambling habit can build up', 'Big bets can lead to chasing losses on their own')}
-      ${tg('autoCredit', 'Auto-draw credit line when cash runs short')}
       ${tg('ceoBigMoves', 'CEO may make big moves for me')}
       <span>Event frequency</span><span><select data-change="setFreq"><option value="normal"${s.eventFreq === 'normal' ? ' selected' : ''}>Normal</option><option value="calm"${s.eventFreq === 'calm' ? ' selected' : ''}>Calm</option></select></span></div></div>`;
     o += `<div class="card"><h3 style="margin-top:0">Stop the skip on…</h3><div class="kv">${Object.entries(MT).map(([k, l]) => `<span>${l}</span><span>${UI.btn(s.majorTypes[k] ? 'Yes' : 'No', 'setMajor', k, 'sm' + (s.majorTypes[k] ? ' goodb' : ''))}</span>`).join('')}</div></div>`;
@@ -90,7 +89,7 @@
     bakery: 'Bread and cakes baked each morning. Unsold stock goes stale fast.', salon: 'Haircuts and color per visit. Good stylists keep regulars.',
     carwash: 'Price per wash × cars. Sunny weeks busy, rainy weeks quiet.', lawn: 'Mowing jobs in spring and summer, little in winter.',
     auto: 'Repair jobs: labor plus parts. Honest work brings repeat customers.', gym: 'Monthly memberships. January rush, then people quit.',
-    farm: 'Crops sold at harvest, or cattle and milk sold through the year at market prices.', freight: 'Rate per load × loads hauled, minus diesel, tolls and drivers.',
+    farm: 'Crops sold at harvest; milk collected daily; cattle sold for meat when you (or your manager) sell them.', freight: 'Rate per load × loads hauled, minus diesel, tolls and drivers.',
     brand: 'Buy batches of clothes, sell them online. Hits sell out; flops sit in the warehouse.', hotel: 'Room-nights × room rate. Busy seasons and reviews drive it.',
     law: 'Billable case hours × hourly rate.', clinic: 'Patient visits paid by insurance, often late.',
     construction: 'Win bids, build, get paid by stages. Overruns eat profit.', factory: 'Products made on lines and sold in bulk at market price.',
@@ -105,7 +104,7 @@
     lawn: ['Winter is slow: do not overhire in spring.', 'Mowers wear quickly when every crew is maxed.'],
     auto: ['Each tech needs a lift and the scanner keeps up with all of them.', 'Cutting corners raises lawsuit odds.'],
     gym: ['Members leave after the January rush.', 'Cardio and weights each cap how many members fit.'],
-    farm: ['Split your acres into 🐄 cow, 🌾 crop and 🍎 orchard areas (Land tab). Moving acres costs money and a month or two.', 'Each area has soil % (drops monthly; spray brings it back) and water % (sprinkler cover). Low water raises the odds of dry-outs; poor soil raises pest odds and lowers yield.', 'Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
+    farm: ['Split your acres into 🐄 cow, 🌾 crop and 🍎 orchard areas (Land tab). Moving acres costs money and a month or two.', 'Crop and orchard areas have soil % (drops monthly; only YOUR spray brings it back) and water % (sprinkler cover). Cows need grass plus FEED from storage: no feed = sick, thin cows.', 'Cows: calf → heifer → milking cow → dry cow; calf → steer → market-ready. Bulls are needed for calves. Small herds breed faster per cow.', 'No manager = nothing is automatic: you buy seed, feed and supplies, sell cattle and fix machines yourself.', 'Plant and harvest windows are short: missing tractors or hands then costs the year.', 'Prices swing: storage lets you wait, but grain slowly spoils.'],
     freight: ['Diesel is about a third of costs: fill the yard tank when fuel is cheap.', 'Trucks without drivers earn nothing.'],
     brand: ['Test with small batches before a big order.', 'Unsold stock costs storage and loses value.'],
     hotel: ['Housekeepers and laundry both cap rooms cleaned.', 'Reviews drive occupancy: worn rooms hurt.'],

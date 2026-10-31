@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 2;
+  const VERSION = 6;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -38,7 +38,7 @@
       cash: 0, player: { name: opts.name || 'You', credit: 700, bankruptcies: 0, noLoanUntil: 0, ownerBiz: null, exp: {} },
       properties: [], listings: [], businesses: [], loans: [], loc: { balance: 0, rate: 0 }, lawsuits: [], decisions: [], log: [], history: [],
       acc: TG.F.newAcc(), taxLoss: 0, taxPaid: [], negMonths: 0, ceo: null, scenario: opts.scenario || 'classic', reports: [], newsFeed: [],
-      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', autoCredit: true, ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
+      settings: Object.assign({ gambling: true, crime: true, habit: true, stopOnMajor: false, majorTypes: { breakdown: true, keyQuit: true, cash: true, lawsuit: true, strike: true, harvest: false, weather: false }, eventFreq: 'normal', ceoBigMoves: false, confirmPending: true }, opts.settings || {}),
       achievements: {}, stats: { peakNW: 0, reached: {}, recessionProfitYears: 0 }, started: Date.now(),
     };
     TG.G = g;
@@ -51,6 +51,7 @@
     if (sc === 'recession') { const ph = C.economy.phases.recession; Object.assign(g.world, { phase: 'recession', phaseLeft: R.int(ph.dur[0], ph.dur[1]), econ: ph.econ, baseRate: ph.rate }); g.world.housing = 0.9; }
     if (sc === 'rebuild') { const B = C.finance.bankruptcy; g.cash = B.keepCash; g.player.credit = R.int(B.credit[0], B.credit[1]); g.player.bankruptcies = 1; g.player.noLoanUntil = B.noLoanMonths; }
     if (sc === 'rich') g.cash = 2000000;
+    TG.CREDIT.ensure(g); TG.CREDIT.sync(g);
     if (sc === 'farm') {
       const p = TG.P.gen(g, TG.P.idealFor('farm')); p.owned = true; p.baseValue = p.price; p.housingAtBuy = 1; p.bought = 0; g.properties.push(p);
       g.cash = 1e9; const r = TG.B.start(g, 'farm', p.id, { name: 'Family Farm' }); const b = r.biz;
@@ -74,7 +75,8 @@
     TG.D.autoResolve(g);
     const cashStart = g.cash, nwStart = g.lastNW != null ? g.lastNW : TG.F.netWorth(g);
     const pre = g.acc || TG.F.newAcc(); // money moved by the player's own actions between months
-    g.acc = TG.F.newAcc();
+    // v6: running costs you paid between months (supplies, feed, seed, repairs) belong to this month's profit and tax
+    g.acc = TG.F.newAcc(); g.acc.inc = Object.assign({}, pre.inc); g.acc.exp = Object.assign({}, pre.exp);
     TG.W.month(g); TG.P.month(g);
     for (const p of g.properties) if (!p.bizId) { if (p.leased) TG.F.spend(g, p.rent, 'Rent (unused property)'); else TG.F.spend(g, TG.P.monthlyTax(g, p), 'Property tax (unused property)'); }
     TG.RE.month(g); TG.I.month(g);
@@ -103,7 +105,7 @@
     const b0 = g.cur || rep.newBuf(m);
     const report = {
       m, date: U.dateStr(m), cashStart, cashEnd: g.cash, nwStart, nw, profit, tax, inc, exp, capIn: g.acc.capIn, capOut: g.acc.capOut,
-      pre: { inc: sumObj(pre.inc) + sumObj(pre.capIn), exp: sumObj(pre.exp) + sumObj(pre.capOut) },
+      pre: { inc: sumObj(pre.capIn), exp: sumObj(pre.capOut) },
       biz: bizRows, re: g.re.holdings.length ? { rev: g.re.m.rev, cost: g.re.m.cost, units: TG.RE.unitsOwned(g) } : null,
       events: b0.events, staff: b0.staff, decisions: b0.decisions, news: b0.news, warns: b0.warns, ach,
       world: { phase: TG.W.phaseLabel(g), econ: g.world.econ, rate: g.world.baseRate, inflation: g.world.priceIdx },
@@ -222,6 +224,26 @@
       b.orders = b.orders || {}; if (b.backlog == null) b.backlog = 0;
       if (b.farm) { TG.M.farmEnsure(b); TG.M.farmMigrateEquip(g, b); }
     }
+    // v6: industry cycles, mechanics instead of auto-fix, no automation without a manager, mixed cow herds, credit record, tenant search
+    if (TG.IN) TG.IN.ensure(g);
+    delete g.settings.autoCredit; delete g.settings.autoFix; delete g.settings.serviceAt;
+    for (const b of g.businesses) {
+      if (b.spec && b.spec.mechanic) { // the old mechanic specialist becomes a staff mechanic
+        const sp = b.spec.mechanic; delete b.spec.mechanic;
+        if (TG.S.roleDef(b, 'mech')) b.staff.push(Object.assign(TG.S.candidate(g, b, 'mech', 0.6), { skill: sp.skill || 55, months: sp.months || 12 }));
+      }
+      if (b.orders) { delete b.orders.maint; delete b.orders.fixNow; delete b.orders.svcAt; }
+      if (b.settings) { delete b.settings.autoFix; delete b.settings.serviceAt; }
+      if (b.farm) { TG.M.herdMigrate(g, b); if (b.farm.feed == null) b.farm.feed = 0; if (b.farm.orders && b.farm.orders.spray) delete b.farm.orders.spray.cows; if (b.farm.orders && !b.farm.orders.cows) b.farm.orders.cows = TG.M.cowOrderDefaults(); }
+    }
+    const hadCr = !!g.player.cr;
+    if (g.loc && g.loc.limit == null) { // old saves keep the credit line they had (old formula), now a fixed approved limit
+      const L = TG.CONFIG.finance.loc, cr = g.player.credit || 650; const cf = U.clamp((cr - 600) / 200, 0.2, 1.3);
+      g.loc.limit = cr < L.minCredit ? Math.round(g.loc.balance || 0) : Math.max(Math.round(g.loc.balance || 0), Math.round((L.limitBase + L.limitNW * Math.max(0, TG.F.netWorth(g))) * cf / 1000) * 1000);
+    }
+    for (const h of (g.re && g.re.holdings) || []) { if (h.rentR == null) h.rentR = 1; for (const t of h.tenants || []) if (t && t.rel == null) { t.rel = t.bad ? 0.3 : 0.72; delete t.bad; } }
+    TG.CREDIT.ensure(g); if (!hadCr) TG.CREDIT.sync(g);
+    if ((g.v || 1) < 6) g.v = 6;
     return g;
   };
   E.deserialize = (s) => { const g = JSON.parse(s); E.validate(g); return E.migrate(g); };

@@ -143,7 +143,7 @@
       case 'noHR': return s.hr ? 0.7 : 1.15;
       case 'noOps': return s.ops ? 0.6 : s.gm ? 0.85 : 1.2;
       case 'noSafety': return s.safety ? 0.45 : 1.2;
-      case 'noMech': return s.mechanic ? 0.6 : 1.2;
+      case 'noMech': return TG.E.hasMech(b) ? 0.6 : 1.2;
       case 'noAccountant': return s.accountant ? 0.6 : 1.2;
       case 'noLawyer': return s.lawyer ? 0.6 : 1.1;
       case 'equipWear': return 0.5 + TG.E.avgWear(b) / 60;
@@ -391,7 +391,7 @@
     const fo = b.fixesOn || {};
     if (fo.seasonDamp) season = 1 + (season - 1) * (1 - fo.seasonDamp);
     if (fo.seasonFloor) season = Math.max(season, fo.seasonFloor);
-    let m = season * TG.W.econMult(g, d.econSens) * (g.world.trends[d.cat] || 1) * TG.CONFIG.regions[b.region].demand;
+    let m = season * TG.W.econMult(g, d.econSens) * TG.IN.demand(g, d.ind) * TG.CONFIG.regions[b.region].demand;
     for (const h of b.hits) m *= h.mult;
     if (b.boost) m *= b.boost.mult;
     if (b.sab && b.sab.until > g.month) m *= b.sab.mult;
@@ -405,7 +405,8 @@
 
   // ---------- monthly orchestration ----------
   B.month = (g, b) => {
-    b.m = { rev: 0, cost: 0, lines: {} };
+    // v6: money you spent on this business between months (supplies, feed, seed, repairs) counts in this month's results
+    b.m = b.m && b.m.carry ? { rev: b.m.rev, cost: b.m.cost, lines: b.m.lines } : { rev: 0, cost: 0, lines: {} };
     B.fixAgg(b);
     const ctx = B.ctx(g, b);
     // license pending (clinic): costs run, no revenue
@@ -480,6 +481,7 @@
   B.backlogMult = (b) => Math.min(TG.CONFIG.staff.backlogMax || 2.5, 1 + (TG.CONFIG.staff.backlogK || 3) * (b.backlog || 0));
   B.endMonth = (g, b, ctx) => {
     B.collect(g, b);
+    if (TG.E.hasMech(b)) { const nm = TG.E.mechs(b).length; TG.WK.add(ctx, 'staff', '🔧', 'Mechanics', nm, TG.E.mechCap(b), TG.E.machines(b), 'machines', [], `Each mechanic looks after about ${TG.CONFIG.mechanic.per} machines (more if skilled). Machines over that get no care.`, 'mech'); }
     TG.FL.commit(g, b); TG.WK.commit(b, ctx);
     B.unfinished(g, b, ctx);
     b.hits = b.hits.filter((h) => --h.months > 0);
@@ -491,6 +493,7 @@
     if (b.outside > 0 && profit > 0) { const div = Math.round(profit * b.outside); TG.F.spend(g, div, 'Investor dividends', b.id); }
     const pr = b.m.rev - b.m.cost;
     b.hist.push({ m: g.month, rev: Math.round(b.m.rev), cost: Math.round(b.m.cost), profit: Math.round(pr), rep: Math.round(b.rep), util: ctx.util || 0, lines: b.m.lines });
+    b.m = { rev: 0, cost: 0, lines: {}, carry: true };
     if (b.hist.length > TG.CONFIG.maxHistory) b.hist.shift();
     const last3 = b.hist.slice(-3);
     b.revAvg = U.avg(last3, (x) => x.rev);
@@ -547,5 +550,28 @@
     if (prop) { if (prop.mortgageId) TG.F.payoff(g, prop.mortgageId); g.properties = g.properties.filter((p) => p !== prop); }
     return v;
   };
+  // ---------- v6: instant updates ----------
+  // The ONE recompute for everything derived from a business's current setup: team and machine capacity, work bars,
+  // spare/short %, what limits you, and the next-month forecast. It runs the coming month on a throw-away copy of
+  // the game (same random draws, nothing is kept), so any change (hire, fire, buy a machine, move acres, change a
+  // price, buy feed, change an order) shows its effect at once. Next Month still simulates the month for real.
+  // Results are cached per business and recomputed only when the business, cash or month changed.
+  const LIVE = new WeakMap();
+  B.liveSig = (g, b) => JSON.stringify(b, (k, v) => (k === 'hist' || k === 'log' || k === 'fcPrev' ? undefined : v)) + '|' + g.month + '|' + Math.round(g.cash / 500) + '|' + g.businesses.length;
+  B.live = (g, b) => {
+    if (!g || !b || !g.businesses.includes(b)) return null;
+    const sig = B.liveSig(g, b); const c = LIVE.get(b); if (c && c.sig === sig) return c;
+    const out = { sig, m: g.month, work: b.work || [], ctx: b.lastCtx || {}, fc: b.fc || null, ok: false };
+    const G0 = TG.G;
+    try {
+      const g2 = JSON.parse(JSON.stringify(g)); const b2 = g2.businesses.find((x) => x.id === b.id);
+      TG.G = g2; B.month(g2, b2);
+      if (b2.lastCtx) { out.work = b2.work || []; out.ctx = b2.lastCtx; out.ok = true; }
+    } catch (e) { out.err = e.message; } finally { TG.G = G0; }
+    const m0 = g.month; // the forecast is built "at the end of last month", so look from there
+    try { g.month = m0 - 1; out.fc = b.hist.length ? B.forecast(g, b) : null; } catch (e) { out.fc = b.fc || null; } finally { g.month = m0; }
+    LIVE.set(b, out); return out;
+  };
+  B.liveReset = (b) => { if (b) LIVE.delete(b); };
   TG.B = B;
 })();

@@ -41,7 +41,7 @@
   BZ.freight.good = { icon: '📦', label: 'Freight loads', unit: 'load', market: 'freight', kind: 'service' };
   BZ.brand.good = { icon: '👕', label: 'Clothing', unit: 'item', market: 'apparel', kind: 'service' };
   BZ.factory.good = { icon: '📦', label: 'Products', unit: 'unit', market: 'goods', kind: 'commodity' };
-  BZ.tech.good = { icon: '📱', label: 'Subscriptions', unit: 'user/mo', market: 'software', kind: 'service', base: 9 };
+  BZ.tech.good = { icon: '📱', label: 'Subscriptions', unit: 'user/mo', market: 'software', kind: 'service', base: 10 };
   // farm goods depend on the enterprise; see C.farmGoods
   C.farmGoods = { crops: { icon: '🌾', label: 'Grain', unit: 't', market: 'grain' }, orchard: { icon: '🍎', label: 'Fruit', unit: 't', market: 'fruit' }, cattle: { icon: '🐄', label: 'Cattle', unit: 'head', market: 'beef' }, dairy: { icon: '🥛', label: 'Milk', unit: 't', market: 'milk' } };
 
@@ -116,9 +116,9 @@
     { id: 'shine', label: 'Tire shine applicator', cat: 'machines', price: 9000, ticketBoost: 0.05, upkeep: 120, brk: 0.012, life: 96, desc: '+5% per wash' },
   ]);
   SET('lawn', { mower: { cat: 'machines', pool: 'mower' }, trailer: { cat: 'vehicles', pool: 'trailer' } }, [
-    { id: 'blower', label: 'Blower & trimmer kit', cat: 'tools', price: 2500, staffBoost: 0.08, upkeep: 60, brk: 0.02, life: 48, desc: 'Crews +8% faster' },
+    { id: 'blower', label: 'Blower & trimmer kit', cat: 'tools', price: 2500, staffBoost: 0.06, upkeep: 90, brk: 0.02, life: 48, desc: 'Crews +6% faster' },
     { id: 'shed', label: 'Fuel & parts shed', cat: 'storage', price: 3000, store: 600, brk: 0.002, life: 180, desc: '+600 stock' },
-    { id: 'aerator', label: 'Aerator', cat: 'machines', price: 6000, ticketBoost: 0.05, upkeep: 50, brk: 0.015, life: 84, desc: '+5% per job (extra service)' },
+    { id: 'aerator', label: 'Aerator', cat: 'machines', price: 6000, ticketBoost: 0.04, upkeep: 80, brk: 0.015, life: 84, desc: '+4% per job (extra service)' },
   ]);
   SET('auto', { lift: { cat: 'lifts', pool: 'lift' }, scanner: { cat: 'diag', pool: 'scanner' } }, [
     { id: 'align', label: 'Alignment rack', cat: 'lifts', pool: 'lift', price: 22000, cap: 70, critical: true, brk: 0.008, life: 144, desc: '+70 jobs/mo' },

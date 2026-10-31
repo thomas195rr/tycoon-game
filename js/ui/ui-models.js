@@ -24,7 +24,7 @@
 
   // ---- services: supplies + what you sell + who you serve ----
   function serviceRows(g, b) {
-    const d = TG.B.def(b), gd = TG.PR.good(b) || {}, lc = b.lastCtx || {}; let o = '';
+    const d = TG.B.def(b), gd = TG.PR.good(b) || {}, lc = UI.lc(b); let o = '';
     const s = TG.ST.def(b);
     if (s) {
       const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const uc = TG.ST.unitCost(g, b);
@@ -53,18 +53,16 @@
   function farmRows(g, b) {
     const f = TG.M.farmEnsure(b), A = f.areas; let o = '';
     if (A.cows.acres || A.cows.herd) {
-      const a = A.cows, e = TG.M.areaE(b, 'cows'); if (a.cows == null) TG.M.herdInit(a, a.herd || 0);
-      const cap = TG.M.farmHeadCap(b); const cp = TG.M.cowPrice(g, b); const beef = TG.W.price(g, 'beef', 0);
-      const youngN = U.sum(a.young || [], (x) => x.n); const fc = TG.M.herdForecast(g, b);
-      o += UI.irow('cow' + b.id, '🐄', a.kind === 'dairy' ? 'Milk cows' : 'Cows', `${N(a.cows)}`, `Grown-up mothers. Each has about ${U.pct(e.calving)} chance of a calf each spring. They retire at ${Math.round(e.lifespan / 12)} years. Buy ${m(cp)} each, sell ${m(beef * 0.75)}.`,
-        qty('qCow', 10) + UI.btn('🛒 Buy', 'cowBuy', null, 'xs goodb') + UI.btn('Sell', 'cowSell', 'cows', 'xs'), `whole herd ${N(a.herd)}/${N(cap)} room`);
+      const a = A.cows, HC = TG.CONFIG.cows; TG.M.herdSync(a);
+      const cap = TG.M.farmHeadCap(b); const fc = TG.M.herdForecast(g, b); const mgr = TG.D.handler(g, b, 'farm');
+      o += UI.irow('cow' + b.id, '🐄', 'Herd', `${N(a.herd)}/${N(cap)}`, `All your cattle / room (grass + barns). Health ${U.pct(a.health || 0)}. Tap "See all cows" for every stage.`, UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'), `health ${U.pct(a.health || 0)}`);
       o += `<div style="margin:0 0 6px 48px">${UI.bar(a.herd, cap, true)}</div>`;
-      const bars = []; let mx = 1; for (let i = 0; i < e.matureAge; i++) { const n = U.sum((a.young || []).filter((x) => x.age === i), (x) => x.n); bars.push(n); mx = Math.max(mx, n); }
-      o += UI.irow('yng' + b.id, '🐮', 'Calves & young', N(youngN), `Born Mar-May. They grow for ${e.matureAge} months, then are ready to sell (some girls stay as new cows). Calves eat less.`, null, `0 → ${e.matureAge} months old`);
-      o += `<div class="age" style="margin-left:48px" title="age in months">${bars.map((n) => `<i style="height:${Math.round(n / mx * 100)}%"></i>`).join('')}<i class="rd" style="height:${Math.round(Math.min(1, (a.ready || 0) / mx) * 100)}%"></i></div>`;
-      o += UI.irow('rdy' + b.id, '🐂', 'Ready to sell', N(a.ready), `Market age ${e.matureAge} months. Sold each month at your price (${m(beef * TG.M.models.farm.ratio(b, 'cows'))}) if buyers agree. Market ${m(beef)}.`, qty('qRdy', a.ready || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
-      if (a.kind === 'dairy') { const pc = TG.M.farmParlorCap(b); o += UI.irow('mlk' + b.id, '🥛', 'Cows milked', `${N(Math.min(a.cows, pc))}/${N(a.cows)}`, `A milking parlor milks ${N(160)} cows. Unmilked cows make nothing. Milk can't be stored: unsold milk spoils.`, UI.btn('+ Parlor', 'tab', 'biz:equip', 'xs'), `about ${N(Math.min(a.cows, pc) * e.milkPerCow)} t milk / month`); }
-      o += UI.irow('fd' + b.id, '🌽', 'Feed next month', m(fc.feed), 'Every animal eats every month. Grass on your cow area is cheap; barn spaces and too many cows cost more.');
+      o += `<div class="small" style="margin:0 0 6px 48px">${TG.M.cowStages.map((k) => `${HC.stages[k].icon} ${N(a.st[k])}`).join(' · ')}</div>`;
+      const fm = TG.M.feedMonths(g, b);
+      o += UI.irow('fd' + b.id, '🌽', 'Feed in storage', `${N(f.feed || 0)} t`, `Cows eat grass first, then feed from storage (winter and dry months need lots). Next month they need about ${N(fc.buy)} t of feed. Feed costs ${m(TG.M.feedPrice(g))}/t. No feed = hungry cows: less milk, more sickness and deaths.${mgr ? ' Your manager keeps it topped up (Manager tab).' : ' No manager: you must buy it yourself.'}`,
+        qty('qFeed', Math.max(1, fc.buy * 2 - (f.feed || 0))) + UI.btn('🛒 Buy feed', 'feedBuy', null, 'xs goodb'), fm >= 99 ? 'grass is enough now' : `${fm < 1 ? '<span class="bad">' : ''}lasts ~${fm.toFixed(1)} months${fm < 1 ? '</span>' : ''}`);
+      o += UI.irow('rdy' + b.id, '🥩', 'Market-ready', N(a.st.ready), `Steers at market weight. Sell them for meat (${m(TG.M.cowValue(g, 'ready'))} each). Keeping them only costs feed.${mgr ? '' : ' No manager: you must sell them yourself.'}`, qty('qRdy', a.st.ready || 1) + UI.btn('💵 Sell', 'cowSell', 'ready', 'xs goodb'));
+      const pc = TG.M.farmParlorCap(b); o += UI.irow('mlk' + b.id, '🥛', 'Cows milked', `${N(Math.min(a.st.milker, pc))}/${N(a.st.milker)}`, `A milking parlor milks ${N(160)} cows. The dairy truck collects milk every day and sells it at your milk price. Unmilked cows make nothing.`, UI.btn('+ Parlor', 'tab', 'biz:equip', 'xs'), `about ${N(Math.min(a.st.milker, pc) * TG.M.areaE(b, 'cows').milkPerCow)} t milk / month`);
     }
     const cap = TG.M.farmStoreCap(b), used = TG.M.farmStoreUsed(b);
     for (const [k, good, ic] of [['crops', 'grain', '🌾'], ['orchard', 'fruit', '🍎']]) {
@@ -78,8 +76,9 @@
     o += `<div class="btns">${UI.btn('🌄 Land, soil & water', 'tab', 'biz:model', 'xs pri')}</div>`;
     return { title: '🚜 Farm', rows: o };
   }
-  UI.A.cowBuy = () => after(TG.M.farmBuyCattle(TG.G, biz(), UI.num('qCow', 0)), 'Bought.');
-  UI.A.cowSell = (w) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(w === 'cows' ? 'qCow' : 'qRdy', 0), w); after(r, r.ok ? `Sold ${r.head} for ${m(r.rev)}.` : null); };
+  UI.A.cowBuy = (k) => after(TG.M.farmBuyCattle(TG.G, biz(), UI.num('qc_' + (k || 'milker'), 0), k || 'milker'), 'Bought.');
+  UI.A.cowSell = (k) => { const r = TG.M.farmSellCattle(TG.G, biz(), UI.num(k === 'ready' && document.getElementById('qRdy') ? 'qRdy' : 'qc_' + k, 0), k); after(r, r.ok ? `Sold ${r.head} for ${m(r.rev)}.` : null); };
+  UI.A.feedBuy = () => { const r = TG.M.farmBuyFeed(TG.G, biz(), UI.num('qFeed', 0), 'You'); after(r, r.ok ? `Bought ${N(r.tons)} t of feed for ${m(r.cost)}.` : null); };
   UI.A.cropSell = (good) => { const g = TG.G, b = biz(); good = good || 'grain'; const t = Math.min(UI.num('q' + good, 0), b.farm.stored[good] || 0); if (!(t > 0)) return UI.toast('Nothing stored.', true); const v = TG.M.models.farm.sellStored(g, b, good, t); UI.toast(v > 0 ? `Sold for ${m(v)}.` : 'Buyers said no at your price.', !(v > 0)); UI.refresh(); };
   UI.A.seedBuy = () => after(TG.M.farmBuySeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed bought.');
   UI.A.seedSell = () => after(TG.M.farmSellSeeds(TG.G, biz(), UI.num('qSeed', 0)), 'Seed sold (half price).');
@@ -101,7 +100,7 @@
 
   // ---- factory ----
   function factoryRows(g, b) {
-    const f = b.factory, fd = TG.CONFIG.businesses.factory.factory, M = TG.M.models.factory; const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const lc = b.lastCtx || {};
+    const f = b.factory, fd = TG.CONFIG.businesses.factory.factory, M = TG.M.models.factory; const st = TG.ST.ensure(b); const cap = TG.ST.cap(b); const lc = UI.lc(b);
     let o = UI.irow('fraw' + b.id, '🪨', 'Raw materials', `${N(st.qty)}/${N(cap)}`, `Every unit made uses one. ${m(TG.ST.unitCost(g, b))} each. Space depends on your building and silos.`,
       qty('qSup', Math.max(1, lc.served || 1000)) + UI.btn('🛒 Buy', 'stBuy', null, 'xs goodb') + UI.btn('Sell', 'stSell', null, 'xs') + UI.btn(st.auto ? '🤖 Auto ✓' : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : '')));
     o += `<div style="margin:0 0 6px 48px">${UI.bar(st.qty, Math.max(1, cap))}</div>`;
@@ -142,7 +141,7 @@
   }
   // ---- freight ----
   function freightRows(g, b) {
-    const tr = b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed'); const dr = b.staff.filter((e) => e.role === 'driver').length; const lc = b.lastCtx || {};
+    const tr = b.equip.filter((x) => x.type === 'truck' && x.broken !== 'destroyed'); const dr = b.staff.filter((e) => e.role === 'driver').length; const lc = UI.lc(b);
     let o = UI.irow('ftr' + b.id, '🚛', 'Trucks working', `${tr.filter((x) => !x.broken).length}/${tr.length}`, 'Each truck can do a set number of loads a month if it has a driver.', UI.btn('+ Truck', 'tab', 'biz:equip', 'xs'), `average wear ${Math.round(TG.E.avgWear(b, (x) => x.type === 'truck'))}%`);
     { const st = TG.ST.ensure(b); const cap = TG.ST.cap(b);
       o += UI.irow('fdz' + b.id, '⛽', 'Diesel', `${N(st.qty)}/${N(cap)}`, `${TG.ST.def(b).desc} ${m(TG.ST.unitCost(g, b))} a tank now. Room grows with trucks and yard tanks.`,
@@ -172,7 +171,7 @@
       for (const [k, good, ic] of goods) o += UI.irow('fu' + good + b.id, ic, `${good === 'grain' ? 'Grain' : 'Fruit'} sold ahead`, `${N(U.sum(f.futures.filter((x) => (x.mk || 'grain') === good), (x) => x.qty - (x.done || 0)))} t`, `Expected harvest about ${N(M.farmExpected(b, k))} t.`, qty('fq' + good, 100) + UI.btn('🔒 Lock', 'farmFut', k, 'xs'));
       o += `</div>`;
     }
-    const mk = []; const A = f.areas; if (A.cows.acres) mk.push(A.cows.kind === 'dairy' ? 'milk' : 'beef'); if (A.crops.acres) mk.push('grain'); if (A.orchard.acres) mk.push('fruit');
+    const mk = []; const A = f.areas; if (A.cows.acres) mk.push('milk', 'beef'); if (A.crops.acres) mk.push('grain'); if (A.orchard.acres) mk.push('fruit');
     o += `<div class="card"><details><summary>📉 Prices, last 5 years</summary>${mk.map((x) => g.markets[x] && g.markets[x].hist ? `<div class="mute">${esc(x)}</div>${UI.spark(g.markets[x].hist.slice(-60), '#f59e0b')}` : '').join('')}</details></div>`;
     return o;
   } };
@@ -181,9 +180,19 @@
     let o = `<div class="card area"><div class="row sp"><h3 style="margin:0">${ad.icon} ${esc(ad.label)} · ${N(a.acres)} ac</h3>${UI.btn('↔️ Move acres', 'moveModal', k, 'xs')}</div>`;
     if (!a.acres) return o + `<div class="mute">${esc(ad.what)} No acres here yet: move free land or acres from another area.</div></div>`;
     o += `<div class="mute">${esc(ad.what)}</div>`;
+    if (k === 'cows') { // v6: cows need feed, not soil or water
+      const cap = M.farmHeadCap(b); const odds = M.sickOdds(g, b, W); const grass = M.grass(g, b, W);
+      o += UI.irow('gr' + id, '🌿', 'Grass this month', `${N(grass)} t`, `About ${TG.CONFIG.cows.grassPerHead} t per acre-cow in summer, little in winter (Dec-Feb) and dry spells. The rest comes from FEED in storage.`, null, `herd needs ${N(M.feedNeed(a))} t`);
+      o += UI.irow('rm' + id, '🐄', 'Herd / room', `${N(a.herd)}/${N(cap)}`, 'One cow per acre of grass, plus pens and barns. Near full room, fewer calves are born; over full, cows get sick and die more.', UI.btn('🐄 See all cows', 'detail', 'stock', 'xs'));
+      o += UI.irow('sk' + id, '🤒', 'Sick cows odds', UI.risk(odds.p), `This month: ${odds.why || 'no herd'}.`);
+      const r = M.models.farm.ratio(b, k); const mk = M.models.farm.market(g, b, k, 0);
+      o += UI.irow('pr' + id, '🏷️', 'Your milk price', a.askR == null ? 'market' : `x${r.toFixed(2)}`, `Market ${m(mk)} per t of milk. Above market the dairy buys less (the rest spoils). Meat is sold at market price when you sell cattle.`,
+        UI.btn('➖', 'farmAsk', `${k}|-0.05`, 'xs') + UI.btn('➕', 'farmAsk', `${k}|0.05`, 'xs') + UI.btn('=', 'farmAsk', `${k}|0`, 'xs'), `${m(mk * r)} per t`);
+      return o + '</div>';
+    }
     // soil
     const drop = M.soilDrop(k, a.soil), add = M.soilAdd(a.soil); const sprayed = TG.USES.used(a, 'treat', g.month); const tc = M.farmTreatCost(g, b, k);
-    o += UI.irow('so' + id, '🟫', 'Soil', `${Math.round(a.soil * 100)}%`, `Soil drops every month (faster when it is high: −${(drop * 100).toFixed(1)} pts next month at ${Math.round(a.soil * 100)}%). Spray & feed it to bring it back: +${Math.round(add * 100)} pts now (less when soil is already high). Yield x${M.soilYield(a.soil).toFixed(2)} at this soil (x${M.soilYield(1).toFixed(2)} at 100%, x${M.soilYield(0.4).toFixed(2)} at 40%).${k !== 'cows' ? ` Poor soil also raises pest odds.` : ' Good grass feeds more cows.'}`,
+    o += UI.irow('so' + id, '🟫', 'Soil', `${Math.round(a.soil * 100)}%`, `Soil drops every month (faster when it is high: −${(drop * 100).toFixed(1)} pts next month at ${Math.round(a.soil * 100)}%). Nothing is sprayed unless YOU tap Spray (or a manager follows your spray order). No spray = no cost, and soil keeps dropping. Spray brings it back: +${Math.round(add * 100)} pts now (less when soil is already high). Yield x${M.soilYield(a.soil).toFixed(2)} at this soil (x${M.soilYield(1).toFixed(2)} at 100%, x${M.soilYield(0.4).toFixed(2)} at 40%).${k !== 'cows' ? ` Poor soil also raises pest odds.` : ' Good grass feeds more cows.'}`,
       sprayed ? '<span class="mute">sprayed ✓</span>' : UI.btn(`🧪 Spray ${m(tc)}`, 'farmSpray', k, 'xs goodb'), `yield x${M.soilYield(a.soil).toFixed(2)} · next month −${(drop * 100).toFixed(1)} pts · spray +${Math.round(add * 100)}`);
     o += `<div style="margin:0 0 6px 48px">${UI.bar(a.soil * 100, 100)}</div>`;
     // water
@@ -200,14 +209,9 @@
     o += UI.irow('pr' + id, '🏷️', 'Your price', a.askR == null ? 'market' : `x${r.toFixed(2)}`, `Market ${m(mk)} per ${unit}. Above market buyers take less (the rest is stored or spoils); below market you sell everything for less.`,
       UI.btn('➖', 'farmAsk', `${k}|-0.05`, 'xs') + UI.btn('➕', 'farmAsk', `${k}|0.05`, 'xs') + UI.btn('=', 'farmAsk', `${k}|0`, 'xs'), `${m(mk * r)} per ${unit}`);
     // area specifics
-    if (k === 'cows') {
-      const cap = M.farmHeadCap(b);
-      o += UI.irow('kd' + id, a.kind === 'dairy' ? '🥛' : '🥩', a.kind === 'dairy' ? 'Dairy cows (milk)' : 'Beef cows (meat)', `${N(a.herd)}/${N(cap)}`, `Herd / room. Switching sells the herd at 70% and buys a starter herd of the other kind.${a.kind === 'dairy' ? ' Dairy needs milking parlors.' : ''}`,
-        UI.btn(a.kind === 'dairy' ? '🥩 Switch to beef' : '🥛 Switch to dairy', 'farmKind', a.kind === 'dairy' ? 'beef' : 'dairy', 'xs'), 'herd / room');
-    }
     if (k === 'crops') {
       const sc = M.models.farm.seedCost(g, b);
-      o += UI.irow('sd' + id, '🌱', 'Seed', `${N(f.seeds)} ac`, `Buy seed before planting (Mar-Apr): ${m(sc)} per acre. Your manager can buy it (Manager tab).`, qty('qSeed', Math.max(1, a.acres - (f.seeds || 0))) + UI.btn('🛒 Buy', 'seedBuy', null, 'xs goodb') + UI.btn('Sell', 'seedSell', null, 'xs'), `for ${N(a.acres)} acres`);
+      o += UI.irow('sd' + id, '🌱', 'Seed', `${N(f.seeds)} ac`, `Buy seed before planting (Mar-Apr): ${m(sc)} per acre. ${TG.D.handler(g, b, 'farm') ? 'Your manager buys it (Manager tab).' : 'No manager: you must buy it yourself.'}`, qty('qSeed', Math.max(1, a.acres - (f.seeds || 0))) + UI.btn('🛒 Buy', 'seedBuy', null, 'xs goodb') + UI.btn('Sell', 'seedSell', null, 'xs'), `for ${N(a.acres)} acres`);
       o += UI.irow('gr' + id, '🌿', 'Growing', a.planted ? `${N(a.planted)} ac` : '—', `Planted Mar-Apr, harvested Aug-Sep. Outlook x${(a.seasonYield || 1).toFixed(2)}.`);
     }
     if (k === 'orchard') { const e = M.areaE(b, k); o += UI.irow('ag' + id, '🌳', 'Trees', a.age >= e.rampMonths ? 'grown' : `${Math.round(a.age)}/${e.rampMonths} mo`, `New trees give little fruit for ${e.rampMonths} months. Fruit Jul-Aug, spoils fast in storage (${U.pct(e.spoil)}/mo).`); }
@@ -216,7 +220,6 @@
   UI.A.farmSpray = (k) => { const r = TG.M.farmTreat(TG.G, biz(), k, 'You'); after(r, r.ok ? `Soil ${Math.round(r.from * 100)}% → ${Math.round(r.to * 100)}% for ${m(r.cost)}.` : null); };
   UI.A.farmSpr = (k) => { const g = TG.G, b = biz(); const t = AD()[k].spr; const it = TG.E.buy(g, b, t, 'standard'); after(it ? { ok: true } : { ok: false, msg: TG.E.count(b, t) >= TG.E.maxCount(b, t) ? 'No room for more.' : `Costs ${m(TG.E.price(g, b, t, 'standard'))}.` }, 'Sprinkler bought: water goes up.'); };
   UI.A.farmAsk = (arg) => { const [k, s] = arg.split('|'); TG.M.farmSetAsk(biz(), k, Number(s) ? Number(s) : null); UI.refresh(); };
-  UI.A.farmKind = (kind) => { const r = TG.M.farmCowKind(TG.G, biz(), kind); after(r, r.ok ? `Switched to ${kind}${r.cost ? ` (starter herd ${m(r.cost)})` : ''}.` : null); };
   UI.A.farmFut = (k) => { const g = TG.G; const r = TG.M.farmFutures(g, biz(), k, UI.num('fq' + (k === 'orchard' ? 'fruit' : 'grain'), 0)); after(r, r.ok ? `Locked ${r.qty} t at ${m(r.price)}.` : null); };
   // buy land (small modal)
   UI.A.landModal = () => {

@@ -16,7 +16,9 @@
     out += `<div class="tiles">${UI.tile('h_cash', '💵', m(g.cash), 'Cash', g.cash < 0 ? 'r' : 'g', 'Money you can spend right now.')}
       ${UI.tile('h_nw', '📈', m(g.lastNW), 'Worth', '', 'Everything you own minus everything you owe.')}
       ${UI.tile('h_pf', '💰', last ? (last.profit >= 0 ? '+' : '−') + m(Math.abs(last.profit)) : '–', 'Last month', last ? (last.profit >= 0 ? 'g' : 'r') : '', 'Profit after costs and tax.')}
-      ${UI.tile('h_cr', '🏦', Math.round(g.player.credit), 'Credit score', g.player.credit >= 700 ? 'g' : g.player.credit >= 600 ? 'y' : 'r', 'Higher = cheaper loans. Paying late lowers it.')}</div>`;
+      ${UI.tile('h_cr', '🏦', TG.CREDIT.score(g).score, 'Credit score', TG.CREDIT.score(g).score >= 700 ? 'g' : TG.CREDIT.score(g).score >= 620 ? 'y' : 'r', 'Higher = better loan odds and cheaper rates. Details in Money → Finance.')}</div>`;
+    { const L = TG.IN.list(g); const mine = new Set(g.businesses.map((b) => TG.IN.ofBiz(b))); const sh = L.filter((x) => mine.has(x.k)); const show = (sh.length ? sh : L.sort((a, c) => c.s.x - a.s.x).slice(0, 3)).slice(0, 4);
+      out += `<div class="card"><div class="row sp"><h3 style="margin:0">📈 Industry outlook</h3>${UI.btn('See all', 'go', 'ind', 'xs')}</div>${show.map((x) => `<div class="small">${x.d.icon} ${esc(x.d.label)} ${UI.pill(x.st.label, x.st.tone)} ${TG.IN.arrow(x.s)}</div>`).join('')}</div>`; }
     const al = [];
     if (g.decisions.length) al.push(`<div class="ev warn" data-act="decisions" style="cursor:pointer">⚠️ <b>${g.decisions.length} thing${g.decisions.length > 1 ? 's' : ''} to decide.</b> Tap here.</div>`);
     if (g.cash < 0) al.push(`<div class="ev bad">💸 <b>Out of cash (${m(g.cash)}).</b> ${TG.CONFIG.finance.bankruptcyMonths - g.negMonths} month(s) to fix it: sell, borrow or cut costs.</div>`);
@@ -39,7 +41,7 @@
   };
   UI.bizCard = (b) => {
     const g = TG.G, d = TG.CONFIG.businesses[b.type]; const h = b.hist[b.hist.length - 1];
-    const lc = b.lastCtx || {}; const fl = b.flow && b.flow.rows ? b.flow.rows : [];
+    const lc = UI.lc(b); const fl = b.flow && b.flow.rows ? b.flow.rows : [];
     const bad = fl.filter((x) => x.c === 'r').length, warn = fl.filter((x) => x.c === 'y').length;
     const tone = !h ? '' : h.profit < 0 || bad ? 'r' : warn > 2 ? 'y' : 'g';
     const top = fl.slice(0, 3).map((x) => `<span class="pill ${x.c === 'r' ? 'bad' : x.c === 'y' ? 'warn' : x.c === 'g' ? 'good' : ''}">${x.i} ${UI.fmtN(x.v, x.u)}</span>`).join(' ');

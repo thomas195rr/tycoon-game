@@ -13,13 +13,37 @@ for (const ent of ['crops', 'cattle', 'dairy', 'orchard']) {
   ok(f.areas && f.areas[k0].acres === 400, `${ent}: acres went to the ${k0} area`);
   ok(TG.M.farmFree(f) === 0, `${ent}: no stray free acres`);
   ok(Math.abs(f.areas[k0].soil - 0.66) < 1e-9, `${ent}: soil kept`);
-  if (k0 === 'cows') { ok(f.areas.cows.herd === 120 && f.areas.cows.kind === (ent === 'dairy' ? 'dairy' : 'beef'), `${ent}: herd kept`); }
+  if (k0 === 'cows') { const a = f.areas.cows; ok(Math.abs(a.herd - 120) <= 1 && a.kind == null && a.st, `${ent}: herd kept as one mixed herd (${a.herd})`);
+    ok(ent === 'dairy' ? a.st.milker > a.st.steer : a.st.ready + a.st.steer > 0, `${ent}: stages fit the old herd type`); ok(a.st.bull >= 1, `${ent}: has a bull`); ok(f.feed > 0, `${ent}: got a month of feed`); ok(f.orders.cows, `${ent}: cow orders`); }
   if (ent === 'crops') { ok(f.stored.grain === 75 && f.seeds === 300 && f.futures.length === 1 && f.futures[0].mk === 'grain', 'crops: stock, seed and price locks kept'); ok(f.orders.seed === false, 'crops: auto-seed off kept'); }
   if (ent === 'orchard') { ok(f.stored.fruit === 75 && f.areas.orchard.age >= TG.CONFIG.businesses.farm.farm.enterprises.orchard.rampMonths, 'orchard: fruit and grown trees kept'); }
-  const spr = b2.equip.filter((x) => /^spr/.test(x.type)).length; ok(ent === 'cattle' ? spr === 0 : spr >= 1, `${ent}: old irrigation became ${spr} sprinklers`);
+  const spr = b2.equip.filter((x) => /^spr/.test(x.type)).length; ok(k0 === 'cows' ? spr === 0 : spr >= 1, `${ent}: old irrigation became ${spr} sprinklers`);
   ok(b2.ask == null && f.sellPolicy === 'store', `${ent}: price reset to market per area, harvest policy kept`);
   ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), `${ent}: migrated save round-trips`);
   try { for (let i = 0; i < 36; i++) { bots.careful(g2, b2); TG.Game.nextMonth(g2); } } catch (e) { ok(false, `${ent}: crash after migration ${e.stack.split('\n').slice(0, 3).join(' | ')}`); }
   ok(Number.isFinite(g2.cash), `${ent}: cash finite`);
 }
+// ---- v6: v5 saves -> mechanics, credit, tenants, industries, no auto-fix/auto-service ----
+{ const TG = load(); const bots = require('./bots')(TG); const g = TG.Game.newGame({ seed: 77 }); g.cash = 3e6; TG.G = g;
+  const b = bots.startBiz(g, 'carwash'); for (let i = 0; i < 2; i++) TG.Game.nextMonth(g);
+  const fb = bots.startBiz(g, 'farm', { ent: 'cows' });
+  const s = JSON.parse(TG.Game.serialize(g)); s.v = 5;
+  // make it look like a v5 save
+  delete s.player.cr; delete s.world.ind; s.loc = { balance: 0, rate: 0.1 }; s.settings = Object.assign({}, s.settings, { autoCredit: true, autoFix: true, serviceAt: 60 });
+  const sb = s.businesses.find((x) => x.id === b.id); sb.spec = Object.assign({}, sb.spec, { mechanic: { id: 'm1', name: 'Old Mech', role: 'mechanic', wage: 4000, skill: 60, quals: 50, morale: 60, loyalty: 60 } }); sb.orders = Object.assign({}, sb.orders, { maint: true, fixNow: true, svcAt: 70 });
+  const sf = s.businesses.find((x) => x.id === fb.id); const a = sf.farm.areas.cows; const tot = a.herd || 100; delete a.st; a.herd = tot; a.kind = 'dairy'; a.cows = Math.round(tot * 0.7); a.young = [{ n: 10, age: 3 }]; sf.farm.feed = undefined; delete sf.farm.orders.cows;
+  sf.equip.push({ id: 'oldspr', type: 'sprCow', tier: 'standard', wear: 10, age: 5, broken: null });
+  s.re.holdings = s.re.holdings || []; if (!s.re.holdings.length) { const l = TG.RE.gen(g, 'house', { distressed: false }); s.re.holdings.push(Object.assign({}, l, { id: 'reX', mode: 'rent', tenants: [{ name: 'T', bad: true, rent: 1200, late: 0 }, null] })); }
+  let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v5 save failed to load: ' + e.message); }
+  if (g2) { TG.G = g2;
+    ok(g2.v === 6, 'version bumped to 6'); ok(g2.player.cr && TG.CREDIT.score(g2).score >= 300 && TG.CREDIT.score(g2).score <= 850, 'credit record built'); ok(g2.loc.limit >= 0 && !('autoCredit' in g2.settings), 'credit line limit set, auto-credit gone');
+    ok(g2.world.ind && Object.keys(g2.world.ind).length === Object.keys(TG.CONFIG.industries).length, 'industries added');
+    const b2 = g2.businesses.find((x) => x.id === b.id); ok(!b2.spec.mechanic && b2.staff.some((e) => e.role === 'mech'), 'old mechanic specialist became a staff mechanic');
+    ok(!('maint' in (b2.orders || {})) && !('fixNow' in (b2.orders || {})) && !('svcAt' in (b2.orders || {})) && !('autoFix' in g2.settings), 'auto-fix and auto-service orders removed: ' + JSON.stringify(b2.orders) + JSON.stringify(g2.settings));
+    const f2 = g2.businesses.find((x) => x.id === fb.id).farm; const a2 = f2.areas.cows; ok(a2.st && !a2.kind && Math.abs(a2.herd - tot) <= 2, `old dairy herd split into stages (${a2.herd} of ${tot})`); ok(f2.feed > 0 && f2.orders.cows, 'feed + cow orders added');
+    ok(!g2.businesses.find((x) => x.id === fb.id).equip.some((x) => x.type === 'sprCow'), 'cow sprinklers removed (sold)');
+    const h = g2.re.holdings.find((x) => (x.tenants || []).some((t) => t)); if (h) ok(h.tenants.filter((t) => t).every((t) => typeof t.rel === 'number'), 'tenants got a reliability');
+    ok(TG.Game.serialize(TG.Game.deserialize(TG.Game.serialize(g2))) === TG.Game.serialize(g2), 'v5->v6 save round-trips');
+    try { for (let i = 0; i < 24; i++) { bots.careful(g2, b2); TG.Game.nextMonth(g2); } } catch (e) { ok(false, 'crash after v6 migration ' + e.stack.split('\n').slice(0, 3).join(' | ')); }
+  } }
 console.log(fails ? `${fails} MIGRATION CHECK(S) FAILED` : 'ALL MIGRATION CHECKS PASSED'); process.exit(fails ? 1 : 0);

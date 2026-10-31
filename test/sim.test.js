@@ -79,7 +79,7 @@ for (let s = 1; s <= SEEDS; s++) {
     }
   }
   // farm: every land mix, careful + random actions (areas, moving acres, spraying)
-  for (const ent of ['crops', 'orchard', 'cattle', 'dairy', 'mixed']) {
+  for (const ent of ['crops', 'orchard', 'cows', 'mixed']) {
     let biz = null;
     run(`farm-${ent}#${s}`, 6000 + s * 17 + ent.length, (g) => { g.cash = 2000000; biz = bots.startBiz(g, 'farm', { ent }); if (!biz) problems.push(`farm ${ent} could not start`); },
       (g) => { if (biz && g.businesses.includes(biz)) { bots.careful(g, biz); if (g.month % 3 === 0) bots.random(g); } else bots.resolveSmart(g); }, Math.min(MONTHS, 360));

@@ -14,21 +14,15 @@
   function fin(g) {
     const F = TG.F, C = TG.CONFIG.finance; const nwd = F.netWorth(g, true);
     let o = `<div class="card"><div class="kv"><span>Cash</span><span class="${g.cash < 0 ? 'bad' : ''}">${m(g.cash)}</span><span>Total assets</span><span>${m(nwd.assets)}</span><span>Total debt</span><span>${m(nwd.liab)}</span><span>Net worth</span><span>${m(nwd.nw)}</span>
-      <span>Credit score</span><span>${Math.round(g.player.credit)} ${UI.pill(g.player.credit >= 740 ? 'excellent' : g.player.credit >= 670 ? 'good' : g.player.credit >= 600 ? 'fair' : 'poor', g.player.credit >= 670 ? 'good' : g.player.credit >= 600 ? 'warn' : 'bad')}</span>
+      <span>Credit score</span><span>${TG.CREDIT.score(g).score} ${UI.pill(TG.CREDIT.label(TG.CREDIT.score(g).score).toLowerCase(), TG.CREDIT.tone(TG.CREDIT.score(g).score))}</span>
       <span>Debt payments</span><span>${m(F.totalPayments(g))}/mo</span><span>Income tax rate</span><span>${U.pct(C.incomeTax)}${g.businesses.some((b) => b.spec && b.spec.accountant) || g.ceo ? ` (−${U.pct(C.accountantTaxCut)} with accountant)` : ''}</span>
       <span>Tax losses carried forward</span><span>${m(g.taxLoss)}</span><span>Tax paid last 12 months</span><span>${m(U.sum(g.taxPaid))}</span></div>
       ${g.player.noLoanUntil > g.month ? `<div class="ev bad">Lenders refuse new loans for ${g.player.noLoanUntil - g.month} more months (bankruptcy).</div>` : ''}
       ${g.cash < 0 ? `<div class="ev bad">Cash is negative: ${C.bankruptcyMonths - g.negMonths} month(s) until creditors force a fire sale. Interest and fees pile up.</div>` : ''}
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
-    // loans
-    o += `<div class="card"><h3 style="margin-top:0">Borrow</h3><div class="row"><select id="lnType">${['business', 'emergency', 'equipment'].map((t) => `<option value="${t}">${esc(C.loans[t].label)} (~${U.pct(F.rateFor(g, t), 1)}, ${C.loans[t].term} mo)</option>`).join('')}</select><input type="number" id="lnAmt" placeholder="amount">${UI.btn('Borrow', 'loan', null, 'pri')}</div>
-      <div class="mute">Business loan limit ~${m(F.maxLoan(g, 'business'))} (credit, net worth and profit). Emergency loans are easy to get but expensive. Equipment loans are capped at 70% of your equipment's value (${m(equipCap(g))}). Mortgages come with property purchases.</div></div>`;
+    o += UI.creditCards(g); // v6: score with its reasons, loan applications with odds, credit line
     o += `<div class="card"><h3 style="margin-top:0">Loans (${g.loans.length})</h3>${g.loans.map((l) => `<div class="ev ${l.missed ? 'bad' : ''}"><div class="row sp"><b>${esc(l.label)}</b><span>${m(l.balance)} left</span></div><div class="small">${U.pct(l.rate, 2)} · ${m(l.payment)}/mo · ${l.left} months left${l.missed ? ` · ${l.missed} missed payment(s)!` : ''}</div>
       <div class="btns">${UI.btn(`Pay off ${m(l.balance)}`, 'loanDo', `${l.id}|off`, 'sm', g.cash < l.balance)}${UI.btn('Prepay 10k', 'loanDo', `${l.id}|10000`, 'sm', g.cash < 10000)}</div></div>`).join('') || '<div class="mute">No loans.</div>'}</div>`;
-    const lim = F.locLimit(g);
-    o += `<div class="card"><h3 style="margin-top:0">Credit line</h3><div class="kv"><span>Limit</span><span>${m(lim)}</span><span>Owed</span><span>${m(g.loc.balance)}</span><span>Rate</span><span>~${U.pct(F.rateFor(g, 'loc'), 1)}</span></div>
-      <div class="row" style="margin-top:6px"><input type="number" id="locAmt" placeholder="amount">${UI.btn('Draw', 'loc', 'draw', 'sm')}${UI.btn('Repay', 'loc', 'repay', 'sm')}</div>
-      <div class="kv" style="margin-top:6px"><span>Auto-draw to cover shortfalls</span><span>${UI.btn(g.settings.autoCredit ? 'On' : 'Off', 'setToggle', 'autoCredit', 'sm')}</span></div></div>`;
     if (g.lawsuits.length) o += `<div class="card"><h3 style="margin-top:0">Lawsuits</h3>${g.lawsuits.map((ls) => `<div class="ev bad"><b>${esc(ls.label)}</b> ${m(ls.amount)} · ${ls.status === 'fighting' ? `in court (${U.pct(ls.win || 0)} win odds)` : 'awaiting your decision'} · ${ls.left} mo left<div class="why">${esc(ls.why || '')}</div></div>`).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Last resort</h3><div class="btns">${UI.btn('Declare personal bankruptcy', 'bk', null, 'sm badb')}</div><div class="mute">Wipes everything: you keep ${m(C.bankruptcy.keepCash)}, credit drops, no loans for ${C.bankruptcy.noLoanMonths} months. The game continues.</div></div>`;
     return o;
@@ -52,19 +46,19 @@
       ${r.hist.length > 2 ? UI.spark(r.hist.slice(-48).map((x) => x.rev - x.cost), '#1d4ed8') : ''}
       <div class="kv" style="margin-top:6px"><span>Property manager</span><span>${r.manager ? `${esc(r.manager.name)} (skill ${r.manager.skillSeen}) ${UI.btn('Fire', 'reMgrFire', null, 'sm')}` : UI.btn('Hire one', 'reMgr', null, 'sm')}</span>
       <span>Handyman on call</span><span>${UI.btn(r.handyman ? 'Yes' : 'No', 'reHandy', null, 'sm')}</span></div>
-      <div class="mute">Self-managing more than ${RC.selfManageLimit} units gets sloppy. A manager screens tenants, handles evictions, and takes ${U.pct(RC.managerFeePct)} of rent plus wage.</div>
+      <div class="mute">Self-managing more than ${RC.selfManageLimit} units gets sloppy. A manager runs tenant searches, picks tenants, handles evictions, and takes ${U.pct(RC.managerFeePct)} of rent plus wage.</div>
       ${RE.totalValue(g) >= RC.fund.minPortfolio && !r.fund ? `<div class="btns">${UI.btn(`Raise a fund (${U.pct(RC.fund.raisePct)} of value, investors get ${U.pct(RC.fund.investorShare)} of rent)`, 'reFund', null, 'sm')}</div>` : ''}</div>`;
     o += `<h3>Your properties (${r.holdings.length})</h3>`;
     for (const h of r.holdings) {
       const k = RC.kinds[h.kind]; const occ = h.tenants.filter((t) => t).length; const v = RE.value(g, h);
       const loan = h.mortgageId ? g.loans.find((l) => l.id === h.mortgageId) : null;
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
-        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)}` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented, market rent ${m(RE.marketRent(g, h))}/unit` : `${h.acres} acres`}</div>
+        <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)}` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
         ${h.flip ? `<div class="ev info">Renovation: ${esc(RC.flip.levels[h.flip.level].label)} by ${esc(RC.flip.contractors[h.flip.contractor].label.toLowerCase())}, ${h.flip.left} month(s) left, budget ${m(h.flip.budget)}${h.flip.overrun ? `, overrun ${m(h.flip.overrun)}` : ''}</div>` : ''}
         ${h.dev ? `<div class="ev info">Development: ${h.dev.units} units, stage ${esc(h.dev.stage)}, ${h.dev.left} month(s) left, ${m(h.dev.paid)} of ~${m(h.dev.cost)} spent</div>` : ''}
         <div class="row small" style="margin-top:4px"><span>Upkeep</span><select data-change="reSet" data-k="upkeep" data-h="${h.id}">${['low', 'normal', 'high'].map((x) => `<option${h.upkeep === x ? ' selected' : ''}>${x}</option>`).join('')}</select>
-        <span>Screen tenants (${m(RC.screeningCost)} each)</span><select data-change="reSet" data-k="screen" data-h="${h.id}"><option value="1"${h.screen ? ' selected' : ''}>yes</option><option value="0"${!h.screen ? ' selected' : ''}>no</option></select>
         <span>Insured</span><select data-change="reSet" data-k="insured" data-h="${h.id}"><option value="1"${h.insured ? ' selected' : ''}>yes</option><option value="0"${!h.insured ? ' selected' : ''}>no</option></select></div>
+        ${UI.rentRows(g, h)}
         <div class="btns">${!h.flip && !h.dev && h.kind !== 'land' ? UI.btn('Renovate…', 'reFlip', h.id, 'sm') : ''}${h.kind === 'land' && !h.dev ? UI.btn('Develop…', 'reDev', h.id, 'sm') : ''}
         ${h.mode === 'sale' ? UI.btn('Unlist', 'reDo', `${h.id}|unlist`, 'sm') : !h.flip && !h.dev ? UI.btn('List at value', 'reDo', `${h.id}|list`, 'sm') + UI.btn('List +10%', 'reDo', `${h.id}|list110`, 'sm') : ''}
         ${h.mode === 'hold' && h.units && !h.flip ? UI.btn('Start renting', 'reDo', `${h.id}|rent`, 'sm') : ''}
@@ -77,7 +71,7 @@
       o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)}</b><b>${m(l.price)}</b></div><div class="small">${esc(l.name)} · ${esc(TG.CONFIG.locations[l.loc].label)}, ${esc(TG.CONFIG.regions[l.region].label)} · grade ${l.grade} · condition ${Math.round(l.cond)}/100 · ${l.units ? `${l.units} unit(s)` : `${l.acres} acres`}${l.distressed ? ' · ' + UI.pill('distressed', 'warn') : ''}</div>
         ${l.units ? `<div class="mute">Rent roughly ${m(rent * l.units)}/mo if fully rented, before costs (tax, upkeep, insurance, vacancies).</div>` : '<div class="mute">No income: land is for developing.</div>'}
         ${l.inspected ? `<div class="ev ${l.found ? 'bad' : 'good'}">${l.found ? `Inspection found hidden problems (~${m(l.hidden * l.price)})` : 'Inspection found nothing major'}</div>` : ''}
-        <div class="btns">${UI.btn('Buy cash', 'reBuy', `${l.id}|0`, 'sm pri', g.cash < l.price * 1.02)}${UI.btn(`Mortgage (${m(down)} down)`, 'reBuy', `${l.id}|1`, 'sm', g.cash < down)}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
+        <div class="btns">${UI.btn('Buy cash', 'reBuy', `${l.id}|0`, 'sm pri', g.cash < l.price * 1.02)}${UI.btn(`🏦 Mortgage (${m(down)} down)…`, 'reFin', l.id, 'sm', g.cash < down)}${l.inspected ? '' : UI.btn(`Inspect ${m(RC.flip.inspectionCost)}`, 'reInspect', l.id, 'sm')}</div></div>`;
     }
     return o;
   }

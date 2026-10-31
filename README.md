@@ -35,6 +35,17 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **👥 Staff tab** for every business: per job, people, work needed vs what they can do (bar), spare %. People call out or slack; with no spare, work is left undone and the odds of that business's disasters go up (shown as "x1.6 disaster odds") until the team catches up.
 - **Upgrades say exactly what they do**, in numbers, for all 18 businesses (e.g. the mega processing plant: +35% for grain/fruit and +20% for milk/beef, only with 12,500 t a year through it; "vertical integration" is now "Own seed & feed supply": seed, feed, spray and trees 20% cheaper).
 
+## Version 6 highlights
+- **📈 Industry Outlook** (☰ More, and a card on Home): 13 industries each have their own booms and slumps. They drift back toward normal, partly follow the economy, and show a state, a trend arrow and the reasons. They change customers, prices and costs for every business in that industry. The arrow is a hint, not a promise.
+- **No free automation.** Machines no longer fix or service themselves. A broken machine stays broken until you tap Fix (full price) or a **🔧 mechanic** (a staff role) fixes it. Mechanics repair and service for less, choose when to service based on their skill, and each one looks after about 10 machines. Supplies, seed, cow feed and spraying only happen when you do them or a manager does. The Manager tab shows "No manager: you must do this yourself" for each job nobody covers, and **Now** shows a "You must do this yourself" list.
+- **Cows have a life cycle:** calf → heifer → milking cow → dry/old cow → sell, and calf → steer → market-ready → sell. Bulls are needed for calves. Small herds breed faster per cow than big ones (30 head ≈ 4× the rate per cow of 200 head), and breeding stops when the pasture is full or the cows are hungry. Cows eat grass first, then **feed** you buy into storage. Without feed they lose health and milk, and get sick and die more often. Tap "🐄 See all cows" to buy or sell by stage.
+- **Credit & loans:** a 300-850 credit score built from payment history, credit line use, debt vs assets, credit age and recent applications. Every part shows its points and why. Loan applications show your approval odds with good/okay/bad factors, the rate, the payment and the fee before you apply. Every application counts, even when the bank says no. Rates follow your score (and your industries for business loans). Missed payments lead to collections and repossession.
+- **Property financing and tenants:** see the full monthly payment (loan, tax, insurance) and cash needed before buying. Set the rent per rental against the market. Pay for a tenant search to get a pool of applicants, then accept or decline them one at a time (no going back). Evictions, income and credit are visible clues; reliability is hidden. A property manager can run searches for you. Very high or very low rents lose money.
+- **📊 Reports tab** for every business (and crime): this month, next month, the forecast and forecast vs actual moved off the working view. **Now** is for doing things.
+- **Instant updates:** every change (hire, fire, buy or sell a machine, move acres, change a price, buy feed/seed/supplies, change an order) updates capacity, work bars, spare %, what limits you and the forecast straight away. `TG.B.live(g, b)` is the one recompute: it runs the coming month on a throw-away copy (nothing is kept) and is cached until the business changes. Next Month still simulates the month for real.
+- Money you spend between months (supplies, feed, repairs) now counts in that month's results and tax.
+- Old saves move over: the mechanic specialist becomes a staff mechanic, auto-fix orders are removed, old herds split into stages with a bull and a month of feed, cow sprinklers are sold, and you get a credit record and a credit line like the one you had.
+
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.
 
@@ -88,7 +99,10 @@ All code lives under one global namespace `TG`. Load order matters (see `index.h
 | `js/property.js` | `TG.P` | property listings, suitability, pros/cons, buy/lease/sell |
 | `js/staff.js` | `TG.S` | candidates, hiring, traits, morale, quitting, poaching |
 | `js/equipment.js` | `TG.E` | tiers, wear, break odds, repair/service/lease |
-| `js/finance.js` | `TG.F` | the only path for money (`earn`/`spend`/`book`), loans, credit, tax, valuation, bankruptcy |
+| `js/finance.js` | `TG.F` | the only path for money (`earn`/`spend`/`book`), loans, tax, valuation, bankruptcy |
+| `js/credit.js` | `TG.CREDIT` | credit score parts, loan quotes/odds/applications, credit line reviews |
+| `js/industry.js` | `TG.IN` | industry cycles (demand, price and cost multipliers, trend, reasons) |
+| `js/herd.js` | `TG.M` (farm) | cow stages, breeding, grass and feed, cattle buying/selling, migration of old herds |
 | `js/business.js` | `TG.B` | generic monthly business loop, risks with visible odds, reputation, lawsuits, PR |
 | `js/models.js`, `models2.js` | `TG.M` | per-model monthly logic (service, farm, freight / brand, factory, projects, tech, franchise) |
 | `js/managers.js` | `TG.D` | decision cards, who handles them, manager quality rolls, day-to-day management, CEO |
@@ -116,12 +130,13 @@ Turn order (`TG.Game.nextMonth`):
   - every scenario
 
   It checks for crashes, NaN/Infinity, negative stock and save round-trips.
-- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet. It also presses every free/repeatable button 1000 times in one month (PR, raise, bonus, train, service, crew train/bonus, turf, theft, heists, sabotage, cash moves, farm spraying) and asserts no net gain, checks that moving farm acres around never makes money or soil, checks that laundering always loses money, that raid/conviction odds never reach zero, and that jail blocks crime actions.
+- `node test/exploits.test.js` runs "no free money" checks (mortgage, real estate, refinance, loan, stock and investor round-trips) and confirms the house edge on every bet. It also presses every free/repeatable button 1000 times in one month (PR, raise, bonus, train, service, crew train/bonus, turf, theft, heists, sabotage, cash moves, farm spraying) and asserts no net gain, checks that moving farm acres around never makes money or soil, checks that laundering always loses money, that raid/conviction odds never reach zero, and that jail blocks crime actions. v6 adds: cattle buy/sell round trips, mass-buying or overstocking cows, starving cows, industry-cycle timing, borrow/repay and application spam on credit, tenant search spam and extreme rents.
 - `node test/crime.test.js [seeds]` runs `tools/crime-balance.js` and asserts that crime plans do not beat careful legit play and that reckless crime is ruined most of the time.
-- `node test/migrate.test.js` loads v4-style farm saves and checks they become the new area layout and keep running.
-- `node tools/balance.js 8 120 [--json]` compares ROI and risk of ruin per business at similar capital.
+- `node test/migrate.test.js` loads v4-style farm saves and v5 saves and checks they move to the current layout (areas, cow stages, mechanics, credit, tenants) and keep running.
+- `node tools/balance.js 8 120 [--json]` compares ROI and risk of ruin per business at similar capital, from different start years (the world runs 0-10 years first), split by whether the industry started in good or bad times, and prints how far each industry swings.
 - `node tools/econ.js` shows unit economics. `node tools/diag.js` shows a single-business diagnostic.
 - Browser tests (optional; need `puppeteer-core` and Chrome):
   - `NODE_PATH=... node test/ui.test.js --clicks 600 [--width 375] [--file dist/tycoon.html]` does random clicking and checks errors, overflow, bad text and save restore.
-  - `NODE_PATH=... node test/ui-cover.test.js [--width 375]` presses every button on every tab for all 18 businesses, and on every crime tab (free and in jail).
+  - `NODE_PATH=... node test/ui-cover.test.js [--width 375]` presses every button on every tab for all 18 businesses, and on every crime tab (free and in jail). It also hires, fires and buys a machine by clicking and checks that capacity and the forecast change in the same month.
   - `NODE_PATH=... node tools/shots.js` saves phone-size screenshots (land areas, staff, manager orders, upgrades) to `tools/`.
+  - `NODE_PATH=... node tools/shots6.js` saves the v6 screenshots (industry outlook, cows, mechanic, manager, reports, credit, finance preview, tenant search) to `tools/shot6-*.png`.

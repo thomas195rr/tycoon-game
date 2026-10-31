@@ -162,10 +162,9 @@
     } else if (mode === 'mortgage') {
       const down = Math.round(p.price * C.property.mortgageDown);
       if (g.cash < down + fees) return { ok: false, msg: `Need ${U.money(down + fees)} for the down payment and fees.` };
-      const ok = TG.F.canBorrow(g, 'mortgage', p.price - down);
+      const ok = TG.CREDIT.apply(g, 'mortgage', p.price - down, { collateral: { kind: 'property', id: p.id }, label: 'Mortgage: ' + p.name, noCash: true, ltv: (p.price - down) / p.price, asset: p.price });
       if (!ok.ok) return { ok: false, msg: ok.msg };
-      TG.F.spend(g, down + fees, 'Property purchases', null, true);
-      const loan = TG.F.newLoan(g, 'mortgage', p.price - down, { collateral: { kind: 'property', id: p.id }, label: 'Mortgage: ' + p.name, noCash: true });
+      TG.F.spend(g, down + fees, 'Property purchases', null, true); const loan = ok.loan;
       p.owned = true; p.mortgageId = loan.id;
     } else {
       if (g.cash < p.price + fees) return { ok: false, msg: `Need ${U.money(p.price + fees)}.` };

@@ -273,7 +273,7 @@
       let paid = b.ads.budget > 0 ? (b.ads.budget / cac) * (0.3 + 1.4 * t.pmf) * (adMgr ? 1 + adMgr.skill / 150 : 1) * (flop ? 0.2 : 1) : 0;
       let organic = t.users * T.organic * t.pmf * 2 * (b.rep / 50) + 150 * t.pmf;
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
-      let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * (g.world.trends.tech || 1) * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
+      let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
       const engNeed = 2 + t.users / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
       const serverCap = TG.E.capacity(b, 'server');

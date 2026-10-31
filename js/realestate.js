@@ -38,33 +38,93 @@
     const perUnit = (h.basePrice || h.price) * k.rentPct / Math.max(1, h.units);
     return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
   };
+  // v6: the rent YOU set (share of market rent), applicants and tenant search
+  const TC = () => TG.CONFIG.tenants;
+  RE.askRent = (g, h) => Math.round(RE.marketRent(g, h) * (h.rentR || 1));
+  RE.estRent = (g, l) => Math.round(RE.marketRent(g, l) * Math.max(1, l.units || 0) * 0.92);
+  RE.vacant = (h) => (h.tenants || []).filter((t) => !t).length;
+  RE.searchCost = (g, h) => { const S = TC().search; const v = Math.max(1, Math.min(S.maxUnitsScale, RE.vacant(h))); return Math.round((S.base + S.perRent * RE.askRent(g, h)) * g.world.priceIdx * Math.sqrt(v)); };
+  RE.poolPreview = (g, h) => { // what a search is likely to bring, shown before you pay
+    const T = TC(), r = h.rentR || 1, k = RC().kinds[h.kind]; const v = Math.max(1, Math.min(T.search.maxUnitsScale, RE.vacant(h)));
+    const n = Math.min(T.pool.max * Math.sqrt(v), T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * Math.sqrt(v) * (k.lease ? T.pool.commercial : 1));
+    const q = U.clamp(T.quality.atMarket + T.quality.slope * (1 - r) + (h.cond - 60) * T.quality.cond, 0.1, 0.85);
+    return { n, q, label: q >= 0.65 ? 'great' : q >= 0.5 ? 'good' : q >= 0.35 ? 'mixed' : 'risky' };
+  };
+  const FIRST = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Casey', 'Riley', 'Morgan', 'Jamie', 'Drew', 'Avery', 'Quinn', 'Rosa', 'Omar', 'Mei', 'Luis', 'Priya', 'Ben', 'Nia'];
+  const LAST = ['Lee', 'Patel', 'Garcia', 'Smith', 'Nguyen', 'Brown', 'Khan', 'Lopez', 'Clark', 'Young', 'Diaz', 'Hill'];
+  const BIZN = ['Corner Deli', 'Bright Dental', 'QuickPrint', 'Zen Yoga', 'Metro Phones', 'Sunny Nails', 'Pro Tax', 'Bean Cafe', 'City Logistics', 'Apex Labs'];
+  RE.applicant = (g, h, q) => {
+    const k = RC().kinds[h.kind]; const T = TC();
+    q = U.clamp(q, 0.02, 0.98);
+    const ev = R.chance(Math.pow(1 - q, 2) * 1.1) ? 1 + (R.chance((1 - q) * 0.5) ? 1 : 0) : 0;
+    const inc = U.clamp(1.6 + 3.2 * q + R.normal(0, 0.5), 0.8, 8);
+    const cs = Math.round(U.clamp(470 + 360 * q + R.normal(0, 45), 350, 840));
+    return { name: k.commercial ? R.pick(BIZN) : `${R.pick(FIRST)} ${R.pick(LAST)}`, evictions: ev, income: Math.round(inc * 10) / 10, credit: cs, rel: U.clamp(q + R.normal(0, 0.12), 0.02, 0.98) };
+  };
+  RE.applicantMarks = (a) => [ // good / okay / bad markers the player reads
+    { label: 'Past evictions', val: String(a.evictions), mark: a.evictions === 0 ? 'good' : 'bad' },
+    { label: 'Income vs rent', val: a.income.toFixed(1) + 'x', mark: a.income >= 3 ? 'good' : a.income >= 2.3 ? 'ok' : 'bad' },
+    { label: 'Credit score', val: String(a.credit), mark: a.credit >= 680 ? 'good' : a.credit >= 600 ? 'ok' : 'bad' },
+  ];
+  RE.search = (g, hid, by) => {
+    const h = g.re.holdings.find((x) => x.id === hid); if (!h || !RC().kinds[h.kind].rentPct || h.flip || h.dev || h.mode === 'sale') return { ok: false, msg: 'Not a rental right now.' };
+    if (!RE.vacant(h)) return { ok: false, msg: 'No empty units.' };
+    const cost = RE.searchCost(g, h); if (g.cash < cost) return { ok: false, msg: `A tenant search costs ${U.money(cost)}.` };
+    TG.F.spend(g, cost, 'Tenant search'); g.re.m.cost = (g.re.m.cost || 0) + cost;
+    const pv = RE.poolPreview(g, h); const n = Math.max(0, Math.round(pv.n * R.range(0.55, 1.35)));
+    const list = []; for (let i = 0; i < n; i++) list.push(RE.applicant(g, h, R.normal(pv.q, TC().quality.sd)));
+    h.search = { m: g.month, rent: RE.askRent(g, h), list, i: 0 };
+    if (by) TG.rep.decision(g, null, by, `Paid ${U.money(cost)} for a tenant search at ${h.name}: ${n} applicant(s)`);
+    return { ok: true, n, cost };
+  };
+  RE.current = (g, h) => { const s = h && h.search; if (!s || g.month - s.m > TC().search.expires) return null; return s.list[s.i] || null; };
+  RE.decide = (g, hid, accept) => {
+    const h = g.re.holdings.find((x) => x.id === hid); if (!h || !h.search) return { ok: false };
+    const a = RE.current(g, h); if (!a) return { ok: false, msg: 'No applicants left.' };
+    h.search.i++; // no going back either way
+    if (!accept) return { ok: true, left: h.search.list.length - h.search.i };
+    const slot = h.tenants.findIndex((t) => !t); if (slot < 0) return { ok: false, msg: 'No empty units.' };
+    h.tenants[slot] = RE.makeTenant(g, h, a, h.search.rent);
+    return { ok: true, tenant: h.tenants[slot], left: h.search.list.length - h.search.i };
+  };
+  RE.makeTenant = (g, h, a, rent) => {
+    const k = RC().kinds[h.kind];
+    return { name: a.name, rel: a.rel, ev: a.evictions, inc: a.income, cs: a.credit, rent: rent || RE.askRent(g, h), late: 0, evict: 0, since: g.month, lease: k.lease || (a.rel > 0.65 && R.chance(0.5) ? 24 : 12) };
+  };
+  // property manager: runs searches and screens applicants for you (better skill = better reading of the signals)
+  RE.mgrFill = (g, h) => {
+    const mgr = g.re.manager; if (!mgr || !RE.vacant(h) || h.mode !== 'rent') return;
+    if (!RE.current(g, h)) { if (h.mgrSearchM === g.month) return; h.mgrSearchM = g.month; const r = RE.search(g, h.id, 'Property manager ' + mgr.name); if (!r.ok) return; }
+    const bar = 0.42 + mgr.skill / 600; const err = 0.22 - mgr.skill / 600;
+    let a; while (RE.vacant(h) && (a = RE.current(g, h))) {
+      const seen = 0.5 * (a.credit - 470) / 360 + 0.3 * U.clamp((a.income - 1.6) / 3.2, 0, 1) + 0.2 * (a.evictions ? 0 : 1) + R.normal(0, err);
+      RE.decide(g, h.id, seen >= bar);
+    }
+  };
   RE.value = (g, h) => Math.round((h.base || h.price) * g.world.housing * h.nb * condF(h.cond) * (h.over ? 0.92 : 1));
   RE.totalValue = (g) => (g.re ? U.sum(g.re.holdings, (h) => RE.value(g, h)) : 0);
   RE.unitsOwned = (g) => U.sum(g.re.holdings, (h) => h.units || 0);
 
-  RE.buy = (g, listingId, mortgage) => {
+  RE.buy = (g, listingId, mortgage, term) => {
     const C = TG.CONFIG; const l = g.re.listings.find((x) => x.id === listingId); if (!l) return { ok: false, msg: 'Listing gone.' };
     const fees = Math.round(l.price * C.property.buyCostPct);
     if (mortgage) {
       const ltv = RC().kinds[l.kind].commercial ? 0.75 : 0.8; const down = Math.round(l.price * (1 - ltv));
       if (g.cash < down + fees) return { ok: false, msg: `Need ${U.money(down + fees)} down.` };
-      const ok = TG.F.canBorrow(g, 'mortgage', l.price - down); if (!ok.ok) return ok;
-      TG.F.spend(g, down + fees, 'Real estate purchases', null, true);
-      const loan = TG.F.newLoan(g, 'mortgage', l.price - down, { collateral: { kind: 'property', id: l.id }, label: 'Mortgage: ' + l.name, noCash: true });
+      const ok = TG.CREDIT.apply(g, 'mortgage', l.price - down, { collateral: { kind: 'property', id: l.id }, label: 'Mortgage: ' + l.name, noCash: true, ltv, asset: l.price, extraIncome: RE.estRent(g, l), term });  if (!ok.ok) return ok;
+      TG.F.spend(g, down + fees, 'Real estate purchases', null, true); const loan = ok.loan;
       l.mortgageId = loan.id;
     } else { if (g.cash < l.price + fees) return { ok: false, msg: `Need ${U.money(l.price + fees)}.` }; TG.F.spend(g, l.price + fees, 'Real estate purchases', null, true); }
     g.re.listings = g.re.listings.filter((x) => x !== l);
     l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
     l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(R.chance(l.distressed ? 0.2 : 0.6) ? RE.newTenant(g, l, true) : null);
+    l.rentR = 1; l.search = null;
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
     g.re.holdings.push(l);
     return { ok: true, h: l };
   };
-  RE.newTenant = (g, h, inherited) => {
-    const screened = h.screen || (g.re.manager && g.re.manager.skill > 40);
-    const bad = R.chance(screened && !inherited ? RC().screenedBadChance : RC().tenantBadChance);
-    return { bad, rent: RE.marketRent(g, h), late: 0, evict: 0, since: g.month, lease: RC().kinds[h.kind].lease || 12 };
-  };
+  // tenants that come with a building you buy: you did not pick them (unknown, mixed quality)
+  RE.newTenant = (g, h) => { const a = RE.applicant(g, h, R.normal(0.5, 0.22)); const t = RE.makeTenant(g, h, a, RE.marketRent(g, h)); t.since = g.month - R.int(0, 11); t.inherited = true; return t; };
   RE.inspect = (g, listingId) => {
     const l = g.re.listings.find((x) => x.id === listingId); if (!l || l.inspected) return null;
     TG.F.spend(g, RC().flip.inspectionCost * g.world.priceIdx, 'Inspections', null, true);
@@ -100,9 +160,9 @@
     const bal = old ? old.balance : 0; const newAmt = Math.round(v * C.refinanceLtv);
     const cashOut = newAmt - bal - Math.round(newAmt * C.refinanceFee);
     if (cashOut < 5000) return { ok: false, msg: 'Not enough equity to refinance.' };
-    const ok = TG.F.canBorrow(g, 'mortgage', newAmt); if (!ok.ok) return ok;
+    const ok = TG.CREDIT.apply(g, 'mortgage', newAmt, { collateral: { kind: 'property', id: h.id }, label: 'Refi mortgage: ' + h.name, noCash: true, ltv: C.refinanceLtv }); if (!ok.ok) return ok;
     if (old) g.loans = g.loans.filter((x) => x !== old);
-    const loan = TG.F.newLoan(g, 'mortgage', newAmt, { collateral: { kind: 'property', id: h.id }, label: 'Refi mortgage: ' + h.name, noCash: true });
+    const loan = ok.loan;
     h.mortgageId = loan.id; TG.F.earn(g, cashOut, 'Refinance cash-out', null, true); TG.F.spend(g, 0, 'Refinance fees', null, true);
     return { ok: true, cashOut };
   };
@@ -161,24 +221,29 @@
       if (!k.rentPct) continue; // land
       // rentals
       const rentCapOn = w.rentCap > 0;
+      const T = TC();
+      if (mgr) RE.mgrFill(g, h); // with no manager, empty units stay empty until YOU run a search
       for (let i = 0; i < h.tenants.length; i++) {
-        let t = h.tenants[i];
-        if (!t) {
-          const mr = RE.marketRent(g, h);
-          const fill = rc.vacancyFillBase * (k.lease ? 0.3 : 1) * condF(h.cond) * Math.pow(w.econ, k.lease ? 2 : 1) * (mgr ? 1.2 + mgr.skill / 250 : 1) * (overSelf ? 1 - Math.min(0.6, overSelf * rc.selfManagePenalty) : 1) * (h.grade === 'A' ? 1.1 : h.grade === 'C' ? 0.85 : 1);
-          if (R.chance(fill)) { if (h.screen) spend(rc.screeningCost * w.priceIdx, 'Tenant screening'); h.tenants[i] = RE.newTenant(g, h); }
-          continue;
-        }
-        // rent collection
-        const lateP = (t.bad ? rc.lateRentChance.bad : rc.lateRentChance.good) * (w.phase === 'recession' ? 1.6 : 1) * (overSelf ? 1.3 : 1);
-        if (t.evict > 0) { t.evict--; if (t.evict === 0) { h.tenants[i] = null; TG.rep.event(g, null, 'info', `Eviction completed at ${h.name}`, 'Unit is vacant again'); } continue; }
-        if (R.chance(lateP)) { t.late++; if (t.late >= 2 && !t.evict) RE.evictCard(g, h, i); }
-        else { earn(t.rent * (mgr ? 1 - rc.managerFeePct : 1), 'Rent'); if (mgr) g.re.m.cost += 0; t.late = Math.max(0, t.late - 1); }
+        const t = h.tenants[i]; if (!t) continue;
+        if (t.rel == null) t.rel = t.bad ? 0.3 : 0.72;
+        if (t.evict > 0) { t.evict--; if (t.evict === 0) { h.tenants[i] = null; spend(t.rent * TC().turnover * 2, 'Unit turnover'); TG.rep.event(g, null, 'info', `Eviction completed at ${h.name}`, 'Unit is empty again: run a tenant search'); } continue; }
+        if (R.chance(T.lifeEvent)) { t.rel = Math.max(0.05, t.rel - T.lifeDrop); t.life = true; }
+        const lateP = (T.late.base + T.late.k * Math.pow(1 - t.rel, T.late.pow)) * (w.phase === 'recession' ? T.late.recession : 1) * (overSelf ? 1.3 : 1);
+        if (R.chance(lateP)) {
+          const miss = R.chance(T.late.missShare[0] + T.late.missShare[1] * (1 - t.rel));
+          if (miss) { t.late++; if (t.late >= 2 && !t.evict) RE.evictCard(g, h, i); }
+          else { earn(t.rent * (1 + T.lateFee) * (mgr ? 1 - rc.managerFeePct : 1), 'Rent'); t.lates = (t.lates || 0) + 1; }
+        } else { earn(t.rent * (mgr ? 1 - rc.managerFeePct : 1), 'Rent'); t.late = Math.max(0, t.late - 1); }
         if (mgr && R.chance(0.02) && mgr.honesty < 40) { const sk = Math.round(t.rent * 0.5); spend(sk, 'Theft losses'); }
-        if (R.chance(t.bad ? rc.damageChance.bad : rc.damageChance.good)) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; spend(c, 'Tenant damage'); h.cond = U.clamp(h.cond - 5, 0, 100); TG.rep.event(g, null, 'bad', `Tenant damaged a unit at ${h.name} (${U.money(c)})`, t.bad ? 'Bad tenant (not screened)' : 'Accidental damage'); }
-        // lease turnover & rent resets
-        if (g.month - t.since >= t.lease && R.chance(0.25)) { h.tenants[i] = null; continue; }
-        if (g.month - t.since >= 12 && (g.month - t.since) % 12 === 0) { const mr = RE.marketRent(g, h); t.rent = rentCapOn ? Math.round(Math.min(mr, t.rent * 1.02)) : mr; }
+        if (R.chance(T.damage.base + T.damage.k * Math.pow(1 - t.rel, 2))) { const c = v / Math.max(1, h.units) * R.range(rc.damageCost[0], rc.damageCost[1]) * 4; spend(c, 'Tenant damage'); h.cond = U.clamp(h.cond - 5, 0, 100); TG.rep.event(g, null, 'bad', `Tenant damaged a unit at ${h.name} (${U.money(c)})`, t.rel < 0.45 ? 'Risky tenant' : 'Accident: even good tenants break things sometimes'); }
+        // lease end: they may leave; rent resets to YOUR asking rent (capped by rent control)
+        const held = g.month - t.since;
+        if (held >= t.lease && held % 12 === t.lease % 12) {
+          const ask = RE.askRent(g, h), mr = RE.marketRent(g, h);
+          const leaveP = T.leave.base + T.leave.k * (1 - t.rel) + (ask > mr * 1.08 ? T.leave.overRent * (ask / mr - 1.08) * 5 : 0);
+          if (R.chance(U.clamp(leaveP, 0, 0.95))) { h.tenants[i] = null; spend(t.rent * T.turnover, 'Unit turnover'); TG.rep.event(g, null, 'info', `A tenant moved out of ${h.name}`, `Lease ended${ask > mr * 1.08 ? '; your rent is above market' : ''}. ${mgr ? 'Your manager will find a new one.' : 'Run a tenant search to fill it.'}`); continue; }
+          t.rent = rentCapOn ? Math.round(Math.min(ask, t.rent * 1.02)) : ask;
+        }
       }
       // repairs & disasters
       const nUnits = Math.max(1, h.units);
@@ -200,7 +265,7 @@
   RE.evictCard = (g, h, i) => {
     const rc = RC(); const t = h.tenants[i];
     if (g.re.manager) { RE.evict(g, h.id, i, 'Property manager ' + g.re.manager.name); return; }
-    TG.D.add(g, { kind: 'evict', reId: h.id, unit: i, title: `Tenant behind on rent at ${h.name}`, text: `A tenant is ${t.late} months behind.`, why: t.bad ? 'Unscreened tenants are far more likely to pay late.' : 'Even good tenants fall behind sometimes, more often in a recession.',
+    TG.D.add(g, { kind: 'evict', reId: h.id, unit: i, title: `Tenant behind on rent at ${h.name}`, text: `A tenant is ${t.late} months behind.`, why: t.rel < 0.45 ? 'Risky tenants are far more likely to miss rent.' : 'Even good tenants fall behind sometimes, more often in a recession.',
       options: [{ id: 'evict', label: `Start eviction (${U.money(rc.evictionCost[0])}-${U.money(rc.evictionCost[1])}, ${rc.evictionMonths[0]}-${rc.evictionMonths[1]} months)` }, { id: 'wait', label: 'Wait and hope they pay' }], def: 'wait' });
   };
   RE.evict = (g, hid, i, by) => {

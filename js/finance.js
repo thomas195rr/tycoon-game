@@ -26,9 +26,7 @@
   };
   // ---------- rates & credit ----------
   F.rateFor = (g, type) => {
-    const C = TG.CONFIG.finance;
-    const spread = type === 'loc' ? C.loc.spread : C.loans[type].spread;
-    return U.clamp(g.world.baseRate + spread + Math.max(0, 800 - g.player.credit) * C.creditSpreadPerPoint, 0.01, 0.45);
+    return TG.CREDIT.rate(g, type, g.player.credit); // v6: rate from the credit score (+ industry outlook for business loans)
   };
   F.payment = (P, rate, n) => { const r = rate / 12; return r === 0 ? P / n : (P * r) / (1 - Math.pow(1 + r, -n)); };
   F.assets = (g) => Math.max(0, F.netWorth(g, true).assets);
@@ -41,21 +39,12 @@
     if (type === 'emergency') return Math.round(L.maxBase + L.maxAssets * F.assets(g));
     return Infinity;
   };
-  F.canBorrow = (g, type, amount) => {
-    const C = TG.CONFIG.finance, L = C.loans[type];
-    if (type !== 'emergency' && g.player.noLoanUntil > g.month) return { ok: false, msg: 'Lenders refuse: recent bankruptcy.' };
-    if (g.player.credit < L.minCredit) return { ok: false, msg: `Credit score too low (need ${L.minCredit}).` };
-    const max = F.maxLoan(g, type);
-    if (amount > max) return { ok: false, msg: `Lender caps this loan at ${U.money(max)}.` };
-    const pay = F.payment(amount, F.rateFor(g, type), L.term);
-    const income = Math.max(0, F.avgProfit(g)) + F.totalPayments(g);
-    if (type === 'business' && F.totalPayments(g) + pay > Math.max(4000, income * 0.9 + F.netWorth(g) * 0.02)) return { ok: false, msg: 'Debt payments would be too high for your income.' };
-    return { ok: true, pay };
-  };
+  // v6: borrowing is an APPLICATION (see credit.js). canBorrow kept for old callers: it applies and, if approved, returns ok.
+  F.canBorrow = (g, type, amount, opts) => TG.CREDIT.apply(g, type, amount, Object.assign({}, opts, { dryApprove: true }));
   F.newLoan = (g, type, amount, opts) => {
     opts = opts || {};
     const L = TG.CONFIG.finance.loans[type];
-    const rate = F.rateFor(g, type);
+    const rate = opts.rate || F.rateFor(g, type);
     const term = opts.term || L.term;
     const loan = { id: U.uid('l'), type, label: opts.label || L.label, principal: Math.round(amount), balance: Math.round(amount), rate, term, left: term,
       payment: Math.round(F.payment(amount, rate, term)), missed: 0, collateral: opts.collateral || null, bizId: opts.bizId || null, start: g.month };
@@ -66,8 +55,7 @@
   F.takeLoan = (g, type, amount, opts) => {
     amount = Math.round(amount);
     if (!(amount > 0)) return { ok: false, msg: 'Enter an amount.' };
-    const ok = F.canBorrow(g, type, amount); if (!ok.ok) return ok;
-    return { ok: true, loan: F.newLoan(g, type, amount, opts) };
+    return TG.CREDIT.apply(g, type, amount, opts);
   };
   F.payoff = (g, loanId, fromSale) => {
     const l = g.loans.find((x) => x.id === loanId); if (!l) return;
@@ -85,12 +73,8 @@
   F.debt = (g) => U.sum(g.loans, (l) => l.balance) + (g.loc ? g.loc.balance : 0) + (g.invest ? g.invest.marginDebt : 0);
   F.avgProfit = (g) => { const h = g.history.slice(-6); return h.length ? U.avg(h, (x) => x.profit) : 0; };
 
-  F.locLimit = (g) => {
-    const C = TG.CONFIG.finance.loc;
-    if (g.player.credit < C.minCredit || g.player.noLoanUntil > g.month) return 0;
-    const cf = U.clamp((g.player.credit - 600) / 200, 0.2, 1.3);
-    return Math.round((C.limitBase + C.limitNW * Math.max(0, F.netWorth(g))) * cf / 1000) * 1000;
-  };
+  // v6: the credit line limit is whatever a lender approved (apply in the Money tab); lenders cut it if your record turns bad
+  F.locLimit = (g) => (g.player.noLoanUntil > g.month ? Math.round(g.loc.balance) : Math.max(0, g.loc.limit || 0));
   F.locDraw = (g, amt, by) => {
     const lim = F.locLimit(g); amt = Math.min(Math.round(amt), lim - g.loc.balance);
     if (amt <= 0) return 0;
@@ -101,7 +85,7 @@
 
   // ---------- monthly debt service ----------
   F.monthLoans = (g) => {
-    const C = TG.CONFIG.finance;
+    const C = TG.CONFIG.finance; TG.CREDIT.month(g); let paidAll = g.loans.length > 0 || g.loc.balance > 0;
     for (const l of g.loans.slice()) {
       const interest = l.balance * l.rate / 12;
       const pay = Math.min(l.payment, l.balance + interest);
@@ -109,13 +93,13 @@
         F.spend(g, Math.round(interest), 'Loan interest');
         F.spend(g, Math.round(pay - interest), 'Loan principal', null, true);
         l.balance = Math.max(0, l.balance - (pay - interest)); l.left--; l.missed = 0;
-        g.player.credit = Math.min(C.creditMax, g.player.credit + C.onTimeCredit);
         if (l.balance < 1 || l.left <= 0) { g.loans = g.loans.filter((x) => x !== l); TG.rep.event(g, null, 'good', `Paid off ${l.label}`, 'All payments made'); }
       } else {
         l.missed++; l.balance += Math.round(interest + pay * C.lateFeePct);
-        g.player.credit = Math.max(C.creditMin, g.player.credit + C.missedPaymentCredit);
-        TG.rep.event(g, null, 'major', `Missed a payment on ${l.label}`, `Cash ${U.money(g.cash)} was below the ${U.money(pay)} payment; credit score now ${Math.round(g.player.credit)}`, { major: 'cash' });
-        if (l.missed >= C.repoAfterMissed && l.collateral) F.repossess(g, l);
+        paidAll = false; TG.CREDIT.late(g, 1);
+        TG.rep.event(g, null, 'major', `Missed a payment on ${l.label}`, `Cash ${U.money(g.cash)} was below the ${U.money(pay)} payment; credit score now ${Math.round(g.player.credit)}. ${l.collateral ? `After ${C.repoAfterMissed} missed payments the lender takes the ${l.collateral.kind === 'equip' ? 'machine' : 'property'}.` : `After ${TG.CONFIG.credit.collectionsAfter} it goes to collections.`}`, { major: 'cash' });
+        if (l.missed >= C.repoAfterMissed && l.collateral) { F.repossess(g, l); TG.CREDIT.derog(g, 'repo'); }
+        else if (!l.collateral && l.missed >= TG.CONFIG.credit.collectionsAfter && !l.coll) { l.coll = true; TG.CREDIT.derog(g, 'collections'); TG.rep.event(g, null, 'major', `${l.label} was sent to collections`, `${l.missed} missed payments in a row: a big hit to your credit score for years`, { major: 'cash' }); }
       }
     }
     // credit line
@@ -125,10 +109,10 @@
       const minPay = Math.round(g.loc.balance * C.loc.minPayPct);
       F.spend(g, interest, 'Credit line interest');
       if (g.cash >= minPay) { F.spend(g, minPay, 'Credit line repayment', null, true); g.loc.balance -= minPay; }
-      else { g.player.credit = Math.max(C.creditMin, g.player.credit + C.missedPaymentCredit / 2); TG.rep.event(g, null, 'bad', 'Missed the credit line minimum payment', `Cash ${U.money(g.cash)}`); }
-      const lim = F.locLimit(g);
-      if (lim > 0 && g.loc.balance / lim > 0.7) g.player.credit = Math.max(C.creditMin, g.player.credit - 1);
+      else { paidAll = false; TG.CREDIT.late(g, 0.6); TG.rep.event(g, null, 'bad', 'Missed the credit line minimum payment', `Cash ${U.money(g.cash)}`); }
     }
+    if (paidAll) TG.CREDIT.onTime(g); // on-time record counts once a month, however many loans you have
+    TG.CREDIT.sync(g);
   };
   F.repossess = (g, l) => {
     const c = l.collateral;
@@ -151,7 +135,7 @@
   // accountant / CFO / CEO draw on the credit line in a crunch
   F.autoCredit = (g, need) => {
     if (need <= 0) return true;
-    const handler = F.moneyHandler(g); if (!handler && !g.settings.autoCredit) return false;
+    const handler = F.moneyHandler(g); if (!handler) return false; // v6: only an accountant or CEO draws on the credit line for you
     const lim = F.locLimit(g); const room = lim - g.loc.balance;
     if (room < need) return false;
     F.locDraw(g, Math.ceil(need)); TG.rep.decision(g, null, handler ? handler.label : 'Auto-pay setting', `Drew ${U.money(need)} on the credit line to cover a payment`);
@@ -273,7 +257,7 @@
       g.negMonths++;
       const fee = Math.round(-g.cash * C.negCashFeePct);
       F.spend(g, fee, 'Late fees');
-      g.player.credit = Math.max(C.creditMin, g.player.credit + C.negCashCredit);
+      TG.CREDIT.late(g, 0.5);
       const left = C.bankruptcyMonths - g.negMonths;
       TG.rep.event(g, null, 'major', left > 0 ? `Unpaid bills: collections letters (${left} month${left === 1 ? '' : 's'} before creditors act)` : 'Creditors are acting on unpaid bills',
         `Cash is ${U.money(g.cash)}. Last chances: sell assets, take an emergency loan, cut staff, or find an investor.`, { major: 'cash' });
@@ -297,7 +281,7 @@
         if (b) { TG.B.sell(g, b.id, fs, true); continue; }
         break;
       }
-      g.player.credit = Math.max(C.creditMin, g.player.credit - 60);
+      TG.CREDIT.derog(g, 'collections');
       g.negMonths = 0;
       TG.rep.event(g, null, 'major', 'Creditors forced a liquidation of assets', 'Bills went unpaid for months; assets sold at fire-sale prices', { major: 'cash' });
       if (g.cash < 0) F.bankrupt(g, 'Fire sale did not cover the debts');
@@ -309,7 +293,7 @@
     g.properties = []; g.re.holdings = []; g.loans = []; g.loc.balance = 0;
     TG.I.wipe(g); g.lawsuits = []; g.decisions = []; g.ceo = null;
     g.cash = C.keepCash; g.negMonths = 0;
-    g.player.credit = R.int(C.credit[0], C.credit[1]); g.player.bankruptcies++; g.player.noLoanUntil = g.month + C.noLoanMonths;
+    g.loc.limit = 0; g.player.bankruptcies++; TG.CREDIT.derog(g, 'bankruptcy'); g.player.noLoanUntil = g.month + C.noLoanMonths;
     g.player.ownerBiz = null;
     TG.rep.event(g, null, 'major', 'Full bankruptcy: you lost almost everything', `${why}. You keep ${U.money(C.keepCash)} and damaged credit. Rebuild from here: lease a cheap lot and start small.`, { major: 'cash' });
     TG.rep.news(g, 'You declared bankruptcy', 'bad');
@@ -325,7 +309,7 @@
     TG.B.close(g, b, 'business bankruptcy', true);
     if (prop) g.properties = g.properties.filter((p) => p !== prop);
     g.loans = g.loans.filter((l) => linked.indexOf(l) < 0);
-    g.player.credit = Math.max(C.creditMin, g.player.credit + C.businessBankruptcyCredit);
+    TG.CREDIT.derog(g, 'business');
     g.player.noLoanUntil = g.month + 12;
     TG.rep.event(g, null, 'major', `${b.name} filed for business bankruptcy`, `Debts of ${U.money(debt)} exceeded assets of ${U.money(assets)}; ${linked.length} loans discharged`, { major: 'cash' });
     return { ok: true };

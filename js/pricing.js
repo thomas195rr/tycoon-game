@@ -10,7 +10,7 @@
     if (b.farm) { // farm: the good of its biggest area (each area has its own price on the Land tab)
       const A = b.farm.areas; if (!A) return TG.CONFIG.farmGoods[b.farm.ent] || TG.CONFIG.farmGoods.crops;
       const k = ['cows', 'crops', 'orchard'].sort((x, y) => A[y].acres - A[x].acres)[0];
-      return TG.CONFIG.farmGoods[k === 'cows' ? (A.cows.kind === 'dairy' ? 'dairy' : 'cattle') : k] || TG.CONFIG.farmGoods.crops;
+      return TG.CONFIG.farmGoods[k] || TG.CONFIG.farmGoods.crops;
     }
     return d.good || null;
   };
@@ -64,12 +64,13 @@
     const d = TG.CONFIG.businesses[b.type], s = ST.def(b); if (!s) return 0;
     let c;
     if (s.unitCostFrom === 'materialCost') c = d.factory.materialCost;
-    else if (s.unitCostFrom === 'fuel') return d.freight.fuelPerLoad * (b.hedge && b.hedge.until > g.month ? b.hedge.idx : g.world.fuel) * g.world.priceIdx;
+    else if (s.unitCostFrom === 'fuel') return d.freight.fuelPerLoad * (b.hedge && b.hedge.until > g.month ? b.hedge.idx : g.world.fuel) * g.world.priceIdx * TG.IN.cost(g, d.ind);
     else c = d.svc.cogs * d.svc.ticket;
     if (g.world.shortage[d.cat]) c *= 1.15;
     if (d.svc && TG.B.owner(g, b)) c *= Math.max(0.5, 1 - TG.CONFIG.owner.operatedCogsCut / d.svc.cogs);
     if (d.factory && b.fixes && b.fixes.bulk && b.fixes.bulk.until > g.month) c *= 0.85;
     c *= 1 - TG.S.perk(b, 'supplyCut');
+    c *= TG.IN.cost(g, d.ind); // v6: booms push input prices up, slumps bring them down
     return c * g.world.priceIdx;
   };
   ST.cap = (b) => {
@@ -115,21 +116,25 @@
   // monthly restock before serving. need = units expected to be used this month.
   ST.restock = (g, b, need) => {
     const st = ST.ensure(b); if (!st) return null;
-    st.inM = 0; st.usedM = 0; st.spoilM = 0; st.wasteM = 0;
-    if (!st.auto) return { by: 'off' };
-    const S = TG.CONFIG.supply;
+    st.inM = 0; st.usedM = 0; st.spoilM = 0; st.wasteM = 0; st.need = Math.round(need || 0);
+    if (!st.auto) { st.lastBy = null; return { by: 'off' }; }
     let who = null, mult, prem = 0, out = 'ok';
     const h = TG.D.handler(g, b, 'stock');
-    const own = TG.B.owner(g, b);
-    if (h && !(own && h.role === 'ceo')) { out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.04, 1.1) : out === 'ok' ? R.range(0.98, 1.14) : (R.chance(0.5) ? R.range(0.75, 0.9) : R.range(1.25, 1.4)); }
-    else if (own) { who = 'You'; mult = R.range(1.0, 1.1); }
-    else { who = 'Staff'; mult = R.range(S.staffReorderCover[0], S.staffReorderCover[1]); prem = S.staffReorderPremium; }
+    // v6: only a manager (ops manager, GM or CEO) reorders. No manager = you buy supplies yourself.
+    if (!h) { st.lastBy = null; st.noMgr = true; return { by: 'nobody' }; }
+    st.noMgr = false;
+    out = TG.D.roll(h); who = h.label; mult = out === 'good' ? R.range(1.04, 1.1) : out === 'ok' ? R.range(0.98, 1.14) : (R.chance(0.5) ? R.range(0.75, 0.9) : R.range(1.25, 1.4));
     const want = Math.max(0, need * mult - st.qty);
     const got = ST.buy(g, b, want, prem);
     st.lastBy = who; st.lastOut = out; st.short = got < want - 0.5 ? (ST.cap(b) - st.qty < 1 ? 'room' : 'cash') : '';
     if (out === 'bad' && h && got > 0 && R.chance(0.4)) TG.rep.decision(g, b, h.label, mult > 1 ? `Over-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)` : `Under-ordered ${TG.CONFIG.businesses[b.type].supply.label.toLowerCase()} (${Math.round(mult * 100)}% of need)`, 'bad');
     return { by: who, got, prem };
   };
+  // v6: what you should buy yourself for next month (no manager = nobody reorders)
+  ST.suggest = (b, g) => {
+    const st = b.stock; if (!st) return 0; let need = Math.max(st.need || 0, (b.lastCtx && b.lastCtx.demand) || 0) || Math.max(st.usedM || 0, ST.cap(b) * 0.5);
+    // next month's season vs last month's (busy months need more)
+    const se = g && TG.CONFIG.businesses[b.type].season; if (se) { const a = se[U.moy(g.month - 1)] || 1, z = se[U.moy(g.month)] || 1; need *= U.clamp(z / a, 0.4, 3); } return Math.max(0, Math.round(Math.min(ST.cap(b), need * 1.1) - st.qty)); };
   // use stock; returns units actually used
   ST.use = (b, n) => { const st = b.stock; if (!st) return n; ST.ensure(b); const u = Math.min(st.qty, Math.max(0, n)); st.qty -= u; st.usedM += u; takeOld(st, u); return u; };
   // end of month: a share of leftovers spoils (oldest first), everything ages a month, anything past shelf life is thrown out

@@ -46,7 +46,7 @@
       locPref: { city: 0.95, suburb: 0.9, town: 0.8, rural: 0.5, remote: 0.15 },
       site: { traffic: 0.45, labor: 0.1, space: 0.1, loc: 0.35 },
       econSens: 0.5, weatherSens: 0.6, season: [0.6, 0.65, 0.85, 1, 1.15, 1.25, 1.3, 1.25, 1.1, 0.95, 0.75, 0.65],
-      svc: { ticket: 11, baseDemand: 2400, perSpace: 99, cogs: 0.33, utilPerSpace: 0.3, repExp: 0.8, mobile: true },
+      svc: { ticket: 12, baseDemand: 2400, perSpace: 99, cogs: 0.31, utilPerSpace: 0.3, repExp: 0.8, mobile: true },
       roles: { cook: { label: 'Cook', wage: [2300, 3700], cap: 1250, key: true, min: 1 } },
       equip: [
         { id: 'truck', label: 'Food truck', price: 48000, cap: 2700, critical: true, brk: 0.016, life: 120 },

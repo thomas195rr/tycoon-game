@@ -20,6 +20,7 @@
       g.markets[id] = { demand12: m.demand12, comp: R.range(0.9, 1.1), player12: 0, sales: [], price: m.base, hist: [] };
       g.markets[id].price = W.price(g, id, 0);
     }
+    if (TG.IN) { TG.IN.init(g); for (const id in g.markets) g.markets[id].price = W.price(g, id, 0); }
   };
 
   // market price given an extra amount of player supply this year
@@ -27,8 +28,8 @@
     const C = TG.CONFIG, m = C.markets[id], st = g.markets[id];
     const share = U.clamp((st.player12 + (extra || 0)) / st.demand12, 0, 1.5);
     const curve = Math.max(0.12, 1 - m.drop * Math.pow(share, m.shape));
-    const trend = g.world.trends[m.trendCat] || 1;
-    const p = m.base * Math.pow(g.world.econ, m.sens) * trend * Math.pow(st.comp, -m.compElast) * curve * g.world.priceIdx;
+    const ind = TG.IN ? TG.IN.price(g, TG.IN.ofMarket(id)) : 1; // v6: the industry cycle moves prices (old 'trends' fold into it)
+    const p = m.base * Math.pow(g.world.econ, m.sens) * ind * Math.pow(st.comp, -m.compElast) * curve * g.world.priceIdx;
     return Math.max(0.01, p);
   };
   W.share = (g, id) => U.clamp(g.markets[id].player12 / g.markets[id].demand12, 0, 2);
@@ -89,7 +90,7 @@
       if (e.rentCap) { w.rentCap = R.int(e.rentCap[0], e.rentCap[1]); txt += ` (${U.yrsMo(w.rentCap)})`; }
       if (e.emissions) { w.emissions = R.int(e.emissions[0], e.emissions[1]); txt += ' hits factories and fleets'; }
       if (e.rate) { const d = R.range(e.rate[0], e.rate[1]); w.baseRate = U.clamp(w.baseRate + d, ec.rateMin, ec.rateMax); txt += ` (base rate now ${U.pct(w.baseRate, 1)})`; W.repriceVariable(g); }
-      if (e.trend) { const cat = R.pick(C.trendCats); const d = R.range(e.trend[0], e.trend[1]); w.trends[cat] = U.clamp(w.trends[cat] + d, 0.5, 1.8); txt += `: ${cat} demand ${d > 0 ? 'up' : 'down'} ${U.pct(Math.abs(d))}`; }
+      if (e.trend) { const k = R.pick(Object.keys(C.industries)); const d = R.range(e.trend[0], e.trend[1]); TG.IN.shock(g, k, d); txt += `: ${C.industries[k].label.toLowerCase()} ${d > 0 ? 'gets a lift' : 'takes a hit'}`; }
       if (e.crime) w.crime = R.int(e.crime[0], e.crime[1]);
       if (e.shortage) { const cat = R.pick(['food', 'auto', 'home', 'health', 'fashion']); w.shortage[cat] = R.int(e.shortage[0], e.shortage[1]); txt += ` in ${cat} supplies`; }
       if (e.fuel) { const d = R.range(e.fuel[0], e.fuel[1]); w.fuel = U.clamp(w.fuel * (1 + d), 0.6, 2.5); txt += ` (+${U.pct(d)})`; }
@@ -97,6 +98,7 @@
       if (e.hoursReg) w.hoursReg = R.int(e.hoursReg[0], e.hoursReg[1]);
       TG.rep.news(g, txt, e.trend && e.trend[0] > 0 ? 'good' : 'warn');
     }
+    if (TG.IN) TG.IN.month(g); // v6 industry cycles
     // markets
     const mr = C.marketRules;
     for (const id in g.markets) {

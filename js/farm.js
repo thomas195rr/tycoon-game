@@ -8,7 +8,7 @@
   const AR = ['cows', 'crops', 'orchard'];
   const GOOD = { crops: 'grain', orchard: 'fruit' };
   M.farmAreas = AR;
-  const ent = (k, a) => FD().enterprises[k === 'cows' ? (a && a.kind === 'dairy' ? 'dairy' : 'cattle') : k];
+  const ent = (k) => FD().enterprises[k]; // v6: one cow herd (milk + meat)
   M.areaE = (b, k) => ent(k, b.farm.areas[k]);
   M.areaLabel = (k) => FD().areas[k].label.toLowerCase();
   const pct = (x) => U.pct(x, 0);
@@ -16,12 +16,12 @@
 
   M.newArea = (k, acres, soil) => {
     const a = { acres: acres || 0, soil: soil == null ? 0.7 : soil, askR: null, m: {} };
-    if (k === 'cows') Object.assign(a, { kind: 'beef', herd: 0, cows: 0, young: [], ready: 0 });
+    if (k === 'cows') Object.assign(a, { herd: 0, st: { calf: 0, heifer: 0, steer: 0, ready: 0, milker: 0, dry: 0, bull: 0 }, health: 0.9 });
     if (k === 'crops') Object.assign(a, { planted: 0, toHarvest: 0, seasonYield: 1, lastHarvest: null });
     if (k === 'orchard') Object.assign(a, { age: 0, seasonYield: 1, lastHarvest: null });
     return a;
   };
-  M.farmDefaultOrders = () => ({ spray: { cows: { on: true, below: 0.55 }, crops: { on: true, below: 0.6 }, orchard: { on: true, below: 0.6 } }, seed: true });
+  M.farmDefaultOrders = () => ({ spray: { crops: { on: true, below: 0.6 }, orchard: { on: true, below: 0.6 } }, seed: true, cows: M.cowOrderDefaults() }); // orders only run with a manager
   // old saves: one enterprise for the whole farm -> that becomes the matching area; everything else stays where it was
   M.farmEnsure = (b, prop) => {
     const f = b.farm; if (f.areas) return f;
@@ -35,17 +35,18 @@
     if (k0 === 'crops') Object.assign(a, { planted: old.planted || 0, toHarvest: old.toHarvest || 0, seasonYield: old.seasonYield || 1, lastHarvest: old.lastHarvest || null });
     if (k0 === 'orchard') Object.assign(a, { age: Math.min(old.orchardAge || 0, FD().enterprises.orchard.rampMonths), seasonYield: old.seasonYield || 1, lastHarvest: old.lastHarvest || null });
     if (old.stored) nf.stored[k0 === 'orchard' ? 'fruit' : 'grain'] = old.stored;
+    nf.feed = 0;
     nf.futures = (old.futures || []).map((x) => Object.assign({ mk: k0 === 'orchard' ? 'fruit' : 'grain' }, x));
     if (old.autoSeeds === false) nf.orders.seed = false;
     if (old.irrigated > 0) nf.legacyIrr = old.irrigated; // old irrigation becomes sprinklers (see migrateEquip)
-    if (k0 === 'cows' && a.cows == null) M.herdInit(a, a.herd || 0);
     b.ask = null; // old saves: one price for the whole farm; areas now each follow their own market
     b.farm = nf; return nf;
   };
   // old irrigated acres turn into sprinklers in the area that was farmed (free: you already paid for them)
   M.farmMigrateEquip = (g, b) => {
     const f = b.farm; if (!f.legacyIrr) return; const k = AR.find((x) => f.areas[x].acres > 0) || 'crops';
-    const t = FD().areas[k].spr; const ed = TG.E.def(b, t); let n = Math.max(1, Math.round(f.legacyIrr / ed.acres));
+    const t = FD().areas[k].spr; if (!t) { delete f.legacyIrr; return; } // v6: cows eat feed, they have no sprinklers
+    const ed = TG.E.def(b, t); let n = Math.max(1, Math.round(f.legacyIrr / ed.acres));
     while (n-- > 0) { const it = TG.E.buy(g, b, t, 'standard', { free: true }); if (!it) break; }
     delete f.legacyIrr;
   };
@@ -83,62 +84,33 @@
     const p = U.clamp(W.pestBase * (1.7 - a.soil) * (rot ? W.rotationCut : 1) * bl, 0, 0.9);
     return { p, why: `soil ${pct(a.soil)} (poor soil = weak plants)${rot ? ', crop rotation helps' : ''}${bl > 1.05 ? `, unfinished work x${bl.toFixed(2)}` : ''}` };
   };
-  M.sickOdds = (g, b, w) => {
-    const f = b.farm, a = f.areas.cows; if (!a.herd) return { p: 0, why: '' };
-    const e = ent('cows', a); const over = a.herd / Math.max(1, M.farmHeadCap(b)); const water = M.areaWater(b, 'cows');
-    const hot = w && (w.kind === 'drought' || w.kind === 'heat'); const bl = B().backlogMult(b);
-    const p = U.clamp(e.diseaseBase * (1 + 3 * Math.max(0, over - 1)) * (hot ? 1 + FD().water.sickWater * (1 - water) : 1) * (b.spec.ops ? 0.6 : 1) * bl, 0, 0.9);
-    return { p, why: `herd at ${pct(over)} of room${hot ? `, ${wLabel(w)} with water ${pct(water)}` : ''}${b.spec.ops ? ', ops manager helps' : ''}${bl > 1.05 ? `, unfinished work x${bl.toFixed(2)}` : ''}` };
-  };
 
-  // ---------- herd helpers (cow area): cows = adult mothers, young = cohorts by age (months), ready = market-age animals ----------
-  M.herdInit = (a, total) => {
-    const e = ent('cows', a);
-    const cows = Math.round(total / 2.07); const youngT = Math.max(0, Math.round(total - cows));
-    a.cows = cows; a.young = []; a.ready = 0;
-    for (let i = 0; i < e.matureAge; i++) a.young.push({ age: i, n: youngT / e.matureAge });
-    M.herdSync(a);
-  };
-  M.herdSync = (a) => { a.herd = Math.max(0, (a.cows || 0) + U.sum(a.young || [], (x) => x.n) + (a.ready || 0)); return a.herd; };
-  M.pastureCap = (b, a) => { const e = ent('cows', a); const w = b && b.farm ? Math.max(b.farm.rain, M.areaWater(b, 'cows')) : 0.6; return Math.round(a.acres * e.headPerAcre * (0.6 + 0.4 * w) * M.soilYield(a.soil)); };
-  M.farmHeadCap = (b) => M.pastureCap(b, b.farm.areas.cows) + Math.round(TG.E.sumField(b, 'head'));
   M.farmParlorCap = (b) => Math.round(TG.E.sumField(b, 'milkCows'));
   // for the start screen / setup cost (no business yet)
-  M.farmHerdCap = (prop, e) => Math.round(prop.acres * e.headPerAcre * (0.6 + 0.4 * prop.water) * M.soilYield(prop.soil));
-  M.bestEnterprise = (prop) => (prop.orchard ? 'orchard' : prop.landType === 'grassland' || prop.landType === 'dry' || prop.landType === 'hillside' ? 'cattle' : 'crops');
+  M.bestEnterprise = (prop) => (prop.orchard ? 'orchard' : prop.landType === 'grassland' || prop.landType === 'dry' || prop.landType === 'hillside' ? 'cows' : 'crops');
   M.isHarvest = (g, b) => { const moy = U.moy(g.month); const A = b.farm.areas; return (A.crops.acres > 0 && FD().enterprises.crops.harvest.indexOf(moy) >= 0) || (A.orchard.acres > 0 && FD().enterprises.orchard.harvest.indexOf(moy) >= 0); };
   M.isLivestock = (f) => !!(f && f.areas && f.areas.cows.acres > 0);
   // ---- storage (tons): base shed + bins/silos; grain, fruit and seed share it
   M.farmStoreCap = (b) => { const fd = FD(); return Math.round(fd.baseStoreTons + b.farm.acres * fd.storePerAcre + (b.farm.storageCap || 0) + TG.E.sumField(b, 'storeTons')); };
-  M.farmStoreUsed = (b) => { const f = b.farm; return (f.stored.grain || 0) + (f.stored.fruit || 0) + (f.seeds || 0) * FD().enterprises.crops.seedTonsPerAcre; };
+  M.farmStoreUsed = (b) => { const f = b.farm; return (f.stored.grain || 0) + (f.stored.fruit || 0) + (f.seeds || 0) * FD().enterprises.crops.seedTonsPerAcre + (f.feed || 0) * TG.CONFIG.cows.feedTonsCap; };
   M.farmStoreFree = (b) => Math.max(0, M.farmStoreCap(b) - M.farmStoreUsed(b));
-  M.herdForecast = (g, b) => {
-    const a = b.farm.areas.cows, e = ent('cows', a), nm = U.moy(g.month + 1);
-    const births = [2, 3, 4].indexOf(nm) >= 0 ? (a.cows || 0) * e.calving / 3 : 0;
-    const youngN = U.sum(a.young || [], (x) => x.n);
-    const deaths = youngN * e.calfDeath + ((a.cows || 0) + (a.ready || 0)) * e.adultDeath;
-    const culls = (a.cows || 0) / Math.max(12, e.lifespan - 24);
-    const matured = U.sum((a.young || []).filter((x) => x.age + 1 >= e.matureAge), (x) => x.n);
-    return { births, deaths, culls, matured, feed: M.models.farm.feedCost(g, b, null), youngN };
-  };
   // processing plant: works only with enough volume through it (12-month sum; a cow counts as 0.5 t)
   M.plantVolume = (b) => U.sum(b.farm.harv || [], (x) => x.t);
   M.plantOn = (b) => { const fx = FD() && TG.CONFIG.businesses.farm.fixes.find((x) => x.id === 'plant'); return !!(b.fixes.plant && !b.farm.plantBroken && M.plantVolume(b) >= fx.minVolume); };
   M.plantMult = (b, k) => (M.plantOn(b) ? (k === 'cows' ? 1.2 : TG.CONFIG.businesses.farm.fixes.find((x) => x.id === 'plant').valueMult) : 1);
-  const logVol = (g, f, t) => { f.harv = (f.harv || []).filter((x) => x.m > g.month - 12); const cur = f.harv.find((x) => x.m === g.month); if (cur) cur.t += t; else f.harv.push({ m: g.month, t }); };
+  const logVol = M.logVolX = (g, f, t) => { f.harv = (f.harv || []).filter((x) => x.m > g.month - 12); const cur = f.harv.find((x) => x.m === g.month); if (cur) cur.t += t; else f.harv.push({ m: g.month, t }); };
 
   M.models.farm = {
     init(g, b, prop, opts) {
       const e0 = opts.ent || M.bestEnterprise(prop);
-      const f = b.farm = { acres: prop.acres, landType: prop.landType, rain: prop.water, baseSoil: prop.soil, freeSoil: prop.soil, areas: {}, moving: [], stored: { grain: 0, fruit: 0 }, seeds: 0, storageCap: 0, sellPolicy: 'sell', futures: [], orders: M.farmDefaultOrders(), harv: [], plantBroken: false, m: {} };
+      const f = b.farm = { acres: prop.acres, landType: prop.landType, rain: prop.water, baseSoil: prop.soil, freeSoil: prop.soil, areas: {}, moving: [], stored: { grain: 0, fruit: 0 }, seeds: 0, feed: 0, storageCap: 0, sellPolicy: 'sell', futures: [], orders: M.farmDefaultOrders(), harv: [], plantBroken: false, m: {} };
       for (const k of AR) f.areas[k] = M.newArea(k, 0, prop.soil);
-      const split = { crops: { crops: 1 }, orchard: { orchard: 1 }, cattle: { cows: 1 }, dairy: { cows: 1 }, mixed: { cows: 0.5, crops: 0.5 } }[e0] || { crops: 1 };
+      const split = { crops: { crops: 1 }, orchard: { orchard: 1 }, cows: { cows: 1 }, cattle: { cows: 1 }, dairy: { cows: 1 }, mixed: { cows: 0.5, crops: 0.5 } }[e0] || { crops: 1 };
       let left = prop.acres; const ks = Object.keys(split);
       ks.forEach((k, i) => { const n = i === ks.length - 1 ? left : Math.round(prop.acres * split[k]); f.areas[k].acres = n; left -= n; });
-      if (e0 === 'dairy') f.areas.cows.kind = 'dairy';
       f.seeds = Math.round(f.areas.crops.acres); // first season's seed comes with the start-up cost
       if (f.areas.orchard.acres) f.areas.orchard.age = prop.orchard ? FD().enterprises.orchard.rampMonths : 0;
-      if (f.areas.cows.acres) M.herdInit(f.areas.cows, Math.round(M.farmHerdCap({ acres: f.areas.cows.acres, water: prop.water, soil: prop.soil }, ent('cows', f.areas.cows)) * (FD().herdStart || 0.5)));
+      if (f.areas.cows.acres) { M.herdInit(f.areas.cows, Math.round(M.farmHerdCap({ acres: f.areas.cows.acres }) * (FD().herdStart || 0.5))); f.feed = Math.round(M.feedNeed(f.areas.cows) * 2); } // starter herd + 2 months of feed (in the setup cost)
     },
     e(b, k) { return ent(k || 'crops', b.farm.areas[k || 'crops']); },
     // work: tractors pull planters and trailers (acres each) or haul hay and feed (head each); farmhands per acre / per cow
@@ -147,12 +119,12 @@
     needs(g, b) {
       M.farmEnsure(b);
       const eq = [{ type: 'tractor', count: Math.max(1, Math.ceil(this.tractorNeed(b) - 0.15)) }];
-      const A = b.farm.areas; if (A.cows.kind === 'dairy' && A.cows.acres) eq.push({ type: 'parlor', count: Math.max(1, Math.ceil((A.cows.cows || 1) / 160)) });
+      const A = b.farm.areas; if (A.cows.acres) { M.herdSync(A.cows); eq.push({ type: 'parlor', count: Math.max(1, Math.ceil((A.cows.st.milker || 1) / 160)) }); }
       return { equip: eq, staff: [{ role: 'hand', count: Math.max(1, Math.ceil(this.handNeed(b) * 1.1)) }] };
     },
     baseRev(g, b) {
       M.farmEnsure(b); const A = b.farm.areas, C = TG.CONFIG; let r = 0;
-      if (A.cows.herd) r += A.cows.kind === 'dairy' ? (A.cows.cows || 0) * ent('cows', A.cows).milkPerCow * C.markets.milk.base : A.cows.herd * C.markets.beef.base * 0.37 / 12;
+      if (A.cows.herd && A.cows.st) r += A.cows.st.milker * ent('cows').milkPerCow * C.markets.milk.base + A.cows.st.steer / 6 * C.markets.beef.base;
       r += A.crops.acres * ent('crops').yield * C.markets.grain.base / 12 + A.orchard.acres * ent('orchard').yield * C.markets.fruit.base / 12;
       return r * g.world.priceIdx;
     },
@@ -213,21 +185,8 @@
       TG.F.spend(g, Math.round(acres * per), 'Seed', b.id); b.farm.seeds = (b.farm.seeds || 0) + acres; b.farm.m.seedsIn = (b.farm.m.seedsIn || 0) + acres;
       return acres;
     },
-    feedCost(g, b, ctx) {
-      const f = b.farm, a = f.areas.cows; if (!a.herd) return 0; const e = ent('cows', a);
-      const youngN = U.sum(a.young || [], (x) => x.n);
-      const heads = (a.cows || 0) + (a.ready || 0) + youngN * e.youngFeed;
-      const pasture = M.pastureCap(b, a); const total = a.herd || 0;
-      const barnHeads = Math.max(0, Math.min(total - pasture, TG.E.sumField(b, 'head')));
-      const over = total / Math.max(1, M.farmHeadCap(b));
-      const drought = ctx && (ctx.weather.kind === 'drought' || ctx.weather.kind === 'heat');
-      const cov = ctx ? this.cover(g, b) : { tcov: 1 };
-      let feed = heads * e.feed * g.world.priceIdx * (drought ? 1 + (e.droughtFeed - 1) * (1 - M.areaWater(b, 'cows') * 0.7) : 1) * (over > 1 ? 1 + (over - 1) * 2 : 1) * (1 + 0.3 * (1 - cov.tcov)) * (b.fixes.integrate ? 0.8 : 1);
-      feed += barnHeads * e.feed * (e.barnFeed - 1) * g.world.priceIdx;
-      return feed;
-    },
     month(g, b, ctx) {
-      const f = M.farmEnsure(b); M.farmMigrateEquip(g, b);
+      const f = M.farmEnsure(b); M.farmMigrateEquip(g, b); M.herdMigrate(g, b);
       const C = TG.CONFIG, fd = FD(), moy = U.moy(g.month), A = f.areas;
       f.m = f.mNext || {}; f.mNext = null; for (const k of AR) A[k].m = {};
       // land that was being converted is ready
@@ -248,9 +207,9 @@
         }
         if (A.cows.herd) {
           WK.add(ctx, 'space', '🌿', 'Grass + barns', 1, M.farmHeadCap(b), A.cows.herd, 'head', ['pen', 'barn'], 'Grass in your cow area plus pens and barns. Full = no room for calves.');
-          if (A.cows.kind === 'dairy') WK.add(ctx, 'eq', '🥛', 'Milking parlors', b.equip.filter((x) => x.type === 'parlor' && !x.broken).length, M.farmParlorCap(b), A.cows.cows, 'cows', ['parlor'], 'Each parlor milks about 160 cows. Cows not milked make nothing.');
+          WK.add(ctx, 'eq', '🥛', 'Milking parlors', b.equip.filter((x) => x.type === 'parlor' && !x.broken).length, M.farmParlorCap(b), A.cows.st.milker, 'cows', ['parlor'], 'Each parlor milks about 160 cows. Cows not milked make nothing.');
         }
-        for (const k of AR) if (A[k].acres) { const t = fd.areas[k].spr; WK.add(ctx, 'eq', '💦', `Sprinklers (${M.areaLabel(k)})`, b.equip.filter((x) => x.type === t && !x.broken).length, M.sprAcres(b, k), A[k].acres, 'acres', [t], 'Acres watered vs acres in the area.'); }
+        for (const k of AR) if (A[k].acres && fd.areas[k].spr) { const t = fd.areas[k].spr; WK.add(ctx, 'eq', '💦', `Sprinklers (${M.areaLabel(k)})`, b.equip.filter((x) => x.type === t && !x.broken).length, M.sprAcres(b, k), A[k].acres, 'acres', [t], 'Acres watered vs acres in the area.'); }
       }
       // storage: costs and spoilage; sell from storage if your order says so
       for (const good of ['grain', 'fruit']) {
@@ -271,7 +230,7 @@
       if (A.orchard.acres) this.orchard(g, b, ctx, cov, moy, inputCut, qMult);
       if (A.cows.acres || A.cows.herd) this.herdMonth(g, b, ctx, cov, qMult);
       // soil drops every month: faster when it is high, slower as it gets low
-      for (const k of AR) { const a = A[k]; if (!a.acres) continue; const d = M.soilDrop(k, a.soil); a.soil = Math.max(fd.soil.floor, a.soil - d); a.m.soilDrop = d; }
+      for (const k of AR) { const a = A[k]; if (!a.acres || k === 'cows') continue; const d = M.soilDrop(k, a.soil); a.soil = Math.max(fd.soil.floor, a.soil - d); a.m.soilDrop = d; }
       ctx.served = Math.round(f.acres * ctx.util);
       if (cov.tcov < 1) ctx.note = `Tractor coverage ${U.pct(cov.tcov)}: ${cov.tcap.toFixed(1)} of ${cov.tneed.toFixed(1)} tractors' worth working`;
       else if (cov.hcov < 1) ctx.note = `Short on farmhands (${U.pct(cov.hcov)} of the work gets done)`;
@@ -286,8 +245,8 @@
         let acres = Math.min(want * pc, f.seeds);
         const costPer = e.inputPerAcre * g.world.priceIdx * (1 - inputCut);
         const afford = Math.max(0, g.cash) / costPer;
-        if (acres > afford) { TG.rep.event(g, b, 'bad', `Could only afford fertilizer & fuel for ${Math.round(afford)} of ${Math.round(acres)} acres`, 'Cash crunch at planting time'); acres = afford; }
-        TG.F.spend(g, Math.round(acres * costPer), 'Fertilizer & fuel', b.id);
+        if (acres > afford) { TG.rep.event(g, b, 'bad', `Could only afford planting fuel for ${Math.round(afford)} of ${Math.round(acres)} acres`, 'Cash crunch at planting time'); acres = afford; }
+        TG.F.spend(g, Math.round(acres * costPer), 'Planting fuel', b.id);
         f.seeds -= acres; a.planted += acres; a.m.planted = acres;
         if (acres < want * pc - 0.5 && f.seeds < 1) TG.rep.event(g, b, 'bad', `Ran out of seed: planted ${Math.round(acres)} of ${Math.round(want)} acres`, 'Buy seed before planting months, or order your manager to (Manager tab)');
         if (pc < 0.95) TG.rep.event(g, b, 'bad', `Only planted ${Math.round(acres)} of ${Math.round(want)} acres this month`, `Planting coverage ${U.pct(cov.pcov)} (tractors + planters), farmhands got ${U.pct(cov.hcov)} of the work done`);
@@ -301,7 +260,7 @@
       const a = b.farm.areas.orchard, e = ent('orchard');
       a.age++;
       const prod = U.clamp(a.age / e.rampMonths, 0, 1);
-      TG.F.spend(g, Math.round(a.acres * e.inputPerAcre / 12 * g.world.priceIdx * (1 - inputCut) * (0.35 + 0.65 * prod)), 'Orchard upkeep', b.id);
+      TG.F.spend(g, Math.round(a.acres * e.inputPerAcre / 12 * g.world.priceIdx * (1 - inputCut) * (0.35 + 0.65 * prod)), 'Orchard care (pruning & fuel)', b.id);
       if (M.growing('orchard', moy)) this.areaWeather(g, b, ctx, 'orchard');
       if (e.harvest.indexOf(moy) >= 0) {
         if (prod < 0.05) { if (moy === e.harvest[0]) TG.rep.event(g, b, 'info', 'Young orchard: no fruit yet', `${Math.round(a.age)} of ${e.rampMonths} months to full production`); }
@@ -334,73 +293,23 @@
       if (lost > full * 0.1) { const broken = b.equip.filter((x) => (x.type === 'tractor' || (TG.E.def(b, x.type) || {}).countsAs === 'tractor' || x.type === 'combine') && x.broken); TG.rep.event(g, b, 'major', `${Math.round(lost).toLocaleString()} t rotted in the field`, broken.length ? `${broken.map((x) => x.label + ' #' + TG.E.num(b, x)).join(', ')} broken during harvest; harvest coverage ${U.pct(cov.hvcov)}` : `Harvest coverage ${U.pct(cov.hvcov)} (tractors + combines), farmhands got ${U.pct(cov.hcov)} of the work done`, { major: 'harvest' }); }
       a.lastHarvest = { m: g.month, tons: Math.round(tons), lost: Math.round(lost) };
     },
-    herdMonth(g, b, ctx, cov, q) {
-      const f = b.farm, a = f.areas.cows, e = ent('cows', a), moy = U.moy(g.month), m = a.m;
-      if (a.cows == null) M.herdInit(a, a.herd || 0);
-      const cap = M.farmHeadCap(b);
-      const over = a.herd / Math.max(1, cap);
-      if ([2, 3, 4].indexOf(moy) >= 0) { const n = a.cows * e.calving / 3 * (0.6 + 0.4 * cov.hcov); if (n > 0) a.young.push({ age: -1, n }); m.born = n; }
-      const stress = (1 - cov.hcov) * 0.02 + Math.max(0, over - 1) * 0.02;
-      let died = 0;
-      for (const c of a.young) { c.age++; const d = c.n * (e.calfDeath + stress); c.n -= d; died += d; }
-      const ad = e.adultDeath + stress; died += (a.cows + a.ready) * ad; a.cows *= 1 - ad; a.ready *= 1 - ad;
-      const sk = M.sickOdds(g, b, ctx.weather);
-      if (R.chance(sk.p)) {
-        const x = R.range(0.05, 0.2); const lost = (a.cows + a.ready + U.sum(a.young, (c) => c.n)) * x;
-        a.cows *= 1 - x; a.ready *= 1 - x; for (const c of a.young) c.n *= 1 - x; died += lost;
-        TG.rep.event(g, b, 'major', `Sick cows: lost ${Math.round(lost)} head`, `${U.pct(sk.p, 1)} odds this month: ${sk.why}`, { major: 'harvest' });
-      }
-      m.died = died;
-      let matured = 0;
-      for (const c of a.young) if (c.age >= e.matureAge) matured += c.n;
-      a.young = a.young.filter((c) => c.age < e.matureAge && c.n > 0.01);
-      M.herdSync(a);
-      const base = matured * e.replaceShare * (a.kind === 'dairy' ? 2.5 : 1);
-      const keep = Math.min(matured, Math.max(base, Math.min(matured * 0.5, cap * 0.95 - a.herd)));
-      a.cows += keep; a.ready += matured - keep; m.matured = matured; m.kept = keep;
-      const culls = a.cows / Math.max(12, e.lifespan - 24); a.cows -= culls; m.culled = culls;
-      if (culls > 0) { TG.F.earn(g, Math.round(culls * TG.W.price(g, 'beef', culls / 2) * e.cullValue), 'Cattle sales', b.id); TG.W.sell(g, 'beef', culls); }
-      M.herdSync(a); logVol(g, f, culls * 0.5);
-      const drought = ctx.weather.kind === 'drought' || ctx.weather.kind === 'heat';
-      const feed = this.feedCost(g, b, ctx); m.feed = feed;
-      TG.F.spend(g, Math.round(feed), 'Feed & hay', b.id);
-      if (drought) TG.rep.event(g, b, 'bad', 'Dry weather: feed costs up', `Feed up to x${e.droughtFeed}; water in the cow area is ${pct(M.areaWater(b, 'cows'))} (sprinklers keep grass growing)`);
-      if (a.kind === 'dairy') {
-        const milked = Math.min(a.cows, M.farmParlorCap(b));
-        const milk = milked * e.milkPerCow * (0.6 + 0.4 * cov.hcov) * q;
-        m.milk = milk; m.notMilked = a.cows - milked;
-        if (milk > 0) { const o = this.offer(g, b, 'cows', milk, 'Milk sales'); m.lost = (m.lost || 0) + o.unsold; logVol(g, f, o.sold); }
-        if (a.ready > 0) { const n = a.ready; TG.F.earn(g, Math.round(n * TG.W.price(g, 'beef', n / 2) * 0.8), 'Cattle sales', b.id); TG.W.sell(g, 'beef', n); a.ready = 0; m.soldHead = n; }
-      } else {
-        let sell = f.sellPolicy === 'store' ? 0 : a.ready;
-        if (over > 1.05) sell = Math.max(sell, a.herd - cap);
-        sell = Math.max(0, Math.min(sell, a.ready + a.cows));
-        if (sell > 0) {
-          const r = this.ratio(b, 'cows'); const sold = sell * TG.PR.sellF(r);
-          const price = TG.W.price(g, 'beef', sold / 2) * r * q * M.plantMult(b, 'cows');
-          if (sold > 0) { TG.F.earn(g, Math.round(sold * price), 'Cattle sales', b.id); TG.W.sell(g, 'beef', sold); logVol(g, f, sold * 0.5); }
-          const fromReady = Math.min(a.ready, sold); a.ready -= fromReady; a.cows -= sold - fromReady;
-          m.soldHead = sold; m.unsoldHead = sell - sold; m.rev = sold * price;
-        }
-      }
-      M.herdSync(a);
-    },
     flow(g, b, ctx, cov) {
       const f = b.farm, A = f.areas, FL = TG.FL; FL.start(b);
       const soilRow = (k) => { const a = A[k]; if (!a.acres) return; FL.row(b, '🟫', `Soil (${M.areaLabel(k)})`, Math.round(a.soil * 100), '%', a.soil >= 0.6 ? 'g' : a.soil >= 0.4 ? 'y' : 'r', `Dropped ${(a.m.soilDrop * 100 || 0).toFixed(1)} points this month. Crops grow x${M.soilYield(a.soil).toFixed(2)}.`); };
       if (A.cows.herd || A.cows.acres) {
-        const a = A.cows, e = ent('cows', a), m = a.m, fc = M.herdForecast(g, b);
-        if (m.born) FL.row(b, '🐮', 'Calves born', m.born, '', 'g', 'Spring calving: Mar-May');
-        FL.row(b, '🐂', 'Reached market age', m.matured || 0, '', 'g', `At ${e.matureAge} months; ${Math.round(m.kept || 0)} kept as new cows`);
-        if (a.kind === 'dairy') FL.row(b, '🥛', 'Milk made', m.milk || 0, 't', m.notMilked > 0.5 ? 'y' : 'g', m.notMilked > 0.5 ? `${Math.round(m.notMilked)} cows not milked: need parlor space` : '');
-        FL.row(b, '🛒', 'Cattle sold', m.soldHead || 0, 'head', 'g');
-        if (m.unsoldHead > 0.5) FL.row(b, '🚫', 'Buyers said no', m.unsoldHead, 'head', 'r', 'Your price is over market');
+        const a = A.cows, m = a.m, fc = M.herdForecast(g, b), HC = TG.CONFIG.cows;
+        if (m.born) FL.row(b, '🐮', 'Calves born', m.born, '', 'g', `Bulls + cows. Small herds have more calves per cow; full pasture or hungry cows have fewer.`);
+        if (m.milk != null) FL.row(b, '🥛', 'Milk made', m.milk || 0, 't', m.notMilked > 0.5 ? 'y' : 'g', m.notMilked > 0.5 ? `${Math.round(m.notMilked)} cows not milked: need parlor space` : 'Collected every day and sold at your milk price');
+        if (m.soldHead) FL.row(b, '🛒', 'Cattle sold (meat)', m.soldHead, 'head', 'g', U.money(m.meatRev || 0));
         if (m.lost > 0.5) FL.row(b, '🗑️', 'Milk spoiled', m.lost, 't', 'r', 'Unsold milk spoils');
-        FL.row(b, '💀', 'Cows died', m.died || 0, '', (m.died || 0) > a.herd * 0.02 ? 'r' : 'y', 'Calves ' + U.pct(e.calfDeath, 1) + '/mo, adults ' + U.pct(e.adultDeath, 1) + '/mo, plus sickness');
-        FL.row(b, '🌽', 'Feed', m.feed || 0, '$', 'y');
-        soilRow('cows');
-        FL.next(b, '🐮', 'Births expected', fc.births, '', fc.births ? 'g' : ''); FL.next(b, '🐂', 'Ready to sell', fc.matured + a.ready, 'head', 'g');
-        FL.next(b, '💀', 'Losses expected', fc.deaths + fc.culls, 'head', 'y'); FL.next(b, '🌽', 'Feed cost', fc.feed, '$', 'y');
+        FL.row(b, '💀', 'Cows died', m.died || 0, '', (m.died || 0) > a.herd * 0.02 ? 'r' : 'y', `Health ${U.pct(a.health || 0)}: hungry or crowded cows die more`);
+        FL.row(b, '🌿', 'Grass eaten', m.grass || 0, 't', 'g', 'From the cow area. Little grass in winter and dry months.');
+        FL.row(b, '🌽', 'Feed eaten from storage', m.feedEaten || 0, 't', m.fed < 0.99 ? 'r' : 'g', m.fed < 0.99 ? `Only ${U.pct(m.fed)} of what they needed!` : `${Math.round(f.feed || 0)} t left in storage`);
+        if (f.m.feedIn) FL.row(b, '🛒', 'Feed bought', f.m.feedIn, 't', 'g');
+        FL.next(b, '🐮', 'Births expected', fc.births, '', fc.births ? 'g' : '');
+        FL.next(b, '🥩', 'Market-ready cattle', fc.ready, 'head', 'g', 'Sell them in the Cows card (or your manager does)');
+        FL.next(b, '💀', 'Losses expected', fc.deaths, 'head', 'y');
+        FL.next(b, '🌽', 'Feed needed from storage', fc.buy, 't', (f.feed || 0) >= fc.buy ? 'g' : 'r', (f.feed || 0) >= fc.buy ? `You have ${Math.round(f.feed || 0)} t` : `You have only ${Math.round(f.feed || 0)} t: buy feed or cows go hungry`);
       }
       for (const k of ['crops', 'orchard']) {
         const a = A[k], e = ent(k), m = a.m, good = GOOD[k]; if (!a.acres && !a.planted && !(f.stored[good] > 0)) continue;
@@ -442,7 +351,7 @@
     inventoryValue(g, b) {
       const f = M.farmEnsure(b);
       let v = (f.stored.grain || 0) * TG.W.price(g, 'grain', 0) * 0.9 + (f.stored.fruit || 0) * TG.W.price(g, 'fruit', 0) * 0.9 + (f.seeds || 0) * this.seedCost(g, b) * 0.8;
-      v += (f.areas.cows.herd || 0) * TG.W.price(g, 'beef', 0) * 0.6;
+      v += this.inventoryHerd(g, b);
       return Math.round(v);
     },
   };
@@ -458,9 +367,8 @@
     if (mortgage) {
       const down = Math.round(cost * TG.CONFIG.property.mortgageDown);
       if (g.cash < down) return { ok: false, msg: `Need ${U.money(down)} down.` };
-      const ok = TG.F.canBorrow(g, 'mortgage', cost - down); if (!ok.ok) return ok;
+      const ok = TG.CREDIT.apply(g, 'mortgage', cost - down, { collateral: { kind: 'property', id: prop.id }, label: `Land mortgage (${acres} ac)`, bizId: b.id, noCash: true, ltv: (cost - down) / cost, asset: cost }); if (!ok.ok) return ok;
       TG.F.spend(g, down, 'Land purchases', null, true);
-      TG.F.newLoan(g, 'mortgage', cost - down, { collateral: { kind: 'property', id: prop.id }, label: `Land mortgage (${acres} ac)`, bizId: b.id, noCash: true });
     } else { if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Land purchases', null, true); }
     const free = M.farmFree(f); f.freeSoil = (f.freeSoil * free + f.baseSoil * acres) / Math.max(1, free + acres);
     f.acres += acres; b.acres = f.acres;
@@ -498,7 +406,7 @@
   // spray pesticide & fertilizer on one area: soil goes up (less when it is already high). Once a month per area.
   M.farmTreatCost = (g, b, k, waste) => Math.round(b.farm.areas[k].acres * FD().areas[k].treat * g.world.priceIdx * (b.fixes.integrate ? 0.8 : 1) * (waste || 1));
   M.farmTreat = (g, b, k, by, waste) => {
-    const f = M.farmEnsure(b), a = f.areas[k]; if (!a || !a.acres) return { ok: false, msg: 'No acres in that area.' };
+    const f = M.farmEnsure(b), a = f.areas[k]; if (k === 'cows') return { ok: false, msg: 'Cows need feed, not spray.' }; if (!a || !a.acres) return { ok: false, msg: 'No acres in that area.' };
     if (TG.USES.used(a, 'treat', g.month)) return { ok: false, again: true, msg: 'Already sprayed this month. Spraying again does nothing.' };
     const cost = M.farmTreatCost(g, b, k, waste); if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` };
     TG.USES.take(a, 'treat', g.month);
@@ -520,43 +428,13 @@
     f.futures.push({ mk: good, qty, price, done: 0, month: g.month });
     return { ok: true, qty, price };
   };
-  M.cowPrice = (g, b) => TG.W.price(g, 'beef', 0) * (b.farm.areas.cows.kind === 'dairy' ? 1.35 : 1.15);
-  M.farmBuyCattle = (g, b, head) => {
-    const a = M.farmEnsure(b).areas.cows; head = Math.round(head); if (!(head > 0)) return { ok: false, msg: 'Pick how many.' };
-    if (!a.acres) return { ok: false, msg: 'Give some acres to the cow area first.' };
-    const cost = Math.round(head * M.cowPrice(g, b));
-    if (g.cash < cost) return { ok: false, msg: `Costs ${U.money(cost)}.` }; TG.F.spend(g, cost, 'Livestock purchases', b.id, true);
-    if (a.cows == null) M.herdInit(a, a.herd || 0);
-    a.cows += head; M.herdSync(a); return { ok: true, cost };
-  };
-  M.farmSellCattle = (g, b, head, which) => {
-    const a = M.farmEnsure(b).areas.cows; if (a.cows == null) M.herdInit(a, a.herd || 0);
-    head = Math.max(0, Math.round(head)); const pool = which === 'cows' ? a.cows : a.ready; head = Math.min(head, Math.floor(pool));
-    if (!head) return { ok: false, msg: which === 'cows' ? 'No cows to sell.' : 'No animals at market age yet.' };
-    const p = TG.W.price(g, 'beef', head / 2) * (which === 'cows' ? 0.75 : 1); const rev = Math.round(head * p);
-    if (which === 'cows') a.cows -= head; else a.ready -= head;
-    TG.F.earn(g, rev, 'Cattle sales', b.id, true); TG.W.sell(g, 'beef', head); M.herdSync(a);
-    return { ok: true, rev, head };
-  };
-  // beef <-> dairy: the herd is sold (70% of market) and a starter herd of the other kind is bought
-  M.farmCowKind = (g, b, kind) => {
-    const a = M.farmEnsure(b).areas.cows; if (a.kind === kind) return { ok: false, msg: 'Already that kind.' };
-    if (!a.acres) { a.kind = kind; return { ok: true, cost: 0 }; }
-    const n = Math.round(M.pastureCap(b, a) * 0.4 / 2.07);
-    const cost = Math.round(n * TG.W.price(g, 'beef', 0) * (kind === 'dairy' ? 1.35 : 1.15));
-    if (g.cash < cost) return { ok: false, msg: `A starter herd costs ${U.money(cost)}.` };
-    if (a.herd > 0) { const v = Math.round(a.herd * TG.W.price(g, 'beef', a.herd / 2) * 0.7); TG.F.earn(g, v, 'Cattle sales', b.id, true); }
-    TG.F.spend(g, cost, 'Livestock purchases', b.id, true);
-    Object.assign(a, { kind, herd: 0, cows: n, young: [], ready: 0, askR: null }); M.herdSync(a);
-    return { ok: true, cost };
-  };
   M.farmBuySeeds = (g, b, acres) => { M.farmEnsure(b); const n = M.models.farm.buySeeds(g, b, acres, 0); return n > 0 ? { ok: true, acres: n } : { ok: false, msg: M.farmStoreFree(b) < 1 ? 'Storage is full.' : 'Not enough cash.' }; };
   M.farmSellSeeds = (g, b, acres) => { const f = M.farmEnsure(b); acres = Math.min(Math.round(acres), Math.floor(f.seeds || 0)); if (acres <= 0) return { ok: false, msg: 'No seed.' }; const v = Math.round(acres * M.models.farm.seedCost(g, b) * 0.5); f.seeds -= acres; TG.F.earn(g, v, 'Asset sales', b.id, true); return { ok: true, rev: v }; };
   M.farmSetupExtra = (g, prop, entK) => {
     const fd = FD(); let c = 0;
     if (entK === 'orchard' && !prop.orchard) c += fd.enterprises.orchard.establishPerAcre * prop.acres * g.world.priceIdx;
-    const share = entK === 'cattle' || entK === 'dairy' ? 1 : entK === 'mixed' ? 0.5 : 0;
-    if (share) c += Math.round(M.farmHerdCap({ acres: prop.acres * share, water: prop.water, soil: prop.soil }, fd.enterprises[entK === 'dairy' ? 'dairy' : 'cattle']) * (fd.herdStart || 0.5)) * TG.W.price(g, 'beef', 0) * (entK === 'dairy' ? 0.95 : 0.8);
+    const share = entK === 'cows' || entK === 'cattle' || entK === 'dairy' ? 1 : entK === 'mixed' ? 0.5 : 0;
+    if (share) { const n = Math.round(M.farmHerdCap({ acres: prop.acres * share }) * (fd.herdStart || 0.5)); c += n * TG.W.price(g, 'beef', 0) * 0.85 + n * 0.45 * 2 * M.feedPrice(g); }
     if (entK === 'mixed') c += prop.acres * 0.5 * fd.areas.crops.convCost * g.world.priceIdx * 0.5;
     const cropShare = entK === 'crops' ? 1 : entK === 'mixed' ? 0.5 : 0; c += cropShare * prop.acres * fd.enterprises.crops.seedPerAcre * g.world.priceIdx;
     return c;

@@ -11,12 +11,12 @@
   UI.screens.crime = () => {
     const g = TG.G; const CR = TG.CR; const c = CR.ensure(g);
     if (!CR.on(g)) return `<h2>🕶️ Crime</h2><div class="card">Crime is turned off in ☰ More → ⚙️ Settings.</div>`;
-    const tabs = [['home', '🏠'], ['goods', '📦 Goods'], ['crew', '👥 Crew'], ['turf', '🗺️ Turf'], ['clean', '🧼 Clean'], ['jobs', '🎯 Jobs'], ['law', '⚖️ Law']];
+    const tabs = [['home', '🏠'], ['goods', '📦 Goods'], ['crew', '👥 Crew'], ['turf', '🗺️ Turf'], ['clean', '🧼 Clean'], ['jobs', '🎯 Jobs'], ['law', '⚖️ Law'], ['rep', '📊 Reports']];
     const t = UI.curTab('crime', 'home');
     let o = `<h2>🕶️ Crime ${UI.tipBtn('crIntro')}</h2>${UI.tipLine('crIntro', 'A risky side path. Crime money is street cash: it only becomes normal cash by laundering it through your businesses. Police heat, raids, robberies, snitches, jail and seizure can wipe you out. Nothing here is guaranteed.')}`;
     if (CR.jailed(g)) o += `<div class="banner">⛓️ You are in jail: ${c.jail} months left. Your managers run the businesses; your crew works at half speed and gets restless. You can only skip time.</div>`;
     o += UI.tabs('crime', tabs);
-    return o + ({ home, goods, crew, turf, clean, jobs, law }[t] || home)(g, c, CR);
+    return o + ({ home, goods, crew, turf, clean, jobs, law, rep: report }[t] || home)(g, c, CR);
   };
 
   // ---------- 🏠 overview ----------
@@ -31,8 +31,6 @@
         <div class="mute">Then: 📦 buy goods, set a price, and sell to clients. You sell yourself at first (about ${N(K().youDeal)} a month).</div></div>`;
       return o;
     }
-    o += `<div class="card"><h3>📅 This month</h3>${c.flow.length ? rows(c.flow, 'crf') : '<div class="mute">Press ▶ Next Month.</div>'}</div>`;
-    if (c.next.length) o += `<div class="card"><h3>🔮 Next month</h3>${rows(c.next, 'crn')}</div>`;
     // sales vs what you could sell
     const cap = CR.capacity(g); const L = { demand: ['🧲', 'Not enough clients', 'Everyone who wanted to buy got served. More blocks, better rep or lower prices bring more.'], stock: ['📦', 'Ran out of goods', 'Buy more or get a stash house for more room.'], dealers: ['🧍', 'Not enough dealers', 'Hire dealers in 👥 Crew.'], runners: ['🏃', 'Not enough runners', 'Hire runners or buy a van.'] }[c.last.limit || 'demand'];
     o += `<div class="card"><h3>🛒 Sales ${UI.tipBtn('crSl')}</h3>${UI.tipLine('crSl', 'Sales = the smallest of: what clients want, what your dealers and runners can move, and your stock.')}
@@ -41,7 +39,14 @@
     o += workCard(g, c, CR);
     o += `<div class="card"><h3>⚠️ Danger this month ${UI.tipBtn('crOdd')}</h3>${UI.tipLine('crOdd', 'Odds that each bad thing happens next month, and why. They can be lowered, never to zero.')}
       ${CR.odds(g).filter((x) => x.p > 0).map((x) => UI.irow('cro' + x.id, x.i, x.t, oddsPill(x.p), x.why)).join('') || '<div class="mute">Nothing yet.</div>'}</div>`;
-    o += `<div class="card"><div class="btns">${UI.btn('👥 See crew', 'crDetail', 'crew', 'sm')}${UI.btn('📦 See stash', 'crDetail', 'stash', 'sm')}${UI.btn('📜 Crime log', 'crDetail', 'log', 'sm')}</div></div>`;
+    o += `<div class="card"><div class="btns">${UI.btn('👥 See crew', 'crDetail', 'crew', 'sm')}${UI.btn('📦 See stash', 'crDetail', 'stash', 'sm')}${UI.btn('📜 Crime log', 'crDetail', 'log', 'sm')}${UI.btn('📊 Reports', 'tab', 'crime:rep', 'sm')}</div></div>`;
+    return o;
+  }
+  // ---------- 📊 reports: what happened this month and what to expect next (v6: kept off the working view) ----------
+  function report(g, c) {
+    if (!c.started) return '<div class="card mute">Nothing to report yet.</div>';
+    let o = `<div class="card"><h3>📅 This month</h3>${c.flow.length ? rows(c.flow, 'crf') : '<div class="mute">Press ▶ Next Month.</div>'}</div>`;
+    if (c.next.length) o += `<div class="card"><h3>🔮 Next month</h3>${rows(c.next, 'crn')}</div>`;
     return o;
   }
   function workCard(g, c, CR) {

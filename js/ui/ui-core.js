@@ -59,6 +59,12 @@
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
   const JAIL_OK = ['next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
+  // v6 instant updates: derived numbers (capacity, work bars, limits, forecast) for a business as it is RIGHT NOW.
+  // TG.B.live recomputes them whenever the business changed (it is cached otherwise), so every action shows its effect at once.
+  const LV = (b) => (TG.G && b ? TG.B.live(TG.G, b) : null);
+  UI.lc = (b) => { const L = LV(b); return (L && L.ok ? L.ctx : b.lastCtx) || {}; };
+  UI.wk = (b) => { const L = LV(b); return (L && L.ok ? L.work : b.work) || []; };
+  UI.fc = (b) => { const L = LV(b); return L ? L.fc : b.fc; };
   UI.go = (screen, extra) => { UI.screen = screen; if (extra) Object.assign(UI, extra); UI.render(); window.scrollTo(0, 0); };
   UI.A.go = (arg) => { const [s, id] = String(arg).split(':'); if (s === 'bizd') UI.bizId = id; UI.go(s); };
   UI.A.tab = (arg) => { const i = arg.indexOf(':'); UI.tab[arg.slice(0, i)] = arg.slice(i + 1); UI.render(); };

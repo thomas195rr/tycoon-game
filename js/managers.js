@@ -4,8 +4,8 @@
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
   const D = {};
   const COVER = {
-    broken: ['ops', 'mechanic', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
-    pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: ['mechanic', 'ops', 'gm'], raise: ['hr', 'gm'],
+    broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
+    pr: ['ads', 'gm'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
     stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm', 'ops'], farm: ['gm', 'ops'], expand: ['ops', 'gm'],
   };
 
@@ -79,19 +79,19 @@
         const mech = TG.E.hasMech(b); const cash = g.cash; const std = TG.E.price(g, b, it.type, 'standard');
         const profitable = U.sum(b.hist.slice(-3), (x) => x.profit) > 0;
         let best, why;
-        if (!destroyed && old < 0.75 && wear < 75) { best = 'repair'; why = `still young (${(it.age / 12).toFixed(1)} yrs) and repair is cheaper`; }
+        if (false) { /* v6: managers never repair; only replace or scrap destroyed machines */ }
         else if (cash < std * 1.5) { best = mech ? 'replace_used' : (destroyed ? 'replace_budget' : 'repair'); why = mech ? `cash is tight (${U.money(cash)}) and a mechanic can keep a used one running` : `cash is tight (${U.money(cash)}) and there is no mechanic to keep a used one alive`; }
         else if (cash > std * 6 && profitable) { best = d.critical ? 'replace_premium' : 'replace_standard'; why = `cash is healthy (${U.money(cash)}) and ${d.critical ? 'it is critical, so reliability pays' : 'standard is good value'}`; }
         else { best = mech ? 'replace_used' : 'replace_standard'; why = mech ? 'a mechanic on staff makes used gear a good deal' : 'no mechanic, so newer gear avoids breakdowns'; }
         if (trait === 'reckless' && !good) { best = 'replace_premium'; why = 'reckless: wants the best regardless of cash'; }
-        if (trait === 'cautious' && !destroyed && !good) { best = 'repair'; why = 'cautious: patches it up'; }
+        if (best === 'repair') best = 'replace_used';
         if (bad) {
-          const alts = destroyed ? ['replace_premium', 'leave'] : ['repair', 'replace_premium', 'leave'];
+          const alts = ['replace_premium', 'leave'];
           const alt = R.pick(alts.filter((x) => x !== best)) || 'leave';
           why = alt === 'leave' ? 'did not get around to it' : alt === 'repair' ? `patched a worn-out machine (${Math.round(wear)}% wear) that will likely break again` : `bought top-tier with only ${U.money(cash)} in the bank`;
           best = alt;
         }
-        if (d.critical === undefined && best === 'leave' && !bad) best = 'repair';
+
         return { opt: best, outcome: out, why };
       }
       case 'poach': {
@@ -126,6 +126,11 @@
       if (dec.month >= g.month) continue;
       const b = biz(g, dec);
       if (dec.bizId && !b) { g.decisions = g.decisions.filter((x) => x !== dec); continue; }
+      if (dec.kind === 'broken') { // v6: a broken machine waits for you or your mechanic; only a destroyed one goes to a manager (replace or scrap)
+        const it = b.equip.find((x) => x.id === dec.itemId);
+        if (!it || !it.broken) { g.decisions = g.decisions.filter((x) => x !== dec); continue; }
+        if (it.broken !== 'destroyed') continue;
+      }
       const h = D.handler(g, b, dec.kind);
       if (h) {
         const c = D.choose(g, dec, h);
@@ -169,16 +174,7 @@
         }
       }
     }
-    // 2) maintenance & leaving broken gear
-    h = D.handler(g, b, 'maint');
-    if (h) {
-      for (const it of b.equip) {
-        const w = E.effWear(it);
-        const ord = b.orders || {}; const svcAt = ord.serviceAt == null ? 58 : ord.serviceAt;
-        if (!it.broken && w > svcAt && svcAt < 100 && g.cash > 20000) { const out = D.roll(h); if (out !== 'bad') E.service(g, b, it.id); else if (R.chance(0.3)) TG.rep.decision(g, b, h.label, `Skipped servicing ${it.label} (${Math.round(w)}% wear)`, 'bad'); }
-        if (ord.fix !== false && it.broken && it.broken !== 'destroyed' && !g.decisions.some((d) => d.itemId === it.id) && g.cash > E.repairCost(g, b, it) * 2) E.repair(g, b, it.id, h.label);
-      }
-    }
+    // 2) v6: machines are looked after by mechanics (staff), never by managers; see equipment.js E.mechMonth
     // 3) raises for unhappy good people
     h = D.handler(g, b, 'raise');
     if (h) for (const e of S.allStaff(b)) if (e.morale < 38 && e.skill >= 55 && profit3 > 0 && R.chance(0.5)) { S.raise(g, b, e.id); TG.rep.decision(g, b, h.label, `Gave ${e.name} a raise (morale was ${Math.round(e.morale)})`, 'good'); }
@@ -291,7 +287,7 @@
     const f = b.farm; const mk = g.markets[good || 'grain']; if (!mk) return 'sell';
     const hist = mk.hist || []; const avg = hist.length ? U.avg(hist.slice(-12), (x) => x.p || x) : mk.price;
     const now = TG.W.price(g, good || 'grain', 0);
-    const h = D.handler(g, b, 'farm') || D.foreman(g, b);
+    const h = D.handler(g, b, 'farm'); if (!h) return 'sell';
     let ratio = now / Math.max(1, avg);
     if (h && (!f.policyRoll || f.policyRoll.m !== g.month)) f.policyRoll = { m: g.month, out: D.roll(h) };
     if (f.policyRoll && f.policyRoll.out === 'bad') ratio = 2 - ratio;
@@ -303,7 +299,7 @@
     if (!best) return null;
     return { e: best, label: `Head ${TG.S.roleDef(b, kr).label.toLowerCase()} ${best.name}`, role: 'foreman', p: U.clamp(0.25 + best.skill / 250, 0.25, 0.6), foreman: true };
   };
-  D.orderTaker = (g, b, kind) => D.handler(g, b, kind) || D.foreman(g, b);
+  D.orderTaker = (g, b, kind) => D.handler(g, b, kind); // v6: no manager = nobody carries out orders (you do it yourself)
   // farm order: spray & feed the soil of an area when it drops below your line
   D.farmOrders = (g, b) => {
     const f = b.farm, o = f.orders || (f.orders = TG.M.farmDefaultOrders());
@@ -315,6 +311,22 @@
       if (out === 'ok' && h.foreman && R.chance(0.4)) continue; // a busy head worker gets to it next month
       const r = TG.M.farmTreat(g, b, k, h.label, out === 'bad' ? 1.5 : 1);
       if (r.ok) TG.rep.decision(g, b, h.label, `Sprayed & fed the ${L}: soil ${U.pct(r.from)} → ${U.pct(r.to)} for ${U.money(r.cost)}${out === 'bad' ? ' (used 50% too much spray)' : ''}`, out === 'bad' ? 'bad' : 'good');
+    }
+  };
+  // v6 cow orders (ONLY with a farm manager / ops / CEO): sell market-ready cattle, cull dry cows, keep the herd within room,
+  // keep N months of feed in storage. Without one nothing happens: you do it yourself in the Cows card.
+  D.farmCowOrders = (g, b) => {
+    const f = b.farm, a = f.areas.cows; if (!a.herd) return; const o = (f.orders = f.orders || TG.M.farmDefaultOrders()).cows || (f.orders.cows = TG.M.cowOrderDefaults());
+    const h = D.handler(g, b, 'farm'); if (!h) return;
+    const out = D.roll(h); const M = TG.M;
+    if (o.sellReady && a.st.ready >= 1) { const r = M.farmSellCattle(g, b, out === 'bad' ? a.st.ready * 0.5 : a.st.ready, 'ready'); if (r.ok) TG.rep.decision(g, b, h.label, `Sold ${r.head} market-ready cattle for ${U.money(r.rev)}`, out === 'bad' ? 'bad' : 'good'); }
+    if (o.cullDry && a.st.dry >= 1) { const keep = out === 'bad' ? a.st.dry * 0.5 : 0; const r = M.farmSellCattle(g, b, a.st.dry - keep, 'dry'); if (r.ok) TG.rep.decision(g, b, h.label, `Sold ${r.head} dry/old cows for meat (${U.money(r.rev)})`); }
+    if (o.keepRoom) { const cap = M.farmHeadCap(b); const over = a.herd - cap * 0.95; if (over >= 1) { const k = a.st.steer >= over ? 'steer' : a.st.heifer >= over ? 'heifer' : 'calf'; const r = M.farmSellCattle(g, b, Math.min(over, a.st[k]), k); if (r.ok) TG.rep.decision(g, b, h.label, `Herd was over room: sold ${r.head} ${TG.CONFIG.cows.stages[k].label.toLowerCase()} (${U.money(r.rev)})`); } }
+    if (o.feedMonths > 0) {
+      const fc = M.herdForecast(g, b); let want = 0; for (let i = 1; i <= o.feedMonths; i++) { const moy = U.moy(g.month + i); want += Math.max(0, M.feedNeed(a) - M.grass(g, b, null, moy)); }
+      let need = want - (f.feed || 0); if (out === 'bad') need *= R.chance(0.5) ? 0.5 : 1.4;
+      if (need >= 1) { const r = M.farmBuyFeed(g, b, need, h.label); if (r.ok) TG.rep.decision(g, b, h.label, `Bought ${r.tons} t of feed (${U.money(r.cost)}) to keep ${o.feedMonths} months in storage`); else TG.rep.decision(g, b, h.label, `Could not buy feed: ${r.msg}`, 'bad'); }
+      void fc;
     }
   };
   // farm order: buy seed before planting (a manager buys at the normal price; a head farmhand pays a little more)

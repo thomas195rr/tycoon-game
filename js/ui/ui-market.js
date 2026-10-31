@@ -48,7 +48,7 @@
     const mort = TG.F.payment(p.price - down, TG.F.rateFor(g, 'mortgage'), C.finance.loans.mortgage.term);
     let btns = '';
     if (mine) btns = UI.btn(`Start ${esc(C.businesses[type].name)} here`, 'startHere', p.id, 'pri') + UI.btn('Start another type…', 'startPick', p.id) + UI.btn(p.leased ? 'End lease' : `Sell (~${m(TG.P.value(g, p) * (1 - C.property.sellCostPct))})`, 'sellProp', p.id, 'badb');
-    else btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`Mortgage (${m(down + fees)} down, ~${m(mort)}/mo)`, 'acq', `${p.id}|mortgage`, '', g.cash < down + fees) + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < rent * (1 + C.property.leaseDeposit));
+    else btns = UI.btn(`Buy ${m(p.price + fees)}`, 'acq', `${p.id}|cash`, 'pri', g.cash < p.price + fees) + UI.btn(`🏦 Mortgage (${m(down + fees)} down, ~${m(mort)}/mo)…`, 'propFin', p.id, '', g.cash < down + fees) + UI.btn(`Lease ${m(rent)}/mo`, 'acq', `${p.id}|lease`, '', g.cash < rent * (1 + C.property.leaseDeposit));
     return `<div class="card"><div class="row sp"><b>${kind.icon || '🏠'} ${esc(kind.label)} · ${esc(p.name)}</b>${UI.pill(`${sl.label} fit ${Math.round(s * 100)}%`, sl.tone)}</div>
       <div class="mute">${esc(TG.P.locLabel(p))} · ${esc(TG.P.sizeLabel(p))}${mine ? ` · ${p.leased ? `leased ${m(p.rent)}/mo` : `owned, worth ~${m(TG.P.value(g, p))}`}` : ` · <b>${m(p.price)}</b>`}</div>
       <div class="grid2 small" style="margin-top:4px"><div>${pc.pros.map((x) => `<div class="good">+ ${esc(x)}</div>`).join('') || '<div class="mute">No standout pros</div>'}</div><div>${pc.cons.map((x) => `<div class="bad">− ${esc(x)}</div>`).join('') || '<div class="mute">No obvious cons</div>'}</div></div>
@@ -74,7 +74,7 @@
     let extra = '';
     if (d.model === 'farm') {
       const best = TG.M.bestEnterprise(p);
-      extra = `<div class="kv"><span>What to farm</span><span><select id="stEnt">${[['crops', '🌾 All crops'], ['cattle', '🥩 All beef cows'], ['dairy', '🥛 All dairy cows'], ['orchard', '🍎 All orchard'], ['mixed', '🐄🌾 Half cows, half crops']].map(([id, lb]) => `<option value="${id}"${id === best ? ' selected' : ''}>${lb} (+${m(TG.B.setupCost(g, type, p, { ent: id }) - TG.B.setupCost(g, type, p, null))})</option>`).join('')}</select></span></div>
+      extra = `<div class="kv"><span>What to farm</span><span><select id="stEnt">${[['crops', '🌾 All crops'], ['cows', '🐄 All cows (milk + meat)'], ['orchard', '🍎 All orchard'], ['mixed', '🐄🌾 Half cows, half crops']].map(([id, lb]) => `<option value="${id}"${id === (best === 'cattle' || best === 'dairy' ? 'cows' : best) ? ' selected' : ''}>${lb} (+${m(TG.B.setupCost(g, type, p, { ent: id }) - TG.B.setupCost(g, type, p, null))})</option>`).join('')}</select></span></div>
         <div class="mute">Suggested for this land: ${esc(best)}. This only sets how your acres start: later you can move acres between 🐄 cow, 🌾 crop and 🍎 orchard areas (costs money and a month or two). New orchards take ${d.farm.enterprises.orchard.rampMonths} months to bear fruit unless one is already planted; cows need a herd. Crop farms include the first season's seed.</div>`;
     }
     if (d.model === 'franchise') {
