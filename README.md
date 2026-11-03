@@ -113,6 +113,18 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
 - **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
 
+## Version 11 highlights (ads that work, law firm fix, lawyer, compact real estate)
+
+- **Ads that work:** pick an ad type (📄 flyers, 📱 social, 🔎 online search, 📻 radio & TV), each with its own cost, reach, flop odds and fit per business (⭐ stars), and pick who sees it (📍 nearby, 🌍 everyone, 🔁 past customers). Budget has diminishing returns: the preview shows the next $500 adds less. Before saving, a preview runs next month with and without the ad (same luck, 3 tries) and shows extra customers served, extra sales, net after costs and whether it pays for itself, plus a warning when you are already full. Ads help low-reputation businesses most.
+- **Law firm fixed:** setup was $160k (more than most starts) and clients paid 2 months late, so new firms ran out of cash. Now $55k setup, paid 1 month later, steadier demand: about 10%/yr median, like the others.
+- **Training never lowers output:** training used to take the worker off the job for part of the month, so output fell. Trainees now keep working. A test checks every business and every role that more skill or training never lowers output.
+- **Real estate list:** each property is one compact row (🏷️ value, 📊 last month after every cost). Tap a row for tenants and the rest.
+- **Late-game costs:** wages and house prices now stay tied to general prices, rent keeps up with prices, a tenant search costs one month's rent or less, and insurance is no longer counted for inflation twice (it ran away late in the game).
+- **Property manager:** training, advanced training, raises and bonuses, each showing its effect (costs, tenant quality) before you pay.
+- **Personal lawyer (Money > Finance):** on your own payroll. Better loan approval odds, lower loan rates, and handles injury claims at your rentals (some are dropped, the rest are smaller). Does not deal with debts. Perks and monthly cost are shown before hiring.
+- **Saves:** v10 saves upgrade automatically (training time-off cleared, ads get a target, runaway wage/house indexes pulled back in line); a one-time note explains what changed.
+- **Tests:** `test/v11.test.js` (rules), `test/v11-ui.test.js` (browser checks; `--url` for the live site). `tools/money-check-v11.txt` holds the 10-year money check for every business and rental.
+
 ## How to play (short)
 Pick a business in **Market**. Listings are scored for that business, with pros and cons; you can buy, mortgage or lease. Open the business (quick setup buys basic gear and hires a team), then press **Next Month**, or type a number of months and press **Skip** (each month is still simulated one by one). Each report explains income, expenses, events and *why* things happened, with the odds. Lower risk with maintenance, upgrades, insurance and good managers. Grow into more businesses, real estate and investments. There is no forced ending.
 

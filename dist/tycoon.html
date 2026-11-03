@@ -1886,6 +1886,58 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 })();
 
 </script>
+<script>/* js/config-v11.js */
+/* config-v11.js - v11 settings: ad channels / fit / targeting, law firm rework, no training downtime,
+   personal lawyer, property-manager training, long-run cost anchors. */
+(function () {
+  const TG = globalThis.TG; const C = TG.CONFIG; const BZ = C.businesses;
+
+  // ---------- ads: 4 ad types, each fits some businesses better ----------
+  const R = C.reputation;
+  R.adChannels = {
+    flyers: { label: 'Flyers & posters', ic: '📄', costPer: 1.0, eff: 0.9, flop: 0.12, what: 'Cheap, close to home. Best for shops people walk or drive to.' },
+    social: { label: 'Social media', ic: '📱', costPer: 1.0, eff: 1.0, flop: 0.22, what: 'Pictures and videos. Best for food, beauty, fitness and brands.' },
+    search: { label: 'Online search', ic: '🔎', costPer: 1.15, eff: 1.15, flop: 0.1, what: 'People already looking for you. Best when customers search first (lawyers, doctors, repairs, apps).' },
+    tv: { label: 'Radio & TV', ic: '📻', costPer: 1.4, eff: 1.35, flop: 0.28, what: 'Reaches the most people, flops the most. Best for big places and well-known names.' },
+  };
+  R.adMaxBoost = 0.8; // most extra customers ads can bring (before reputation and fit)
+  // fit of each ad type per business (1 = normal; shown as stars)
+  const fit = (fl, so, se, tv) => ({ flyers: fl, social: so, search: se, tv });
+  C.v11 = {
+    adFit: {
+      cafe: fit(1.25, 1.3, 0.8, 0.7), foodtruck: fit(1.1, 1.4, 0.7, 0.6), bakery: fit(1.3, 1.2, 0.8, 0.7), salon: fit(1.2, 1.35, 0.9, 0.6),
+      carwash: fit(1.35, 0.9, 0.9, 0.9), lawn: fit(1.4, 0.8, 1.1, 0.6), auto: fit(1.1, 0.7, 1.35, 1.0), gym: fit(1.1, 1.3, 0.9, 1.0),
+      farm: fit(1, 1, 1, 1), freight: fit(0.6, 0.6, 1.3, 0.9), brand: fit(0.5, 1.4, 1.1, 1.1), hotel: fit(0.6, 1.1, 1.35, 1.1),
+      law: fit(0.8, 0.7, 1.45, 1.1), clinic: fit(1.0, 0.8, 1.35, 1.0), construction: fit(1.0, 0.6, 1.3, 0.9), factory: fit(1, 1, 1, 1),
+      tech: fit(0.4, 1.2, 1.3, 1.0), franchise: fit(0.9, 1.1, 1.0, 1.35),
+    },
+    local: ['cafe', 'foodtruck', 'bakery', 'salon', 'carwash', 'lawn', 'auto', 'gym', 'clinic', 'law', 'construction'],
+    // who the ads are shown to
+    adTarget: {
+      near: { label: 'People nearby', ic: '📍', local: 1.25, far: 0.75, cap: 1, flop: 1, what: 'Only people close by. Great for local shops, wasted on online or travel businesses.' },
+      all: { label: 'Everyone', ic: '🌍', local: 0.85, far: 1.15, cap: 1.15, flop: 1.1, what: 'The biggest crowd, but many will never come.' },
+      past: { label: 'Past customers', ic: '🔁', local: 1.1, far: 1.1, cap: 0.55, flop: 0.5, what: 'Reminds people who already know you. Rarely flops, but it cannot bring many new faces.' },
+    },
+    trainAway: { basic: 0, advanced: 0 },
+    // personal lawyer (on YOUR payroll, not a business): perks only
+    lawyer: { wage: [5200, 9800], approvalZ: [0.25, 0.75], rateCut: [0.002, 0.008], suitStop: [0.25, 0.5], suitCut: [0.15, 0.35], winAdd: [0.08, 0.18] },
+    // property manager training / raises
+    remTrain: { basic: { cost: 1500, skill: [3, 8] }, advanced: { cost: 4500, skill: [7, 15] } },
+    // long-run anchors (so costs and pay stay in step with prices and rents over centuries)
+    world: { wageBand: [0.85, 1.2], wagePull: 0.02, housingBand: [0.35, 2.5], housingPull: 0.004 },
+  };
+  C.staff.trainAway = C.v11.trainAway; // v11: training never takes people off the job (it always raises output)
+
+  // ---------- law firm: playable from a normal start ----------
+  const L = BZ.law;
+  L.setupCost = 55000; L.space = { unit: 'sqft', min: 800, ideal: 4000 };
+  L.startRep = 25; L.svc.repExp = 1.4; L.svc.baseDemand = 380; L.svc.ticket = 230; L.svc.utilPerSpace = 0.9;
+  L.receivable = { delay: 1, badDebt: 0.05 };
+  L.roles.attorney.wage = [6800, 13500]; L.roles.attorney.cap = 150;
+  L.blurb = 'Clients pay by the hour, a month after the work. A good name brings more clients; search ads work best. Lawyers are expensive, so keep them busy.';
+})();
+
+</script>
 <script>/* js/world.js */
 /* world.js - economy cycles, interest rates, inflation, weather, world events, supply & demand markets, news. */
 (function () {
@@ -1952,7 +2004,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const d = R.range(ec.crashDrop[0], ec.crashDrop[1]); w.housing *= 1 - d;
       TG.rep.news(g, `Housing market crash: property values fall ${U.pct(d)}`, 'bad', true);
     }
-    w.housing = U.clamp(w.housing, 0.3, 6);
+    { const V = TG.CONFIG.v11 && TG.CONFIG.v11.world; // v11: housing and wages stay in step with prices over any number of years
+      if (V) { let real = w.housing / w.priceIdx; real *= Math.pow(1 / real, V.housingPull); w.housing = w.priceIdx * U.clamp(real, V.housingBand[0], V.housingBand[1]);
+        let rel = w.wageIdx / w.priceIdx; rel += (1 - rel) * V.wagePull; w.wageIdx = w.priceIdx * U.clamp(rel, V.wageBand[0], V.wageBand[1]); }
+      else w.housing = U.clamp(w.housing, 0.3, 6); }
     // timers
     ['rentCap', 'emissions', 'crime', 'driverShortage', 'hoursReg'].forEach((k) => { if (w[k] > 0) w[k]--; });
     for (const k in w.shortage) { w.shortage[k]--; if (w.shortage[k] <= 0) delete w.shortage[k]; }
@@ -3333,14 +3388,15 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   // ---------- insurance ----------
   F.premium = (g, b, type) => {
     const I = TG.CONFIG.finance.insurance[type]; if (!I) return 0;
-    let p = 0;
-    const rev = Math.max(b.revAvg || 0, 3000);
+    // v11: sales- and value-based premiums are already in today's dollars; only fixed amounts follow prices
+    const pi = g.world.priceIdx; let p = 0, fixed = I.min * pi;
+    const rev = Math.max(b.revAvg || 0, 3000 * pi);
     if (I.rev) p = rev * I.rev;
     if (I.val) p = (type === 'property' ? (b.propValue || 0) : TG.E.value(g, b)) * I.val;
-    if (I.perAcre) p = (b.farm ? b.farm.acres : 0) * I.perAcre;
-    if (I.perUnit) p = b.equip.filter((x) => x.type === 'truck').length * I.perUnit;
-    if (type === 'malpractice') p = Math.max(p, I.min * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
-    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
+    if (I.perAcre) fixed = Math.max(fixed, (b.farm ? b.farm.acres : 0) * I.perAcre * pi);
+    if (I.perUnit) fixed = Math.max(fixed, b.equip.filter((x) => x.type === 'truck').length * I.perUnit * pi);
+    if (type === 'malpractice') fixed = Math.max(fixed, I.min * pi * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
+    return Math.round(Math.max(fixed, p) * (b.insHike || 1) * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
   };
   F.claim = (g, b, type, loss, label) => {
     const C = TG.CONFIG.finance;
@@ -5983,7 +6039,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   RE.marketRent = (g, h) => {
     const k = RC().kinds[h.kind]; if (!k.rentPct) return 0;
     const perUnit = (h.basePrice || h.price) * k.rentPct / Math.max(1, h.units);
-    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
+    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4) /* v11: rents also keep up with prices over long holds */ * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
   };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
@@ -5995,7 +6051,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   // v7: ONE tenant per home / unit. Every empty unit is filled by its own search (one applicant at a time).
   const mgrSkill = (g) => (g.re.manager ? (g.re.manager.skill || 50) : null);
   RE.mgrCostMult = (g) => { const s = mgrSkill(g); return s == null ? 1 : U.clamp(1.2 - s / 250, 0.8, 1.2); }; // a skilled manager gets better vendor prices
-  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h, u)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
+  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; const rent = RE.askRent(g, h, u); return Math.round(Math.min(rent, S.base * g.world.priceIdx + S.perRent * rent) * (byMgr ? RE.mgrCostMult(g) : 1)); }; // v11: about a third of a month's rent, never more than one month's rent, at any year
   RE.poolPreview = (g, h, byMgr, unit) => { // what ONE unit's search is likely to bring, shown before you pay
     const T = TC(), r = RE.unitRentR(h, unit), k = RC().kinds[h.kind];
     const n = Math.min(T.pool.max, T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * (k.lease ? T.pool.commercial : 1));
@@ -6122,7 +6178,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       l.mortgageId = loan.id;
     } else { if (g.cash < l.price + fees) return { ok: false, msg: `Need ${U.money(l.price + fees)}.` }; TG.F.spend(g, l.price + fees, 'Real estate purchases', null, true); }
     g.re.listings = g.re.listings.filter((x) => x !== l);
-    l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
+    l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.pAtBuy = g.world.priceIdx; l.bought = g.month; l.paid = l.price + fees;
     l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(null); /* v10: every unit starts EMPTY: you find and pick each tenant (and can set each unit's rent) */
     l.rentR = 1; l.unitR = {}; l.searches = {}; l.issues = [];
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
@@ -6333,7 +6389,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (--d.left <= 0) {
       h.kind = d.units >= 20 ? 'apartment' : 'smallapt'; h.units = d.units; h.cond = 95; h.age = 0; h.dev = null; h.mode = 'rent';
       h.basePrice = d.cost * 1.25; h.base = (h.base * g.world.housing * h.nb * condF(h.cond) + d.cost * 1.25) / (g.world.housing * h.nb * condF(h.cond));
-      h.housingAtBuy = g.world.housing; h.tenants = Array(d.units).fill(null); h.searches = {}; h.issues = [];
+      h.housingAtBuy = g.world.housing; h.pAtBuy = g.world.priceIdx; h.tenants = Array(d.units).fill(null); h.searches = {}; h.issues = [];
       TG.rep.event(g, null, 'good', `Development finished: ${h.name} now has ${d.units} units`, `Total build cost ${U.money(d.paid)}`);
     }
   };
@@ -7086,7 +7142,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 10;
+  const VERSION = 11;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -7746,6 +7802,135 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 (function () { const TG = globalThis.TG, P = TG.PR, m0 = P.market;
   P.market = (g, b) => { const p = m0(g, b); const d = TG.CONFIG.businesses[b.type]; const cp = d && d.cityPrem; return cp && b.loc === 'city' ? p * (1 + cp) : p; };
   TG.CONFIG.businesses.gym.cityPrem = 0.25;
+})();
+
+</script>
+<script>/* js/v11.js */
+/* v11.js - v11 game rules (loaded after v10.js):
+   - ads: 4 ad types with a fit per business, targeting, diminishing returns; ads help low-reputation places most;
+     a preview plays next month on a copy of your game (with and without the ads) to show extra sales and payback
+   - personal lawyer on your own payroll: better loan odds, lower rates, handles real-estate liability claims
+   - property manager: training, raises and bonuses like other staff
+   - v10 -> v11 save migration */
+(function () {
+  const TG = globalThis.TG; const U = TG.U, R = TG.R, B = TG.B, F = TG.F, C = TG.CONFIG;
+  const V = (TG.V11 = {});
+  const X = () => C.v11;
+
+  // ================= ADS =================
+  V.isLocal = (b) => X().local.includes(b.type);
+  V.adFit = (b, ch) => ((X().adFit[b.type] || {})[ch] || 1);
+  V.adTargetMult = (b, t) => { const T = X().adTarget[t] || X().adTarget.near; return V.isLocal(b) ? T.local : T.far; };
+  V.stars = (f) => (f >= 1.3 ? '⭐⭐⭐' : f >= 1.05 ? '⭐⭐' : f >= 0.85 ? '⭐' : '·');
+  // ads bring new people who do not know your reputation yet, so they help a low-reputation place more
+  V.repComp = (b) => U.clamp(Math.pow(50 / Math.max(5, b.rep || 50), 0.5), 0.75, 2.2);
+  V.adBoostCalc = (g, b, a, noRoll) => {
+    const RC = C.reputation; if (!a || !(a.budget > 0)) return { boost: 0, flopP: 0 };
+    const ch = RC.adChannels[a.channel] || RC.adChannels.social; const T = X().adTarget[a.target || 'near'] || X().adTarget.near;
+    const mgr = b.spec && b.spec.ads;
+    const eff = (a.budget / ch.costPer) * ch.eff * V.adFit(b, a.channel) * V.adTargetMult(b, a.target || 'near') * (mgr ? 1 + mgr.skill / 150 : 1);
+    const ref = Math.max(500 * g.world.priceIdx, B.baseRev(g, b) * RC.adBoostScale);
+    const boost = RC.adMaxBoost * T.cap * (1 - Math.exp(-eff / ref)) * V.repComp(b);
+    const flopP = U.clamp(ch.flop * T.flop * (mgr ? 0.5 : 1), 0, 0.9);
+    if (noRoll) return { boost, flopP, eff, ref };
+    const flop = R.chance(flopP);
+    return { boost: flop ? boost * 0.15 : boost, flop, flopP };
+  };
+  B.adBoost = (g, b) => V.adBoostCalc(g, b, b.ads);
+
+  // preview: next month on a throw-away copy, with and without this ad plan (same luck, 3 seeds, flops included)
+  const AD = new Map();
+  V.adSim = (g, b, plan) => {
+    const key = [b.id, g.month, plan.budget, plan.channel, plan.target, b.staff.length, b.equip.length, Math.round(b.rep)].join('|');
+    if (AD.has(key)) return AD.get(key);
+    const G0 = TG.G; const base = JSON.stringify(g); const SEEDS = [0, 104729, 7919]; let rev = 0, served = 0, profit = 0, ok = true;
+    try {
+      for (const sd of SEEDS) for (const on of [true, false]) {
+        const g2 = JSON.parse(base); g2._pv = true; g2._pvNoFl = true; g2.rngState = ((g2.rngState || 1) + sd) >>> 0 || 1; TG.G = g2;
+        const b2 = g2.businesses.find((x) => x.id === b.id); b2.ads = Object.assign({}, b2.ads, on ? plan : { budget: 0 }); b2.recv = []; /* old invoices are the same either way: leave them out so their luck does not blur the answer */
+        B.month(g2, b2); const h = b2.hist[b2.hist.length - 1] || {}; const c = b2.lastCtx || {};
+        const sgn = on ? 1 : -1; const billed = U.sum(b2.recv || [], (r) => r.amt) * (1 - (((B.def(b2).receivable || {}).badDebt) || 0)); /* invoiced work is paid later: count it */
+        rev += sgn * ((h.rev || 0) + billed); profit += sgn * ((h.profit || 0) + billed); served += sgn * (c.served || 0);
+      }
+    } catch (e) { ok = false; } finally { TG.G = G0; }
+    const n = SEEDS.length; const calc = V.adBoostCalc(g, b, plan, true);
+    const lc = b.lastCtx || {}; const full = lc.cap > 0 && lc.demand >= lc.cap * 0.98;
+    const out = ok ? { extraRev: rev / n, extraServed: served / n, net: profit / n, boost: calc.boost, expBoost: calc.boost * (1 - calc.flopP * 0.85), flopP: calc.flopP, full, slow: B.def(b).model === 'tech' } : null;
+    if (AD.size > 200) AD.clear(); AD.set(key, out); return out;
+  };
+  // the next $500 (diminishing returns)
+  V.adMore = (g, b, plan) => { const a = V.adBoostCalc(g, b, plan, true).boost; const b2 = V.adBoostCalc(g, b, Object.assign({}, plan, { budget: plan.budget + 500 * g.world.priceIdx }), true).boost; return b2 - a; };
+
+  // ================= PERSONAL LAWYER =================
+  const lerp = (a, t) => a[0] + (a[1] - a[0]) * t;
+  V.lawyerT = (e) => U.clamp(((e && e.skill) || 50) / 100, 0, 1);
+  V.lawyerPerks = (g, e) => { const L = X().lawyer, t = V.lawyerT(e); return { z: lerp(L.approvalZ, t), rateCut: lerp(L.rateCut, t), stop: lerp(L.suitStop, t), cut: lerp(L.suitCut, t), win: lerp(L.winAdd, t) }; };
+  V.lawyerPool = (g) => {
+    g.player.lawPool = g.player.lawPool && g.player.lawPool.month === g.month ? g.player.lawPool : { month: g.month, list: [0, 1, 2].map(() => {
+      const c = TG.S.candidate(g, { region: 'harbor', loc: 'city' }, 'lawyer', 0.6); c.role = 'plawyer';
+      const L = X().lawyer; c.wage = Math.round(lerp(L.wage, U.clamp(c.skill / 100, 0, 1)) * g.world.wageIdx / 10) * 10; return c; }) };
+    return g.player.lawPool.list;
+  };
+  V.hireLawyer = (g, id) => { const c = V.lawyerPool(g).find((x) => x.id === id); if (!c) return { ok: false }; g.player.lawyer = c; c.since = g.month; TG.rep.event(g, null, 'good', `Hired ${c.name} as your personal lawyer (${U.money(c.wage)}/mo)`, 'Personal lawyer'); return { ok: true }; };
+  V.fireLawyer = (g) => { const e = g.player.lawyer; g.player.lawyer = null; if (e) TG.rep.event(g, null, 'info', `Let your personal lawyer ${e.name} go`, 'Personal lawyer'); };
+  // wages: paid each month from your own cash (not a business)
+  const im0 = TG.I.month;
+  TG.I.month = (g) => { const r = im0(g); const e = g.player && g.player.lawyer; if (e) F.spend(g, e.wage, 'Personal lawyer'); return r; };
+  // better loan odds and lower rates
+  const TGC = TG.CREDIT || TG.CR;
+  const rate0 = TGC.rate;
+  TGC.rate = (g, type, score) => { const r = rate0(g, type, score); const e = g.player && g.player.lawyer; return e ? U.clamp(r - V.lawyerPerks(g, e).rateCut, 0.01, 0.45) : r; };
+  const q0 = TGC.quote;
+  TGC.quote = (g, type, amount, opts) => {
+    const q = q0(g, type, amount, opts); const e = g.player && g.player.lawyer;
+    if (e && q && q.odds > 0) { const p = V.lawyerPerks(g, e); const z = Math.log(q.odds / (1 - q.odds)) + p.z; q.odds = U.clamp(1 / (1 + Math.exp(-z)), 0.02, 0.97); if (q.factors) q.factors.push({ label: 'Your lawyer', val: e.name, mark: 'good', why: `Your lawyer prepares the paperwork and talks to the bank: better odds, ${U.pct(p.rateCut, 1)} lower rate.` }); }
+    return q;
+  };
+  // real-estate liability claims (tenant injuries etc.): your lawyer gets some dropped, cuts the rest and wins more often
+  const suit0 = B.lawsuit;
+  B.lawsuit = (g, b, label, amount, insType, why) => {
+    const e = g.player && g.player.lawyer; const reClaim = !b && g._own && String(g._own).startsWith('r:');
+    if (e && reClaim) {
+      const p = V.lawyerPerks(g, e);
+      if (R.chance(p.stop)) { TG.rep.event(g, null, 'good', `${label}: your lawyer ${e.name} got the claim dropped`, `${U.pct(p.stop)} chance with your lawyer (skill ${Math.round(e.skill)})`); return null; }
+      amount = amount * (1 - p.cut); why = (why ? why + '; ' : '') + `your lawyer cut the claim by ${U.pct(p.cut)}`;
+      const ls = suit0(g, b, label, amount, insType, why); if (ls) ls.plawyer = true; return ls;
+    }
+    return suit0(g, b, label, amount, insType, why);
+  };
+  const win0 = B.winChance;
+  B.winChance = (g, b) => { const w = win0(g, b); const e = !b && g.player && g.player.lawyer; return e ? U.clamp(w + V.lawyerPerks(g, e).win, 0.05, 0.92) : w; };
+
+  // ================= PROPERTY MANAGER: training, raises, bonuses =================
+  V.remEffects = (g, e) => { const s = e.skill || 50; return { costMult: U.clamp(1.2 - s / 250, 0.8, 1.2), quality: (s - 50) / 500 }; };
+  V.remTrainPreview = (g, level) => { const t = X().remTrain[level] || X().remTrain.basic; const e = g.re.manager; const cost = Math.round(t.cost * g.world.priceIdx); const avg = (t.skill[0] + t.skill[1]) / 2;
+    const now = V.remEffects(g, e), after = V.remEffects(g, Object.assign({}, e, { skill: U.clamp(e.skill + avg, 1, 99) })); return { cost, lo: t.skill[0], hi: t.skill[1], now, after }; };
+  V.remTrain = (g, level) => {
+    const e = g.re.manager; if (!e) return { ok: false, msg: 'No property manager.' };
+    const p = V.remTrainPreview(g, level); if (g.cash < p.cost) return { ok: false, msg: `Training costs ${U.money(p.cost)}.` };
+    F.spend(g, p.cost, 'Training', null, true); if (TG.S.spam(g, e, 'train')) return { ok: true, spam: true };
+    const gain = Math.round(R.range(p.lo, p.hi) * (e.learning || 1)); const from = e.skill; e.skill = U.clamp(e.skill + gain, 1, 99); e.skillSeen = e.skill; e.morale = U.clamp((e.morale || 60) + 4, 0, 100);
+    return { ok: true, from, to: e.skill };
+  };
+  V.remRaise = (g) => { const e = g.re.manager; if (!e) return { ok: false }; if (TG.S.spam(g, e, 'raise')) return { ok: true, spam: true }; const from = e.wage; e.wage = Math.round(e.wage * (1 + C.staff.raisePct) / 10) * 10; e.morale = U.clamp((e.morale || 60) + C.staff.raiseMorale, 0, 100); e.loyalty = U.clamp((e.loyalty || 50) + 5, 0, 100); return { ok: true, from, to: e.wage }; };
+  V.remBonus = (g) => { const e = g.re.manager; if (!e) return { ok: false }; const cost = Math.round(e.wage * 0.5); F.spend(g, cost, 'Bonuses'); if (TG.S.spam(g, e, 'bonus')) return { ok: true, spam: true }; e.morale = U.clamp((e.morale || 60) + C.staff.bonusMorale, 0, 100); e.loyalty = U.clamp((e.loyalty || 50) + 10, 0, 100); return { ok: true, cost, morale: e.morale }; };
+  V.remQuitP = (e) => 0.01 * ((e.morale || 60) < 40 ? 4 : 1) * U.clamp(1.4 - (e.loyalty || 50) / 100, 0.5, 1.4);
+
+  // ================= SAVE MIGRATION v10 -> v11 =================
+  V.migrate = (g) => {
+    const notes = [];
+    for (const h of (g.re && g.re.holdings) || []) if (h.pAtBuy == null) h.pAtBuy = g.world.priceIdx;
+    for (const b of g.businesses || []) { for (const e of TG.S.allStaff(b)) e.away = 0; if (b.ads && !b.ads.target) b.ads.target = 'near'; }
+    if (g.player && g.player.lawyer === undefined) g.player.lawyer = null;
+    const w = g.world; if (w && w.priceIdx > 0) { const X1 = X().world; w.wageIdx = w.priceIdx * U.clamp(w.wageIdx / w.priceIdx, X1.wageBand[0], X1.wageBand[1]); w.housing = w.priceIdx * U.clamp(w.housing / w.priceIdx, X1.housingBand[0], X1.housingBand[1]); }
+    const m = g.re && g.re.manager; if (m) { const cap = Math.round(5000 * (w ? w.wageIdx : 1)); if (m.wage > cap * 2) { notes.push(`Property manager pay reset from ${U.money(m.wage)} to ${U.money(cap)}/mo (it had run away from rents)`); m.wage = cap; } }
+    notes.push('Ads: pick an ad type and who sees it; the Ads tab shows extra sales and payback before you spend');
+    notes.push('Training never takes workers off the job any more: it only raises output');
+    notes.push('Law firms are cheaper to start and get paid faster');
+    g.v11notes = notes; g.v = 11; return g;
+  };
+  const mig0 = TG.Game.migrate;
+  TG.Game.migrate = (g) => { mig0(g); if ((g.v || 0) < 11) V.migrate(g); return g; };
 })();
 
 </script>
@@ -8503,7 +8688,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.trainCard = (g, b, e) => {
     const S = TG.S, C = TG.CONFIG; const id = e.id; const left = S.usesLeft(g, e, 'train');
     const row = (lvl, act) => { const p = S.trainPreview(g, b, e, lvl); return `<div class="ev"><div class="row sp"><b>${lvl === 'advanced' ? '🎓 Advanced' : '📘 Basic'} training</b><span>${m(p.cost)}</span></div>
-      <div class="small">⭐ skill +${p.lo} to +${p.hi} (usually about +${p.avg}) · ⏳ away ${U.pct(p.away)} of this month · ${p.noStick ? `🎲 ${U.pct(p.noStick)} chance it barely sticks · ` : ''}📈 market value ${m(p.mv0)} → ~${m(p.mv1)}</div>
+      <div class="small">⭐ skill +${p.lo} to +${p.hi} (usually about +${p.avg}) ${p.away > 0 ? `· ⏳ away ${U.pct(p.away)} of this month ` : '· ✅ keeps working while training '}· ${p.noStick ? `🎲 ${U.pct(p.noStick)} chance it barely sticks · ` : ''}📈 market value ${m(p.mv0)} → ~${m(p.mv1)}</div>
       <div class="btns">${UI.btn(`${lvl === 'advanced' ? '🎓' : '📘'} Train ${m(p.cost)}`, 'empDo', `${id}|${act}`, 'sm' + (left > 0 ? '' : ' badb'))}</div></div>`; };
     const dim = S.trainDim(e.skill);
     return `<div class="card"><h3 style="margin-top:0">🎓 Training ${UI.tipBtn('tr' + id)}</h3>${UI.tipLine('tr' + id, `Training raises skill: more work done and better quality. It takes part of their month (less work done now) and how much they gain depends on how fast they learn. Above skill 60 gains shrink${dim < 1 ? ` (now x${dim.toFixed(2)})` : ''}. Skilled people are worth more to other companies, so you may need to raise their pay later to keep them.`)}
@@ -8709,26 +8894,36 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (!V.adModel(b)) {
       return o + `<div class="card"><h3 style="margin-top:0">📣 Advertising</h3><div class="ev info">${b.farm ? '🚜 A farm sells to the market at the market price' : '🏭 A factory sells to buyers at the market price'}: ads cannot sell more. Raise output and quality instead (⬆️ Upgrades and 🛠️ Gear).</div></div>`;
     }
-    const ab = TG.B.adBoost(g, b); const ch = b.ads.channel || 'social'; const budget = b.ads.budget || 0;
+    const ch = b.ads.channel || 'social'; const tg = b.ads.target || 'near'; const budget = b.ads.budget || 0; const V11 = TG.V11; const X11 = TG.CONFIG.v11;
     const L = b.adLast; const H = (b.adHist || []).slice(-6);
-    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Ads bring extra customers, with diminishing returns (each extra dollar does a bit less). A good reputation makes them work better. Each channel has a chance to flop (that month the ads do little). If you are already full, extra customers are turned away: add staff or gear first.')}
-      <div class="kv"><span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span>
-      <span>📺 Channel</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.label} (flop ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
-      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch)}</div>
+    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Pick 1) an ad type, 2) who sees it, 3) a monthly budget. Ads bring new customers, most when your reputation is still low (new people do not know you yet). Each extra dollar does a bit less than the one before. Every ad type can flop some months. If you are already full, extra customers are turned away: add staff or gear first. The preview plays next month on a copy of your game, with and without the ads.')}
+      <div class="small" style="margin-bottom:4px">1️⃣ Ad type (⭐ = how well it fits a ${esc(TG.B.def(b).name.toLowerCase())})</div>
+      <div class="kv"><span>📺 Type</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.ic || ''} ${c.label} ${V11.stars(V11.adFit(b, k))} · flop ${U.pct(c.flop)}</option>`).join('')}</select></span>
+      <span>🎯 Who sees it</span><span><select id="adTg" data-change="adPrev">${Object.entries(X11.adTarget).map(([k, t]) => `<option value="${k}"${tg === k ? ' selected' : ''}>${t.ic} ${t.label} ${V11.stars(V11.adTargetMult(b, k))}</option>`).join('')}</select></span>
+      <span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span></div>
+      <div class="small mute" id="adWhat">${esc((C.adChannels[ch] || {}).what || '')} ${esc((X11.adTarget[tg] || {}).what || '')}</div>
+      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch, tg)}</div>
       <div class="btns">${UI.btn('💾 Save ad plan', 'adSave', null, 'pri')}${budget ? UI.btn('⏹️ Stop ads', 'adStop', null, 'sm') : ''}</div></div>`;
     o += `<div class="card"><h3 style="margin-top:0">📏 What your ads really did</h3>${L ? UI.irow('adL' + b.id, L.flop ? '💨' : '📈', `Last month (${m(L.spent)})`, `+${Math.round(L.extra).toLocaleString()} ${esc(L.unit)}`, L.flop ? 'The campaign flopped: it did much less than usual.' : 'Counted from last month: what you sold versus what you would have sold without the ads.', null, `${L.extraRev ? `≈ ${m(L.extraRev)} extra sales` : ''}${L.full ? ' · ⚠️ you were full: more ads cannot sell more' : ''}${L.flop ? ' · flopped' : ''}`) : '<div class="mute">No ads ran last month.</div>'}
       ${H.length > 1 ? `<table class="small"><tr><th>Month</th><th class="n">Spent</th><th class="n">Extra</th></tr>${H.slice().reverse().map((x) => `<tr><td>${U.dateStr(x.m)}</td><td class="n">${m(x.spent)}</td><td class="n">+${Math.round(x.extra).toLocaleString()}${x.flop ? ' 💨' : ''}</td></tr>`).join('')}</table>` : ''}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Reputation & PR</h3><div>Reputation ${Math.round(b.rep)}/100 ${UI.bar(b.rep, 100)}</div><div class="mute">PR can speed up recovery after a hit, but can flop.</div>${UI.irow('prUse' + b.id, '📣', 'PR left this month', `${TG.USES.left(b, 'pr', g.month, TG.CONFIG.reputation.prPerMonth)}/${TG.CONFIG.reputation.prPerMonth}`, 'You get 2 PR moves a month. The 2nd does half as much. Any more looks spammy or desperate and LOSES reputation.')}<div class="btns">${Object.entries(C.pr).map(([k, p]) => UI.btn(`${p.label} (${p.cost != null ? m(p.cost * g.world.priceIdx) : m(b.revAvg * p.costRev)}, ${U.pct(p.fail)} flop)`, 'pr', k, 'sm')).join('')}</div></div>`;
     return o;
   }
-  UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; UI.toast('Ad plan saved.'); UI.refresh(); };
+  UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; b.ads.target = UI.val('adTg') || 'near'; UI.toast(b.ads.budget ? `Ad plan saved: ${m(b.ads.budget)}/mo from next month.` : 'Ad plan saved (no ads).'); UI.refresh(); };
   UI.A.adStop = () => { biz().ads.budget = 0; UI.toast('Ads stopped.'); UI.refresh(); };
-  UI.adPrevHtml = (g, b, budget, ch) => {
+  UI.adPrevHtml = (g, b, budget, ch, tg) => {
     if (!(budget > 0)) return '<div class="mute">No ads: type a budget to see what it would do.</div>';
-    const p = TG.V10.adPreview(g, b, budget, ch); const mdl = TG.B.def(b).model; const per = (mdl === 'service' || mdl === 'freight');
-    return `<div class="ev ${p.full ? 'warn' : 'info'}">🔮 <b>${m(budget)}/mo</b> ≈ <b>+${U.pct(p.boost)}</b> more customers wanting you (after flops ≈ +${U.pct(p.expBoost)})${per && b.lastCtx ? ` → about <b>+${Math.round(p.extra).toLocaleString()}</b> served${p.extraRev ? `, ≈ ${m(p.extraRev)} sales` : ''}` : ''}.${p.full ? ' ⚠️ You are already about full: extra customers will be turned away.' : ''}</div>`;
+    const plan = { budget, channel: ch || 'social', target: tg || 'near' }; const p = TG.V11.adSim(g, b, plan);
+    if (!p) return '<div class="mute">Preview not available right now.</div>';
+    const more = TG.V11.adMore(g, b, plan); const unit = TG.B.def(b).custWord || (TG.PR.good(b) || {}).unit || 'customers';
+    const pays = p.net >= 0;
+    return `<div class="ev ${p.full ? 'warn' : pays ? 'good' : 'info'}" id="adPrevRes">🔮 <b>${m(budget)}/mo</b> → about <b>+${U.pct(p.expBoost)}</b> more ${esc(unit)}${/s$/.test(unit) ? '' : 's'} wanting you (it flops ${U.pct(p.flopP)} of months)
+      <table class="small"><tr><td>➕ Extra served next month</td><td class="n"><b>+${Math.max(0, Math.round(p.extraServed)).toLocaleString()}</b></td></tr>
+      <tr><td>💰 Extra sales</td><td class="n"><b>${p.extraRev >= 0 ? '+' : '−'}${m(Math.abs(p.extraRev))}</b></td></tr>
+      <tr><td>🧾 After the ad cost and extra supplies</td><td class="n"><b class="${pays ? 'good' : 'bad'}">${pays ? '+' : '−'}${m(Math.abs(p.net))}/mo</b></td></tr></table>
+      ${pays ? '✅ Pays for itself' : p.slow ? '⏳ Costs more than it brings next month, but new users keep paying for months' : '❌ Costs more than it brings right now'} · 📉 the next ${m(500 * g.world.priceIdx)} adds only +${U.pct(more, 1)} more${p.full ? '<div class="small warn">⚠️ You are about full: extra customers get turned away. Add staff or gear first.</div>' : ''}</div>`;
   };
-  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), UI.val('adCh') || 'social'); };
+  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; const ch = UI.val('adCh') || 'social', tg = UI.val('adTg') || 'near'; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), ch, tg); const w = document.getElementById('adWhat'); if (w) w.textContent = `${(TG.CONFIG.reputation.adChannels[ch] || {}).what || ''} ${(TG.CONFIG.v11.adTarget[tg] || {}).what || ''}`; };
   UI.A.pr = (k) => { TG.B.doPR(TG.G, biz(), k, 'You'); const d = TG.G.cur.decisions[TG.G.cur.decisions.length - 1]; UI.toast(d ? d.text : 'Done.', d && d.outcome === 'bad'); UI.refresh(); };
 
   // ---------- ownership ----------
@@ -9196,6 +9391,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
     o += UI.creditCards(g); // v6: score with its reasons, loan applications with odds, credit line
     o += UI.loansCard(g); // v7: amortizing loans, tap one for its schedule
+    if (UI.lawyerCard) o += UI.lawyerCard(g); // v11: personal lawyer
     if (g.lawsuits.length) o += `<div class="card"><h3 style="margin-top:0">Lawsuits</h3>${g.lawsuits.map((ls) => `<div class="ev bad"><b>${esc(ls.label)}</b> ${m(ls.amount)} · ${ls.status === 'fighting' ? `in court (${U.pct(ls.win || 0)} win odds)` : 'awaiting your decision'} · ${ls.left} mo left<div class="why">${esc(ls.why || '')}</div></div>`).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Last resort</h3><div class="btns">${UI.btn('Declare personal bankruptcy', 'bk', null, 'sm badb')}</div><div class="mute">Wipes everything: you keep ${m(C.bankruptcy.keepCash)}, credit drops, no loans for ${C.bankruptcy.noLoanMonths} months. The game continues.</div></div>`;
     return o;
@@ -9219,11 +9415,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       ${r.hist.length > 2 ? UI.spark(r.hist.slice(-48).map((x) => x.rev - x.cost), '#1d4ed8') : ''}
       ${UI.reMgrCard(g)}
       ${RE.totalValue(g) >= RC.fund.minPortfolio && !r.fund ? `<div class="btns">${UI.btn(`Raise a fund (${U.pct(RC.fund.raisePct)} of value, investors get ${U.pct(RC.fund.investorShare)} of rent)`, 'reFund', null, 'sm')}</div>` : ''}</div>`;
-    o += `<h3>Your properties (${r.holdings.length})</h3>`;
+    o += `<h3>Your properties (${r.holdings.length})</h3>${r.holdings.length ? '<div class="mute" style="margin:-4px 0 6px">🏷️ what it is worth · 📊 last month after every cost. Tap a row for tenants and more.</div>' : ''}`;
     for (const h of r.holdings) {
       const k = RC.kinds[h.kind]; const occ = h.tenants.filter((t) => t).length; const v = RE.value(g, h);
       const loan = h.mortgageId ? g.loans.find((l) => l.id === h.mortgageId) : null;
-      o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
+      // v11: a compact row (value + profit); tap it to see tenants and everything else
+      const isOpen = !!(UI.S.reOpen && UI.S.reOpen[h.id]); const net = h.lastNetM != null && !(h.bought != null && h.bought >= h.lastNetM) ? Math.round(h.lastNet) : null; /* the month you buy it shows "new" (that month holds the purchase) */
+      o += `<details class="card rerow" data-reid="${h.id}"${isOpen ? ' open' : ''}><summary class="row sp" title="${esc(k.label)} · ${esc(h.name)}"><span>${k.icon} 🏷️ <b>${m(v)}</b></span><span>📊 ${net == null ? '<span class="mute">new</span>' : `<b class="${net >= 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b>`} ${isOpen ? '▾' : '▸'}</span></summary>
+        <div class="row sp" style="margin-top:6px"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
         <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)} (${m(loan.payment)}/mo)` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
         ${h.lastNetM != null ? `<div class="small">Last month, after every cost${loan ? ' and the mortgage' : ''}: <b>${UI.signed(Math.round(h.lastNet))}</b></div>` : ''}
         ${h.flip ? `<div class="ev info">Renovation: ${esc(RC.flip.levels[h.flip.level].label)} by ${esc(RC.flip.contractors[h.flip.contractor].label.toLowerCase())}, ${h.flip.left} month(s) left, budget ${m(h.flip.budget)}${h.flip.overrun ? `, overrun ${m(h.flip.overrun)}` : ''}</div>` : ''}
@@ -9234,7 +9433,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         <div class="btns">${!h.flip && !h.dev && h.kind !== 'land' ? UI.btn('Renovate…', 'reFlip', h.id, 'sm') : ''}${h.kind === 'land' && !h.dev ? UI.btn('Develop…', 'reDev', h.id, 'sm') : ''}
         ${h.mode === 'sale' ? UI.btn('Unlist', 'reDo', `${h.id}|unlist`, 'sm') : !h.flip && !h.dev ? UI.btn('List at value', 'reDo', `${h.id}|list`, 'sm') + UI.btn('List +10%', 'reDo', `${h.id}|list110`, 'sm') : ''}
         ${h.mode === 'hold' && h.units && !h.flip ? UI.btn('Start renting', 'reDo', `${h.id}|rent`, 'sm') : ''}
-        ${UI.btn('Refinance', 'reDo', `${h.id}|refi`, 'sm')}${UI.btn(`Quick sale (${m(v * 0.9 * (1 - TG.CONFIG.property.sellCostPct))})`, 'reDo', `${h.id}|quick`, 'sm badb')}</div></div>`;
+        ${UI.btn('Refinance', 'reDo', `${h.id}|refi`, 'sm')}${UI.btn(`Quick sale (${m(v * 0.9 * (1 - TG.CONFIG.property.sellCostPct))})`, 'reDo', `${h.id}|quick`, 'sm badb')}</div></details>`;
     }
     o += `<h3>For sale (${r.listings.length})</h3><div class="mute" style="margin:-4px 0 6px">Distressed homes are cheap flip candidates but may hide problems: an inspection (${m(RC.flip.inspectionCost)}) finds most of them.</div>`;
     for (const l of r.listings.slice().sort((a, b) => a.price - b.price)) {
@@ -10502,6 +10701,62 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     TG.G = g; UI.closeModal(); UI.save(); UI.bizId = g.businesses[0] && g.businesses[0].id; UI.tab.biz = 'overview'; UI.go(UI.bizId ? 'bizd' : 'home');
     UI.toast('You took over a failing business. Turn it around!');
   };
+})();
+
+</script>
+<script>/* js/ui/ui-v11.js */
+/* ui-v11.js - v11 screens: personal lawyer (Money > Finance), property-manager training/raises/bonus,
+   real-estate rows that open on tap, the v11 update note. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI, U = TG.U; const V = TG.V11;
+  const m = (x) => U.money(x); const esc = UI.esc || ((s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+
+  // ---------- remember which property rows are open ----------
+  UI.S.reOpen = UI.S.reOpen || {};
+  document.addEventListener('toggle', (e) => { const d = e.target; if (d && d.matches && d.matches('details.rerow')) { UI.S.reOpen[d.dataset.reid] = d.open; const s = d.querySelector('summary span:last-child'); if (s) s.innerHTML = s.innerHTML.replace(/[▸▾]$/, d.open ? '▾' : '▸'); } }, true);
+
+  // ---------- 👔 personal lawyer ----------
+  const perkRows = (g, e) => { const p = V.lawyerPerks(g, e); return `<ul class="fx"><li>🏦 Loan approval odds: better (about +${Math.round(p.z * 10)} points on a 50/50 application)</li><li>📉 Loan interest: −${U.pct(p.rateCut, 1)} a year on new loans</li><li>🏘️ Real-estate injury claims: ${U.pct(p.stop)} get dropped, the rest are ${U.pct(p.cut)} smaller, +${U.pct(p.win)} to win in court</li><li>🚫 Does not handle debts or collections</li></ul>`; };
+  UI.lawyerCard = (g) => {
+    const e = g.player.lawyer;
+    if (e) return `<div class="card"><h3 style="margin-top:0">👔 Your personal lawyer ${UI.tipBtn('plaw')}</h3>${UI.tipLine('plaw', 'Works for YOU, not a business. Paid from your cash every month. Better skill = bigger perks.')}
+      <div class="row sp"><b>${esc(e.name)}</b><span>⭐ skill ${Math.round(e.skill)} · 💵 ${m(e.wage)}/mo</span></div>${perkRows(g, e)}<div class="btns">${UI.btn('Let go', 'plawFire', null, 'sm')}</div></div>`;
+    return `<div class="card"><h3 style="margin-top:0">👔 Personal lawyer</h3><div class="mute">A lawyer on your own payroll: better loan odds, lower loan rates, and handles injury claims at your rentals. Not for debts.</div><div class="btns">${UI.btn('See lawyers…', 'plaw', null, 'sm')}</div></div>`;
+  };
+  UI.A.plaw = () => {
+    const g = TG.G; const pool = V.lawyerPool(g);
+    UI.modal('👔 Hire a personal lawyer', pool.map((c) => `<div class="card"><div class="row sp"><b>${esc(c.name)}</b><span>💵 <b>${m(c.wage)}/mo</b> (${m(c.wage * 12)} a year)</span></div><div class="small">⭐ skill ~${Math.round(c.skill)} · ${c.years || 0} yrs experience</div>${perkRows(g, c)}<div class="btns">${UI.btn(`Hire (${m(c.wage)}/mo)`, 'plawGo', c.id, 'sm pri')}</div></div>`).join('') + '<div class="mute">Wages come out of your cash every month, even in months you do not borrow or get sued.</div>');
+  };
+  UI.A.plawGo = (id) => { const r = V.hireLawyer(TG.G, id); UI.closeModal(); UI.toast(r.ok ? 'Lawyer hired.' : 'Not available.', !r.ok); UI.refresh(); };
+  UI.A.plawFire = () => { V.fireLawyer(TG.G); UI.toast('Lawyer let go.'); UI.refresh(); };
+
+  // ---------- 🧑‍💼 property manager: train / raise / bonus ----------
+  const mgr0 = UI.reMgrCard;
+  UI.reMgrCard = (g) => {
+    const base = mgr0(g); const e = g.re.manager; if (!e) return base;
+    const pb = V.remTrainPreview(g, 'basic'), pa = V.remTrainPreview(g, 'advanced'); const fx = V.remEffects(g, e);
+    const raiseTo = Math.round(e.wage * (1 + TG.CONFIG.staff.raisePct) / 10) * 10; const qp = V.remQuitP(e);
+    return base + `<div class="ev"><b>🧑‍💼 ${esc(e.name)}</b> · ⭐ skill ${Math.round(e.skill)} · 😊 morale ${Math.round(e.morale || 0)} · 🤝 loyalty ${Math.round(e.loyalty || 0)} · 💵 ${m(e.wage)}/mo
+      <div class="small">Now: repairs & searches cost ×${fx.costMult.toFixed(2)} · tenant quality ${fx.quality >= 0 ? '+' : ''}${Math.round(fx.quality * 100)} pts · quits ${U.pct(qp, 1)}/mo</div>
+      <div class="small">🎓 Training: skill +${pb.lo}-${pb.hi} for ${m(pb.cost)} → costs ×${pb.after.costMult.toFixed(2)}, tenants ${pb.after.quality >= 0 ? '+' : ''}${Math.round(pb.after.quality * 100)} · advanced +${pa.lo}-${pa.hi} for ${m(pa.cost)} → ×${pa.after.costMult.toFixed(2)}</div>
+      <div class="small">💵 Raise to ${m(raiseTo)}/mo: morale +${TG.CONFIG.staff.raiseMorale}, loyalty +5 · 🎁 Bonus ${m(e.wage * 0.5)}: morale +${TG.CONFIG.staff.bonusMorale}, loyalty +10 (quits less)</div>
+      <div class="btns">${UI.btn(`🎓 Train (${m(pb.cost)})`, 'remDo', 'basic', 'sm', g.cash < pb.cost)}${UI.btn(`🎓 Advanced (${m(pa.cost)})`, 'remDo', 'advanced', 'sm', g.cash < pa.cost)}${UI.btn(`💵 Raise (+${m(raiseTo - e.wage)}/mo)`, 'remDo', 'raise', 'sm')}${UI.btn(`🎁 Bonus (${m(e.wage * 0.5)})`, 'remDo', 'bonus', 'sm')}</div></div>`;
+  };
+  UI.A.remDo = (k) => {
+    const g = TG.G; let r;
+    if (k === 'raise') { r = V.remRaise(g); UI.toast(r.spam ? 'Another raise this month felt like a broken promise (morale down).' : `Raise: ${m(r.from)} → ${m(r.to)}/mo.`, !!r.spam); }
+    else if (k === 'bonus') { r = V.remBonus(g); UI.toast(r.spam ? 'Too many bonuses this month (morale down).' : `Bonus paid. Morale now ${Math.round(r.morale)}.`, !!r.spam); }
+    else { r = V.remTrain(g, k); UI.toast(!r.ok ? r.msg : r.spam ? 'Too much training this month: burned out.' : `Skill ${r.from} → ${r.to}.`, !r.ok || !!r.spam); }
+    UI.refresh();
+  };
+
+  // ---------- v11 update note (once) ----------
+  const showNotes = () => {
+    const g = TG.G; if (!g || !g.v11notes || !g.v11notes.length || document.getElementById('modal')) return;
+    const notes = g.v11notes; g.v11notes = null; UI.save();
+    UI.modal('🆕 Game updated (v11)', `<div class="card">${notes.map((n) => `<div class="ev info">${esc(n)}</div>`).join('')}<div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
+  };
+  const r0 = UI.render; UI.render = () => { r0(); try { showNotes(); } catch (e) { console.error(e); } };
 })();
 
 </script>
