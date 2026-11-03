@@ -16,7 +16,7 @@ const worker = (TG, g, b, over) => { const c = TG.S.candidate0(g, b, key(TG, b),
     const r = S.train(g, b, e.id, 'basic'); tries++;
     ok(Math.round(cash0 - g.cash) === p.cost, 'basic training charges the shown cost');
     if (r.gain >= p.lo && r.gain <= p.hi) inRange++;
-    ok(e.away > 0 && TG.M.staffEff(e) < eff0, 'a trainee is away part of the month (less work done)');
+    ok(!e.away && TG.M.staffEff(e) >= eff0, 'v11: a trainee keeps working while training (never less work done)');
     ok(r.mv1 >= r.mv0, 'market value does not fall after training');
     S.fire(g, b, e.id, 'test');
   }

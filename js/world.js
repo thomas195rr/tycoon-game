@@ -63,7 +63,10 @@
       const d = R.range(ec.crashDrop[0], ec.crashDrop[1]); w.housing *= 1 - d;
       TG.rep.news(g, `Housing market crash: property values fall ${U.pct(d)}`, 'bad', true);
     }
-    w.housing = U.clamp(w.housing, 0.3, 6);
+    { const V = TG.CONFIG.v11 && TG.CONFIG.v11.world; // v11: housing and wages stay in step with prices over any number of years
+      if (V) { let real = w.housing / w.priceIdx; real *= Math.pow(1 / real, V.housingPull); w.housing = w.priceIdx * U.clamp(real, V.housingBand[0], V.housingBand[1]);
+        let rel = w.wageIdx / w.priceIdx; rel += (1 - rel) * V.wagePull; w.wageIdx = w.priceIdx * U.clamp(rel, V.wageBand[0], V.wageBand[1]); }
+      else w.housing = U.clamp(w.housing, 0.3, 6); }
     // timers
     ['rentCap', 'emissions', 'crime', 'driverShortage', 'hoursReg'].forEach((k) => { if (w[k] > 0) w[k]--; });
     for (const k in w.shortage) { w.shortage[k]--; if (w.shortage[k] <= 0) delete w.shortage[k]; }

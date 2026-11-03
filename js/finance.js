@@ -187,14 +187,15 @@
   // ---------- insurance ----------
   F.premium = (g, b, type) => {
     const I = TG.CONFIG.finance.insurance[type]; if (!I) return 0;
-    let p = 0;
-    const rev = Math.max(b.revAvg || 0, 3000);
+    // v11: sales- and value-based premiums are already in today's dollars; only fixed amounts follow prices
+    const pi = g.world.priceIdx; let p = 0, fixed = I.min * pi;
+    const rev = Math.max(b.revAvg || 0, 3000 * pi);
     if (I.rev) p = rev * I.rev;
     if (I.val) p = (type === 'property' ? (b.propValue || 0) : TG.E.value(g, b)) * I.val;
-    if (I.perAcre) p = (b.farm ? b.farm.acres : 0) * I.perAcre;
-    if (I.perUnit) p = b.equip.filter((x) => x.type === 'truck').length * I.perUnit;
-    if (type === 'malpractice') p = Math.max(p, I.min * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
-    return Math.round(Math.max(I.min, p) * (b.insHike || 1) * g.world.priceIdx * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
+    if (I.perAcre) fixed = Math.max(fixed, (b.farm ? b.farm.acres : 0) * I.perAcre * pi);
+    if (I.perUnit) fixed = Math.max(fixed, b.equip.filter((x) => x.type === 'truck').length * I.perUnit * pi);
+    if (type === 'malpractice') fixed = Math.max(fixed, I.min * pi * Math.max(1, b.staff.filter((e) => TG.CONFIG.businesses[b.type].roles[e.role] && TG.CONFIG.businesses[b.type].roles[e.role].licensed).length));
+    return Math.round(Math.max(fixed, p) * (b.insHike || 1) * ((b.type && TG.CONFIG.businesses[b.type].fixedCut) || 1)); // v9: shared-yard businesses pay less
   };
   F.claim = (g, b, type, loss, label) => {
     const C = TG.CONFIG.finance;

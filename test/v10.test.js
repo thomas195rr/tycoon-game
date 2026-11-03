@@ -107,7 +107,7 @@ for (const type of Object.keys(C.businesses)) {
   const g = fresh(11, 3e6); const b = bots.startBiz(g, 'farm', { ent: 'cows' }); for (const it of b.equip) it.maint = true; b.ads.budget = 500; g.v = 9; delete g.playBefore;
   for (const l of g.re.listings) delete l.life;
   const g2 = TG.Game.deserialize(JSON.stringify(g));
-  ok(g2.v === 10, 'save upgraded to v10'); ok(g2.businesses[0].equip.every((x) => !x.maint || x.leased), 'maintenance plans cancelled');
+  ok(g2.v >= 10, 'save upgraded to v10 (or later)'); ok(g2.businesses[0].equip.every((x) => !x.maint || x.leased), 'maintenance plans cancelled');
   ok(g2.businesses[0].ads.budget === 0, 'farm ad budget stopped (ads cannot sell at market price)'); ok(g2.re.listings.every((l) => l.life >= 3), 'old listings get a lifetime');
   ok(g2.playBefore === 0 || g2.playBefore > 0, 'play time field added'); ok(g2.v10notes && g2.v10notes.length >= 2, 'update notes shown');
 }

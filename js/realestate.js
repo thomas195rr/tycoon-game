@@ -44,7 +44,7 @@
   RE.marketRent = (g, h) => {
     const k = RC().kinds[h.kind]; if (!k.rentPct) return 0;
     const perUnit = (h.basePrice || h.price) * k.rentPct / Math.max(1, h.units);
-    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
+    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4) /* v11: rents also keep up with prices over long holds */ * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
   };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
@@ -56,7 +56,7 @@
   // v7: ONE tenant per home / unit. Every empty unit is filled by its own search (one applicant at a time).
   const mgrSkill = (g) => (g.re.manager ? (g.re.manager.skill || 50) : null);
   RE.mgrCostMult = (g) => { const s = mgrSkill(g); return s == null ? 1 : U.clamp(1.2 - s / 250, 0.8, 1.2); }; // a skilled manager gets better vendor prices
-  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; return Math.round((S.base + S.perRent * RE.askRent(g, h, u)) * g.world.priceIdx * (byMgr ? RE.mgrCostMult(g) : 1)); };
+  RE.searchCost = (g, h, byMgr, u) => { const S = TC().search; const rent = RE.askRent(g, h, u); return Math.round(Math.min(rent, S.base * g.world.priceIdx + S.perRent * rent) * (byMgr ? RE.mgrCostMult(g) : 1)); }; // v11: about a third of a month's rent, never more than one month's rent, at any year
   RE.poolPreview = (g, h, byMgr, unit) => { // what ONE unit's search is likely to bring, shown before you pay
     const T = TC(), r = RE.unitRentR(h, unit), k = RC().kinds[h.kind];
     const n = Math.min(T.pool.max, T.pool.atMarket * Math.exp(-(r - 1) * T.pool.slope) * (k.lease ? T.pool.commercial : 1));
@@ -183,7 +183,7 @@
       l.mortgageId = loan.id;
     } else { if (g.cash < l.price + fees) return { ok: false, msg: `Need ${U.money(l.price + fees)}.` }; TG.F.spend(g, l.price + fees, 'Real estate purchases', null, true); }
     g.re.listings = g.re.listings.filter((x) => x !== l);
-    l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.bought = g.month; l.paid = l.price + fees;
+    l.base = l.price / (g.world.housing * l.nb * condF(l.cond)); l.basePrice = l.price; l.housingAtBuy = g.world.housing; l.pAtBuy = g.world.priceIdx; l.bought = g.month; l.paid = l.price + fees;
     l.tenants = []; for (let i = 0; i < l.units; i++) l.tenants.push(null); /* v10: every unit starts EMPTY: you find and pick each tenant (and can set each unit's rent) */
     l.rentR = 1; l.unitR = {}; l.searches = {}; l.issues = [];
     l.screen = false; l.upkeep = 'normal'; l.insured = true; l.taxMult = 1; l.mode = l.distressed ? 'hold' : 'rent'; l.spent = 0; l.inspected = false;
@@ -394,7 +394,7 @@
     if (--d.left <= 0) {
       h.kind = d.units >= 20 ? 'apartment' : 'smallapt'; h.units = d.units; h.cond = 95; h.age = 0; h.dev = null; h.mode = 'rent';
       h.basePrice = d.cost * 1.25; h.base = (h.base * g.world.housing * h.nb * condF(h.cond) + d.cost * 1.25) / (g.world.housing * h.nb * condF(h.cond));
-      h.housingAtBuy = g.world.housing; h.tenants = Array(d.units).fill(null); h.searches = {}; h.issues = [];
+      h.housingAtBuy = g.world.housing; h.pAtBuy = g.world.priceIdx; h.tenants = Array(d.units).fill(null); h.searches = {}; h.issues = [];
       TG.rep.event(g, null, 'good', `Development finished: ${h.name} now has ${d.units} units`, `Total build cost ${U.money(d.paid)}`);
     }
   };
