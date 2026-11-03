@@ -40,7 +40,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const rows = [...document.querySelectorAll('details.rerow')]; return { n: rows.length, h: g.re.holdings.length, sum: rows.map((r) => r.querySelector('summary').innerText), open: rows.filter((r) => r.open).length }; });
   ok(re.n === re.h && re.n >= 2, `one compact row per property (${re.n})`); ok(re.sum.every((s) => /🏷️/.test(s) && /📊/.test(s) && !/tenant/i.test(s)), `rows show only value and profit (${re.sum[0] && re.sum[0].replace(/\s+/g, ' ')})`); ok(re.open === 0, 'rows start collapsed');
   await shot('shots11-real-estate-list', 'details.rerow', 200);
-  await page.click('details.rerow summary'); await sleep(150);
+  await page.evaluate(() => document.querySelector('details.rerow summary').scrollIntoView({ block: 'center' })); await page.click('details.rerow summary'); await sleep(150); // centre it first so the fixed Next Month bar is not under the tap
   ok(await page.evaluate(() => { const d = document.querySelector('details.rerow'); return d.open && /(Unit|tenant|Empty|empty)/.test(d.innerText); }), 'tapping a row shows its tenants and details');
   await page.evaluate(() => TG.UI.render()); ok(await page.evaluate(() => document.querySelector('details.rerow').open), 'expanded row stays open after the screen updates'); await noSide('real estate');
   // ---- property manager training ----
