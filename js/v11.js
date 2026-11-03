@@ -39,9 +39,10 @@
     try {
       for (const sd of SEEDS) for (const on of [true, false]) {
         const g2 = JSON.parse(base); g2._pv = true; g2._pvNoFl = true; g2.rngState = ((g2.rngState || 1) + sd) >>> 0 || 1; TG.G = g2;
-        const b2 = g2.businesses.find((x) => x.id === b.id); b2.ads = Object.assign({}, b2.ads, on ? plan : { budget: 0 });
+        const b2 = g2.businesses.find((x) => x.id === b.id); b2.ads = Object.assign({}, b2.ads, on ? plan : { budget: 0 }); b2.recv = []; /* old invoices are the same either way: leave them out so their luck does not blur the answer */
         B.month(g2, b2); const h = b2.hist[b2.hist.length - 1] || {}; const c = b2.lastCtx || {};
-        const sgn = on ? 1 : -1; rev += sgn * (h.rev || 0); profit += sgn * (h.profit || 0); served += sgn * (c.served || 0);
+        const sgn = on ? 1 : -1; const billed = U.sum(b2.recv || [], (r) => r.amt) * (1 - (((B.def(b2).receivable || {}).badDebt) || 0)); /* invoiced work is paid later: count it */
+        rev += sgn * ((h.rev || 0) + billed); profit += sgn * ((h.profit || 0) + billed); served += sgn * (c.served || 0);
       }
     } catch (e) { ok = false; } finally { TG.G = G0; }
     const n = SEEDS.length; const calc = V.adBoostCalc(g, b, plan, true);

@@ -22,6 +22,7 @@
       <div class="mute">Without an accountant, tax audits are ${C.auditMessyMult}x more likely.</div></div>`;
     o += UI.creditCards(g); // v6: score with its reasons, loan applications with odds, credit line
     o += UI.loansCard(g); // v7: amortizing loans, tap one for its schedule
+    if (UI.lawyerCard) o += UI.lawyerCard(g); // v11: personal lawyer
     if (g.lawsuits.length) o += `<div class="card"><h3 style="margin-top:0">Lawsuits</h3>${g.lawsuits.map((ls) => `<div class="ev bad"><b>${esc(ls.label)}</b> ${m(ls.amount)} · ${ls.status === 'fighting' ? `in court (${U.pct(ls.win || 0)} win odds)` : 'awaiting your decision'} · ${ls.left} mo left<div class="why">${esc(ls.why || '')}</div></div>`).join('')}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Last resort</h3><div class="btns">${UI.btn('Declare personal bankruptcy', 'bk', null, 'sm badb')}</div><div class="mute">Wipes everything: you keep ${m(C.bankruptcy.keepCash)}, credit drops, no loans for ${C.bankruptcy.noLoanMonths} months. The game continues.</div></div>`;
     return o;
@@ -45,11 +46,14 @@
       ${r.hist.length > 2 ? UI.spark(r.hist.slice(-48).map((x) => x.rev - x.cost), '#1d4ed8') : ''}
       ${UI.reMgrCard(g)}
       ${RE.totalValue(g) >= RC.fund.minPortfolio && !r.fund ? `<div class="btns">${UI.btn(`Raise a fund (${U.pct(RC.fund.raisePct)} of value, investors get ${U.pct(RC.fund.investorShare)} of rent)`, 'reFund', null, 'sm')}</div>` : ''}</div>`;
-    o += `<h3>Your properties (${r.holdings.length})</h3>`;
+    o += `<h3>Your properties (${r.holdings.length})</h3>${r.holdings.length ? '<div class="mute" style="margin:-4px 0 6px">🏷️ what it is worth · 📊 last month after every cost. Tap a row for tenants and more.</div>' : ''}`;
     for (const h of r.holdings) {
       const k = RC.kinds[h.kind]; const occ = h.tenants.filter((t) => t).length; const v = RE.value(g, h);
       const loan = h.mortgageId ? g.loans.find((l) => l.id === h.mortgageId) : null;
-      o += `<div class="card"><div class="row sp"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
+      // v11: a compact row (value + profit); tap it to see tenants and everything else
+      const isOpen = !!(UI.S.reOpen && UI.S.reOpen[h.id]); const net = h.lastNetM != null && !(h.bought != null && h.bought >= h.lastNetM) ? Math.round(h.lastNet) : null; /* the month you buy it shows "new" (that month holds the purchase) */
+      o += `<details class="card rerow" data-reid="${h.id}"${isOpen ? ' open' : ''}><summary class="row sp" title="${esc(k.label)} · ${esc(h.name)}"><span>${k.icon} 🏷️ <b>${m(v)}</b></span><span>📊 ${net == null ? '<span class="mute">new</span>' : `<b class="${net >= 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : '−'}${m(Math.abs(net))}/mo</b>`} ${isOpen ? '▾' : '▸'}</span></summary>
+        <div class="row sp" style="margin-top:6px"><b>${k.icon} ${esc(k.label)} · ${esc(h.name)}</b>${UI.pill(h.mode === 'sale' ? `for sale ${m(h.ask)}` : h.mode === 'reno' ? 'renovating' : h.mode === 'hold' ? 'empty' : 'renting', h.mode === 'rent' ? 'good' : 'warn')}</div>
         <div class="small">Worth ~${m(v)}${loan ? ` · mortgage ${m(loan.balance)} (${m(loan.payment)}/mo)` : ''} · condition ${Math.round(h.cond)}/100 · ${h.units ? `${occ}/${h.units} units rented` : `${h.acres} acres`}</div>
         ${h.lastNetM != null ? `<div class="small">Last month, after every cost${loan ? ' and the mortgage' : ''}: <b>${UI.signed(Math.round(h.lastNet))}</b></div>` : ''}
         ${h.flip ? `<div class="ev info">Renovation: ${esc(RC.flip.levels[h.flip.level].label)} by ${esc(RC.flip.contractors[h.flip.contractor].label.toLowerCase())}, ${h.flip.left} month(s) left, budget ${m(h.flip.budget)}${h.flip.overrun ? `, overrun ${m(h.flip.overrun)}` : ''}</div>` : ''}
@@ -60,7 +64,7 @@
         <div class="btns">${!h.flip && !h.dev && h.kind !== 'land' ? UI.btn('Renovate…', 'reFlip', h.id, 'sm') : ''}${h.kind === 'land' && !h.dev ? UI.btn('Develop…', 'reDev', h.id, 'sm') : ''}
         ${h.mode === 'sale' ? UI.btn('Unlist', 'reDo', `${h.id}|unlist`, 'sm') : !h.flip && !h.dev ? UI.btn('List at value', 'reDo', `${h.id}|list`, 'sm') + UI.btn('List +10%', 'reDo', `${h.id}|list110`, 'sm') : ''}
         ${h.mode === 'hold' && h.units && !h.flip ? UI.btn('Start renting', 'reDo', `${h.id}|rent`, 'sm') : ''}
-        ${UI.btn('Refinance', 'reDo', `${h.id}|refi`, 'sm')}${UI.btn(`Quick sale (${m(v * 0.9 * (1 - TG.CONFIG.property.sellCostPct))})`, 'reDo', `${h.id}|quick`, 'sm badb')}</div></div>`;
+        ${UI.btn('Refinance', 'reDo', `${h.id}|refi`, 'sm')}${UI.btn(`Quick sale (${m(v * 0.9 * (1 - TG.CONFIG.property.sellCostPct))})`, 'reDo', `${h.id}|quick`, 'sm badb')}</div></details>`;
     }
     o += `<h3>For sale (${r.listings.length})</h3><div class="mute" style="margin:-4px 0 6px">Distressed homes are cheap flip candidates but may hide problems: an inspection (${m(RC.flip.inspectionCost)}) finds most of them.</div>`;
     for (const l of r.listings.slice().sort((a, b) => a.price - b.price)) {

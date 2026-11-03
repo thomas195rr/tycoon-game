@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // ---- play time ----
   await page.evaluate(() => { TG.G.playBefore = 30; TG.UI.go('home'); }); await sleep(100);
   const pt = await page.evaluate(() => (document.getElementById('playTime') || {}).innerText || '');
-  ok(/Play time: 2 yrs 6 mo/.test(pt) && /v10/.test(pt), `Home shows play time in game years + version (${pt.slice(0, 80)})`); await shot('v10-playtime', '#playTime'); await noSide('home');
+  ok(/Play time: 2 yrs 6 mo/.test(pt) && /v1\d/.test(pt), `Home shows play time in game years + version (${pt.slice(0, 80)})`); await shot('v10-playtime', '#playTime'); await noSide('home');
   // ---- set up a rich game with a cow farm, a cafe and a rental ----
   await page.evaluate(() => { TG.UI.A.newGameOpen(); }); await page.click('#modal [data-act="newGame"][data-arg="rich"]'); await sleep(300);
   const ids = await page.evaluate(() => {
@@ -63,7 +63,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // ---- ads: preview + measured effect ----
   await page.evaluate(() => { TG.UI.tab.biz = 'mkt'; TG.UI.render(); }); await sleep(100);
   const ad = await page.evaluate(() => { const el = document.getElementById('adBudget'); el.value = '2000'; el.dispatchEvent(new Event('input', { bubbles: true })); return (document.getElementById('adPrevBox') || {}).innerText || ''; });
-  ok(/\$2,000\/mo ≈ \+\d+%/.test(ad), `ads: what a budget would do, before saving (${ad.slice(0, 90)})`);
+  ok(/\$2,000\/mo (≈|→ about) \+\d+%/.test(ad), `ads: what a budget would do, before saving (${ad.slice(0, 90)})`);
   await page.evaluate(() => { TG.UI.A.adSave(); TG.Game.nextMonth(TG.G); TG.UI.render(); });
   ok(await page.evaluate(() => /Last month \(\$2,000\)/.test(document.querySelector('main').innerText) && /\+[\d,]+ customers/.test(document.querySelector('main').innerText)), 'ads: measured extra customers from last month');
   ok(await page.evaluate(() => /Your customers/.test(document.querySelector('main').innerText)), 'ads: the business\'s own customers shown');
@@ -85,7 +85,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(await page.evaluate(() => /loyalty \d+ → \d+/.test((document.getElementById('bonusPrev') || {}).innerText || '')), 'worker card: bonus raises loyalty, lowers poach odds');
   await page.evaluate(() => TG.UI.closeModal());
   // ---- 9. rentals: empty on purchase, rent per unit ----
-  const hid = await page.evaluate(() => { const g = TG.G; const l = g.re.listings.filter((x) => x.units > 1 && x.units <= 12 && !x.distressed).sort((a, b) => a.price - b.price)[0] || g.re.listings.find((x) => x.units > 1); const r = TG.RE.buy(g, l.id, false); TG.UI.tab.money = 're'; TG.UI.go('money'); return r.h.id; });
+  const hid = await page.evaluate(() => { const g = TG.G; const l = g.re.listings.filter((x) => x.units > 1 && x.units <= 12 && !x.distressed).sort((a, b) => a.price - b.price)[0] || g.re.listings.find((x) => x.units > 1); const r = TG.RE.buy(g, l.id, false); TG.UI.tab.money = 're'; TG.UI.S.reOpen = { [r.h.id]: true }; TG.UI.go('money'); return r.h.id; }); // v11: rows are collapsed; open this one
   await sleep(150);
   const re = await page.evaluate((hid) => { const h = TG.G.re.holdings.find((x) => x.id === hid); return { units: h.units, empty: h.tenants.filter((t) => !t).length, sels: document.querySelectorAll('select.usel').length, txt: document.querySelector('main').innerText }; }, hid);
   ok(re.empty === re.units, `new rental: all ${re.units} units empty`); ok(!/not renting/.test(re.txt), 'ready to rent'); ok(re.sels >= re.units, `a rent picker on every empty unit (${re.sels})`);

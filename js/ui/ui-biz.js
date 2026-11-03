@@ -295,7 +295,7 @@
   UI.trainCard = (g, b, e) => {
     const S = TG.S, C = TG.CONFIG; const id = e.id; const left = S.usesLeft(g, e, 'train');
     const row = (lvl, act) => { const p = S.trainPreview(g, b, e, lvl); return `<div class="ev"><div class="row sp"><b>${lvl === 'advanced' ? '🎓 Advanced' : '📘 Basic'} training</b><span>${m(p.cost)}</span></div>
-      <div class="small">⭐ skill +${p.lo} to +${p.hi} (usually about +${p.avg}) · ⏳ away ${U.pct(p.away)} of this month · ${p.noStick ? `🎲 ${U.pct(p.noStick)} chance it barely sticks · ` : ''}📈 market value ${m(p.mv0)} → ~${m(p.mv1)}</div>
+      <div class="small">⭐ skill +${p.lo} to +${p.hi} (usually about +${p.avg}) ${p.away > 0 ? `· ⏳ away ${U.pct(p.away)} of this month ` : '· ✅ keeps working while training '}· ${p.noStick ? `🎲 ${U.pct(p.noStick)} chance it barely sticks · ` : ''}📈 market value ${m(p.mv0)} → ~${m(p.mv1)}</div>
       <div class="btns">${UI.btn(`${lvl === 'advanced' ? '🎓' : '📘'} Train ${m(p.cost)}`, 'empDo', `${id}|${act}`, 'sm' + (left > 0 ? '' : ' badb'))}</div></div>`; };
     const dim = S.trainDim(e.skill);
     return `<div class="card"><h3 style="margin-top:0">🎓 Training ${UI.tipBtn('tr' + id)}</h3>${UI.tipLine('tr' + id, `Training raises skill: more work done and better quality. It takes part of their month (less work done now) and how much they gain depends on how fast they learn. Above skill 60 gains shrink${dim < 1 ? ` (now x${dim.toFixed(2)})` : ''}. Skilled people are worth more to other companies, so you may need to raise their pay later to keep them.`)}
@@ -501,26 +501,36 @@
     if (!V.adModel(b)) {
       return o + `<div class="card"><h3 style="margin-top:0">📣 Advertising</h3><div class="ev info">${b.farm ? '🚜 A farm sells to the market at the market price' : '🏭 A factory sells to buyers at the market price'}: ads cannot sell more. Raise output and quality instead (⬆️ Upgrades and 🛠️ Gear).</div></div>`;
     }
-    const ab = TG.B.adBoost(g, b); const ch = b.ads.channel || 'social'; const budget = b.ads.budget || 0;
+    const ch = b.ads.channel || 'social'; const tg = b.ads.target || 'near'; const budget = b.ads.budget || 0; const V11 = TG.V11; const X11 = TG.CONFIG.v11;
     const L = b.adLast; const H = (b.adHist || []).slice(-6);
-    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Ads bring extra customers, with diminishing returns (each extra dollar does a bit less). A good reputation makes them work better. Each channel has a chance to flop (that month the ads do little). If you are already full, extra customers are turned away: add staff or gear first.')}
-      <div class="kv"><span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span>
-      <span>📺 Channel</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.label} (flop ${U.pct(c.flop)})</option>`).join('')}</select></span></div>
-      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch)}</div>
+    o += `<div class="card"><h3 style="margin-top:0">📣 Advertising ${UI.tipBtn('adH' + b.id)}</h3>${UI.tipLine('adH' + b.id, 'Pick 1) an ad type, 2) who sees it, 3) a monthly budget. Ads bring new customers, most when your reputation is still low (new people do not know you yet). Each extra dollar does a bit less than the one before. Every ad type can flop some months. If you are already full, extra customers are turned away: add staff or gear first. The preview plays next month on a copy of your game, with and without the ads.')}
+      <div class="small" style="margin-bottom:4px">1️⃣ Ad type (⭐ = how well it fits a ${esc(TG.B.def(b).name.toLowerCase())})</div>
+      <div class="kv"><span>📺 Type</span><span><select id="adCh" data-change="adPrev">${Object.entries(C.adChannels).map(([k, c]) => `<option value="${k}"${ch === k ? ' selected' : ''}>${c.ic || ''} ${c.label} ${V11.stars(V11.adFit(b, k))} · flop ${U.pct(c.flop)}</option>`).join('')}</select></span>
+      <span>🎯 Who sees it</span><span><select id="adTg" data-change="adPrev">${Object.entries(X11.adTarget).map(([k, t]) => `<option value="${k}"${tg === k ? ' selected' : ''}>${t.ic} ${t.label} ${V11.stars(V11.adTargetMult(b, k))}</option>`).join('')}</select></span>
+      <span>💵 Monthly budget</span><span><input type="number" id="adBudget" value="${budget}" min="0" step="100" data-change="adPrev" data-input="adPrev"></span></div>
+      <div class="small mute" id="adWhat">${esc((C.adChannels[ch] || {}).what || '')} ${esc((X11.adTarget[tg] || {}).what || '')}</div>
+      <div id="adPrevBox">${UI.adPrevHtml(g, b, budget, ch, tg)}</div>
       <div class="btns">${UI.btn('💾 Save ad plan', 'adSave', null, 'pri')}${budget ? UI.btn('⏹️ Stop ads', 'adStop', null, 'sm') : ''}</div></div>`;
     o += `<div class="card"><h3 style="margin-top:0">📏 What your ads really did</h3>${L ? UI.irow('adL' + b.id, L.flop ? '💨' : '📈', `Last month (${m(L.spent)})`, `+${Math.round(L.extra).toLocaleString()} ${esc(L.unit)}`, L.flop ? 'The campaign flopped: it did much less than usual.' : 'Counted from last month: what you sold versus what you would have sold without the ads.', null, `${L.extraRev ? `≈ ${m(L.extraRev)} extra sales` : ''}${L.full ? ' · ⚠️ you were full: more ads cannot sell more' : ''}${L.flop ? ' · flopped' : ''}`) : '<div class="mute">No ads ran last month.</div>'}
       ${H.length > 1 ? `<table class="small"><tr><th>Month</th><th class="n">Spent</th><th class="n">Extra</th></tr>${H.slice().reverse().map((x) => `<tr><td>${U.dateStr(x.m)}</td><td class="n">${m(x.spent)}</td><td class="n">+${Math.round(x.extra).toLocaleString()}${x.flop ? ' 💨' : ''}</td></tr>`).join('')}</table>` : ''}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Reputation & PR</h3><div>Reputation ${Math.round(b.rep)}/100 ${UI.bar(b.rep, 100)}</div><div class="mute">PR can speed up recovery after a hit, but can flop.</div>${UI.irow('prUse' + b.id, '📣', 'PR left this month', `${TG.USES.left(b, 'pr', g.month, TG.CONFIG.reputation.prPerMonth)}/${TG.CONFIG.reputation.prPerMonth}`, 'You get 2 PR moves a month. The 2nd does half as much. Any more looks spammy or desperate and LOSES reputation.')}<div class="btns">${Object.entries(C.pr).map(([k, p]) => UI.btn(`${p.label} (${p.cost != null ? m(p.cost * g.world.priceIdx) : m(b.revAvg * p.costRev)}, ${U.pct(p.fail)} flop)`, 'pr', k, 'sm')).join('')}</div></div>`;
     return o;
   }
-  UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; UI.toast('Ad plan saved.'); UI.refresh(); };
+  UI.A.adSave = () => { const b = biz(); b.ads.budget = Math.max(0, Math.round(UI.num('adBudget', 0))); b.ads.channel = UI.val('adCh') || 'social'; b.ads.target = UI.val('adTg') || 'near'; UI.toast(b.ads.budget ? `Ad plan saved: ${m(b.ads.budget)}/mo from next month.` : 'Ad plan saved (no ads).'); UI.refresh(); };
   UI.A.adStop = () => { biz().ads.budget = 0; UI.toast('Ads stopped.'); UI.refresh(); };
-  UI.adPrevHtml = (g, b, budget, ch) => {
+  UI.adPrevHtml = (g, b, budget, ch, tg) => {
     if (!(budget > 0)) return '<div class="mute">No ads: type a budget to see what it would do.</div>';
-    const p = TG.V10.adPreview(g, b, budget, ch); const mdl = TG.B.def(b).model; const per = (mdl === 'service' || mdl === 'freight');
-    return `<div class="ev ${p.full ? 'warn' : 'info'}">🔮 <b>${m(budget)}/mo</b> ≈ <b>+${U.pct(p.boost)}</b> more customers wanting you (after flops ≈ +${U.pct(p.expBoost)})${per && b.lastCtx ? ` → about <b>+${Math.round(p.extra).toLocaleString()}</b> served${p.extraRev ? `, ≈ ${m(p.extraRev)} sales` : ''}` : ''}.${p.full ? ' ⚠️ You are already about full: extra customers will be turned away.' : ''}</div>`;
+    const plan = { budget, channel: ch || 'social', target: tg || 'near' }; const p = TG.V11.adSim(g, b, plan);
+    if (!p) return '<div class="mute">Preview not available right now.</div>';
+    const more = TG.V11.adMore(g, b, plan); const unit = TG.B.def(b).custWord || (TG.PR.good(b) || {}).unit || 'customers';
+    const pays = p.net >= 0;
+    return `<div class="ev ${p.full ? 'warn' : pays ? 'good' : 'info'}" id="adPrevRes">🔮 <b>${m(budget)}/mo</b> → about <b>+${U.pct(p.expBoost)}</b> more ${esc(unit)}${/s$/.test(unit) ? '' : 's'} wanting you (it flops ${U.pct(p.flopP)} of months)
+      <table class="small"><tr><td>➕ Extra served next month</td><td class="n"><b>+${Math.max(0, Math.round(p.extraServed)).toLocaleString()}</b></td></tr>
+      <tr><td>💰 Extra sales</td><td class="n"><b>${p.extraRev >= 0 ? '+' : '−'}${m(Math.abs(p.extraRev))}</b></td></tr>
+      <tr><td>🧾 After the ad cost and extra supplies</td><td class="n"><b class="${pays ? 'good' : 'bad'}">${pays ? '+' : '−'}${m(Math.abs(p.net))}/mo</b></td></tr></table>
+      ${pays ? '✅ Pays for itself' : p.slow ? '⏳ Costs more than it brings next month, but new users keep paying for months' : '❌ Costs more than it brings right now'} · 📉 the next ${m(500 * g.world.priceIdx)} adds only +${U.pct(more, 1)} more${p.full ? '<div class="small warn">⚠️ You are about full: extra customers get turned away. Add staff or gear first.</div>' : ''}</div>`;
   };
-  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), UI.val('adCh') || 'social'); };
+  UI.A.adPrev = () => { const bx = document.getElementById('adPrevBox'); if (!bx) return; const ch = UI.val('adCh') || 'social', tg = UI.val('adTg') || 'near'; bx.innerHTML = UI.adPrevHtml(TG.G, biz(), Math.max(0, Math.round(UI.num('adBudget', 0))), ch, tg); const w = document.getElementById('adWhat'); if (w) w.textContent = `${(TG.CONFIG.reputation.adChannels[ch] || {}).what || ''} ${(TG.CONFIG.v11.adTarget[tg] || {}).what || ''}`; };
   UI.A.pr = (k) => { TG.B.doPR(TG.G, biz(), k, 'You'); const d = TG.G.cur.decisions[TG.G.cur.decisions.length - 1]; UI.toast(d ? d.text : 'Done.', d && d.outcome === 'bad'); UI.refresh(); };
 
   // ---------- ownership ----------
