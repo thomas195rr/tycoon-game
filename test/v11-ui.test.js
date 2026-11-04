@@ -13,8 +13,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const shot = async (n, sel, off) => { if (!SHOTS) return; fs.mkdirSync(SHOTS, { recursive: true }); await page.evaluate((s, o) => { document.querySelectorAll('.toast').forEach((t) => t.remove()); const el = s && document.querySelector(s); if (el) el.scrollIntoView({ block: o > 100 ? 'center' : 'start' }); window.scrollBy(0, -(o || 60)); }, sel || null, off || 60); await page.screenshot({ path: path.join(SHOTS, n + '.png') }); };
   const noSide = async (what) => ok(await page.evaluate((w) => document.documentElement.scrollWidth <= w + 1, W), `${what}: no sideways scroll`);
   await page.goto(URL); await page.evaluate(() => { localStorage.clear(); return TG.IDB && TG.IDB.put('tycoon_save_v1', null); }); await page.reload(); await page.waitForSelector('[data-act="newGame"]');
-  ok(await page.evaluate(() => TG.VERSION === 11), 'game version 11');
-  if (URL.startsWith('http')) ok(await page.evaluate(async () => { const t = await (await fetch('sw.js', { cache: 'no-store' })).text(); return /tycoon-app-v11/.test(t); }), 'live sw.js cache is tycoon-app-v11');
+  ok(await page.evaluate(() => TG.VERSION >= 11), 'game version 11 or later');
+  if (URL.startsWith('http')) ok(await page.evaluate(async () => { const t = await (await fetch('sw.js', { cache: 'no-store' })).text(); return /tycoon-app-v1\d/.test(t); }), 'live sw.js cache is v11 or later');
   await page.click('[data-act="newGame"][data-arg="classic"]'); await sleep(300);
   // ---- law firm from a normal start, 12 months ----
   const law = await page.evaluate(() => {

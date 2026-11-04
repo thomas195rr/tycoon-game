@@ -15,7 +15,7 @@
     o += `<div class="card"><h3 style="margin-top:0">CEO</h3>`;
     if (g.ceo) { const c = g.ceo; o += `<div class="kv"><span>Name</span><span>${esc(c.name)}</span><span>Skill</span><span>~${c.skillSeen}</span><span>Morale</span><span>${Math.round(c.morale)}</span><span>Pay</span><span>${m(c.wage)}/mo + ${U.pct(c.profitShare, 1)} of profit</span><span>Good-call chance</span><span>${U.pct(TG.D.pGood(g, c, true))}</span><span>Style</span><span>${esc(c.trait || 'steady')}</span></div>
         <div class="kv" style="margin-top:6px"><span>CEO makes big moves (expansions, equipment, hiring)</span><span>${UI.btn(g.settings.ceoBigMoves ? 'On' : 'Off', 'setToggle', 'ceoBigMoves', 'sm')}</span></div>
-        <div class="btns">${UI.btn(`Fire (severance ${m(c.wage * 3)})`, 'ceoFire', null, 'sm badb')}</div><div class="mute">A CEO covers every business when no specialist does, but gets worse past ${C.ceo.spanFree} businesses (spread thin).</div>`; }
+        ${UI.ceoUpCard ? UI.ceoUpCard(g) : ''}<div class="btns">${UI.btn(`Fire (severance ${m(c.wage * 3)})`, 'ceoFire', null, 'sm badb')}</div><div class="mute">A CEO covers every business when no specialist does, but gets worse past ${C.ceo.spanFree} businesses (spread thin).</div>`; }
     else {
       o += `<div class="mute">A CEO handles decisions across all businesses. Expensive: worth it once you run several.</div>`;
       for (const c of TG.D.ceoPool(g)) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo + ${U.pct(c.profitShare, 1)} profit</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs · style ${esc(c.trait || '?')}</div><div class="btns">${UI.btn('Hire', 'ceoHire', c.id, 'sm pri')}</div></div>`;
@@ -121,7 +121,7 @@
     const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖 How to play', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon + ' ' + esc(d.name.split(' / ')[0]), 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️ Crime', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
     if (t0 === 'crime') return `<div class="card">${pick}</div>${crimeHelp(g, C)}`;
     if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
-    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
+    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div>${UI.bizHelp ? UI.bizHelp(g, t0) : ''}<div class="card"><h3 style="margin-top:0">${UI.bizHelp ? '🔍 The details' : `${d.icon} ${esc(d.name)}`}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
     o += UI.irow('hm' + k, '💰', 'Makes money', null, MONEY[k] || '');
     o += `<h4>👥 Staff</h4>` + Object.entries(d.roles).map(([r, rd]) => UI.irow('hr' + k + r, rd.support ? '🧹' : '🧑', rd.label, rd.cap > 1 ? `${N(rd.cap)}/mo` : '', `${rd.desc || ''} Training raises how much each can do. Overworked staff get unhappy and quit more.`)).join('');
     o += `<h4>🛠️ Equipment</h4>` + d.equip.map((e) => { const cat = C.equipCats[e.cat] || ['🛠️']; return UI.irow('he' + k + e.id, cat[0], e.label, U.money(e.price), `${e.desc || ''} Lasts about ${Math.round(e.life / 12)} yrs. Breaks about ${(e.brk * 100).toFixed(1)}% a month when new; more when old or run near 100%.`); }).join('');
