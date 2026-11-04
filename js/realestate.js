@@ -24,8 +24,9 @@
     price *= condF(cond) / condF(70);
     if (distressed) price *= R.range(RC().flip.distressDiscount[0], RC().flip.distressDiscount[1]);
     price = Math.round(price / 1000) * 1000;
+    const yld = TG.V12 && k.rentPct ? TG.V12.yieldFor(g, kindId) / (nb * condF(cond) / condF(70)) : undefined; /* v12: rent = price x yield, whatever the neighbourhood */
     const acres = kindId === 'land' ? Math.round(R.range(2, 40)) : 0;
-    return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
+    return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres, yld,
       age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
       life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
   };
@@ -43,9 +44,13 @@
   };
   RE.marketRent = (g, h) => {
     const k = RC().kinds[h.kind]; if (!k.rentPct) return 0;
-    const perUnit = (h.basePrice || h.price) * k.rentPct / Math.max(1, h.units);
-    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4) /* v11: rents also keep up with prices over long holds */ * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
+    const perUnit = (h.basePrice || h.price) * (h.yld || k.rentPct) / Math.max(1, h.units); /* v12: h.yld = the rent yield when listed (higher when mortgage rates are high) */
+    return Math.round(perUnit * RE.rentF(g, h) * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
   };
+  // v12: how much market rent has grown since purchase (housing^0.6 x prices^0.4); rents are sticky: never below the purchase level
+  RE.rentF = (g, h) => { const f = Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4); return TG.CONFIG.v12 ? Math.max(1, f) : f; };
+  // v12: running costs (tax, upkeep, insurance) are charged on a value that grows like rent, so a rental stays profitable when values rise 1x-4x
+  RE.costBase = (g, h) => { const v = RE.value(g, h); if (!TG.CONFIG.v12 || !h.base) return v; return Math.round(Math.min(v, h.base * (h.housingAtBuy || g.world.housing) * RE.rentF(g, h) * h.nb * condF(h.cond) * (h.over ? 0.92 : 1))); };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
   // v10: every unit can have its own rent (h.unitR[u] = share of market rent); otherwise the building's default (h.rentR)
@@ -272,7 +277,7 @@
       try { RE.holdingMonth(g, h, { C, rc, w, mgr, earn, spend, overSelf, mgrPart: mgrWage * share(h), handyPart: handy * share(h) }); } finally { g._own = prevOwn; }
     }
     if (mgr && !g.re.holdings.length) spend(mgrWage, 'Property manager');
-    if (mgr && R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; }
+    if (mgr && R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { if (TG.V12) TG.V12.remWantsQuit(g, mgr); /* v12: asks you first */ else { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; } }
     // fund distributions
     const net = g.re.m.rev - g.re.m.cost;
     if (g.re.fund && net > 0) spend(net * g.re.fund.share, 'Fund investor distributions');
@@ -296,12 +301,13 @@
     h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
     const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
     h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length / Math.sqrt(Math.max(1, h.units || 1)), 0, 100); // open repairs wear the building faster
-    const v = RE.value(g, h);
-    spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
+    const v = RE.costBase(g, h); const X12 = C.v12;
+    if (X12) { h.taxMult = Math.min(X12.taxMultCap, 1 + (h.taxMult - 1) * X12.taxEase); } /* v12: tax hikes ease back over the years and are capped */
+    { let tax = v * rc.propertyTax / 12 * h.taxMult; if (X12 && h.units) tax = Math.min(tax, X12.taxRentCap * RE.marketRent(g, h) * h.units); spend(tax, 'Real estate property tax'); }
     spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
     if (h.upkeep === 'high') h.cond = U.clamp(h.cond + 0.4, 0, 100);
     if (h.insured) spend(v * rc.insurancePct, 'Real estate insurance');
-    if (R.chance(rc.taxHikeChance)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
+    if (R.chance(rc.taxHikeChance) && !(C.v12 && h.taxMult * 1.2 > C.v12.taxMultCap + 1e-9)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
     if (h.flip) { RE.flipMonth(g, h, spend); return; }
     if (h.dev) { RE.devMonth(g, h, spend); return; }
     if (h.mode === 'sale') {

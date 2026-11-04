@@ -95,7 +95,7 @@ const oneMonth = (g, b, mod) => { const g2 = JSON.parse(JSON.stringify(g)); g2._
 // ---------- migration v10 -> v11 ----------
 {
   const g = fresh(21, 5e6); const b = bots.startBiz(g, 'cafe', {}); b.staff[0].away = 0.35; delete b.ads.target; g.v = 10; g.world.wageIdx = g.world.priceIdx * 3;
-  const g2 = TG.Game.deserialize(TG.Game.serialize(g)); ok(g2.v === 11, 'save upgraded to v11'); ok(g2.businesses[0].staff.every((e) => !e.away), 'training time-off cleared'); ok(g2.businesses[0].ads.target === 'near', 'ads get a target');
+  const g2 = TG.Game.deserialize(TG.Game.serialize(g)); ok(g2.v >= 11, 'save upgraded to v11 (or later)'); ok(g2.businesses[0].staff.every((e) => !e.away), 'training time-off cleared'); ok(g2.businesses[0].ads.target === 'near', 'ads get a target');
   ok(g2.world.wageIdx / g2.world.priceIdx <= 1.2 + 1e-9, 'runaway wage index brought back in line'); ok(Array.isArray(g2.v11notes) && g2.v11notes.length > 0, 'update note shown once');
 }
 console.log(`${pass}/${pass + fails.length} v11 checks passed`);
