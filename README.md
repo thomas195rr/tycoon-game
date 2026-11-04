@@ -113,6 +113,14 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
 - **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
 
+## Version 13 highlights (ads manager holds reputation, minimum hire skill)
+
+- **Reputation fix:** reputation could slide all the way to 0 even with an ads manager. The ads manager only reacted to one big hit (6+ points, a PR card). Small knocks never made a card: a closed month (-1.5), fights, ad flops, small scandals. Natural recovery is at most about 0.9 a month, so reputation kept falling and the manager never spent anything.
+- **📣 Keep reputation at least (Staff tab):** pick 60 / 70 / 80 / 90 or Off for each business. When reputation is below the target, the ads manager spends on PR and ads to push it back up. The card shows the expected monthly cost, the cost per point, the odds a push lands, and the catch-up cost from where you are now. A higher-skill manager is cheaper, more likely to land each push, and moves more points a month. Scandals still knock reputation down; it then climbs back. With no ads manager the card says "Needs an ads manager" and nothing is spent. Hiring an ads manager starts at 70.
+- **🎚️ Minimum skill to hire (Staff tab):** Any, or 30+ to 80+. Your GM, HR manager or CEO will not hire anyone whose skill looks lower than this. If nobody applying is good enough, the spot stays open and a note says so (best applicant's skill included), so you can lower the bar.
+- **Saves:** v12 saves upgrade on their own. Businesses that already have an ads manager get a target of 70, and you see a one-time update note.
+- **Tests:** `test/v13.test.js` (rules) and `test/v13-ui.test.js` (browser checks plus screenshots `tools/shots13-*.png`).
+
 ## Version 12 highlights (managers you can grow, GM supplies fix, rentals that pay)
 
 - **Manager & CEO upgrades:** every manager (GM, Ops, HR, accountant, lawyer, safety, ads, property manager) and the CEO can get basic/advanced training, raises and bonuses. The card shows the cost and the effect first (🎯 right calls now → after). Trainees keep working.
