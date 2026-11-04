@@ -1938,6 +1938,57 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 })();
 
 </script>
+<script>/* js/config-v12.js */
+/* config-v12.js - v12 settings: manager & CEO training, GM poach policy, CEO keeps chosen managers hired,
+   rental costs tied to rent, the mortgage rule (rent yields follow mortgage rates), and a help page per business. */
+(function () {
+  const TG = globalThis.TG; const C = TG.CONFIG;
+  C.v12 = {
+    // CEO coaching (dearer than staff training: an executive coach)
+    ceoTrain: { basic: { cost: 9000, skill: [3, 7] }, advanced: { cost: 26000, skill: [6, 12] } },
+    // regular-worker job offers: what the GM / HR manager / CEO does (per business). 'ask' = stop and ask you.
+    poachPol: {
+      good:    { ic: '⭐', label: 'Match offers for good workers only', txt: 'Matches fair offers for skilled people (skill 50+ or licensed); lets the rest go and hires a replacement.' },
+      always:  { ic: '💵', label: 'Always match the offer', txt: 'Matches every offer. Keeps your team, costs the most. They still may leave anyway (personality).' },
+      replace: { ic: '🔁', label: 'Let them go, hire a replacement', txt: 'Never matches. The manager hires someone new for the same spot (new people start at their own skill).' },
+      ask:     { ic: '🙋', label: 'Ask me', txt: 'You get a card and the month skip stops so you can decide.' },
+    },
+    poachDefault: 'good',
+    // a manager who wants to quit: a raise to keep them, with odds
+    keepRaise: 0.15, keepBase: 0.3,
+    // rentals: costs follow rent, tax hikes are capped and ease back
+    taxMultCap: 1.44, taxEase: 0.99, taxRentCap: 0.15,
+    // the mortgage rule: a normal-price rental with 20% down and a 30-year mortgage at the worst rate a buyer can get
+    // covers its normal month. Rent yields rise when mortgage rates are high (prices of rentals fall).
+    rule: { down: 0.2, term: 360, margin: 0.05, selfPen: 0.03 },
+    // the shop should be shown as busy with supplies: managers order a little extra so a normal month does not run out
+    restockBuffer: 1.08,
+  };
+
+  // ---------- help pages: how each business really works (kid-friendly, short) ----------
+  C.v12.help = {
+    cafe: { money: 'Sell coffee, drinks and snacks. Each customer pays a small amount, so you need many of them.', costs: ['☕ Beans, milk & food (go bad fast)', '👥 Baristas', '🏠 Rent'], risks: ['🥛 Food spoils if you over-order', '😠 A rude barista can start bad reviews'], mgrs: ['🧑‍💼 GM: hires baristas, handles poach offers, orders supplies', '📋 Ops: orders supplies best, handles broken machines'], ups: ['☕ Barista training course: better drinks, happier customers', '📱 Mobile order-ahead: more orders at the same staff', '🎟️ Loyalty cards: regulars come back'], start: ['Pick a busy city or town spot', 'Quick setup: espresso machine + fridge + tables', 'Hire 2 baristas', 'Buy about 1 month of supplies (📦 Fill)', 'Hire an Ops manager or GM when you can, so supplies are ordered for you'] },
+    foodtruck: { money: 'Cook and sell meals at busy spots and events. Cheap to start, weather matters a lot.', costs: ['🍔 Food supplies', '⛽ Truck upkeep', '👩‍🍳 Cooks'], risks: ['🌧️ Bad weather kills sales', '🛻 Truck or generator breaks: no sales that day'], mgrs: ['🧑‍💼 GM: orders food, handles staff', '🔧 Mechanic (staff): keeps the truck running'], ups: ['🧯 Fire suppression: fewer disasters', '📅 Event contracts: steady sales', '🍟 Combo meals: more per customer'], start: ['Buy the truck (used is fine with a mechanic)', 'Hire 1-2 cooks', 'Buy food for 1 month', 'Add event bookings when cash allows'] },
+    bakery: { money: 'Bake bread, pastries and cakes each day. Fresh goods sell best; leftovers go stale.', costs: ['🥖 Flour, butter & fillings', '👨‍🍳 Bakers', '🔥 Ovens & power'], risks: ['🍞 Unsold stock goes stale', '👨‍🍳 Head baker quits and quality drops'], mgrs: ['📋 Ops: orders flour, keeps ovens running', '🧑‍💼 GM: hires bakers, PR'], ups: ['📖 Documented recipes: quality stays when people leave', '🏪 Wholesale to cafes: sell more', '🎂 Custom cakes: higher prices'], start: ['Deck oven + mixer + display case', 'Hire 2 bakers', 'Buy 1 month of flour & fillings', 'Turn on end-of-day deals to cut waste'] },
+    salon: { money: 'Stylists cut and color hair. Each stylist can only do so many appointments.', costs: ['💇 Stylists (biggest cost)', '🧴 Hair products', '🏠 Rent'], risks: ['⭐ A star stylist leaves and takes clients', '💥 A botched color goes viral'], mgrs: ['🧑‍💼 GM: handles poach offers (set how!), hires stylists', '🤝 HR: keeps stylists happy'], ups: ['📅 Online booking: fewer empty chairs', '🎨 Color specialist training: higher prices', '🛍️ Retail shelf: extra sales'], start: ['2-3 styling chairs', 'Hire skilled stylists (they bring clients)', 'Pay near market value so they stay', 'Add online booking early'] },
+    carwash: { money: 'Wash cars quickly. Lots of cars at low prices; memberships give steady money.', costs: ['🧼 Soap & wax', '💧 Water & power', '🧑 Attendants'], risks: ['🌧️ Rainy weeks crush demand', '🚗 Damage claims from customer cars'], mgrs: ['📋 Ops: soap orders, wash tunnel repairs', '🧑‍💼 GM: staff and memberships'], ups: ['🎫 Monthly memberships: steady money in bad weather', '♻️ Water recycling: lower bills', '🚙 Fleet contracts: company cars'], start: ['Wash tunnel + vacuum + pay station', 'Hire 2 attendants', 'Buy soap for 1 month', 'Start memberships first'] },
+    lawn: { money: 'Crews mow and landscape client yards. Very cheap to start, busy in spring and summer.', costs: ['⛽ Fuel & parts', '👷 Crew wages', '🚚 Truck & mowers'], risks: ['🙈 Crew no-shows', '🏡 Crew damages a client property'], mgrs: ['🧑‍💼 GM: orders fuel, hires crew', '🔧 Mechanic: fewer mower breakdowns'], ups: ['🗺️ Route-planning app: more yards a day', '📝 Prepaid season contracts: money up front', '❄️ Snow removal: winter income'], start: ['Mower + truck & trailer + trimmer kit', 'Hire 2-3 crew', 'Buy fuel & parts for 1 month', 'Add snow removal before winter'] },
+    auto: { money: 'Mechanics fix cars. Each job pays well, and good work brings people back.', costs: ['🔩 Parts', '🧑‍🔧 Mechanic techs', '🛠️ Lifts & tools'], risks: ['📦 Parts back-ordered, cars pile up', '🚗 A repair fails and the customer is angry'], mgrs: ['📋 Ops: parts orders, broken lifts', '🧑‍💼 GM: hires techs, handles offers'], ups: ['🎓 Certification training: fewer mistakes', '🚕 Fleet accounts: steady work', '📲 Reminder texts: repeat customers'], start: ['2 car lifts + diagnostic scanner', 'Hire 2 techs', 'Buy parts for 1 month', 'Add a second parts supplier'] },
+    gym: { money: 'Members pay every month. More members = more money; keep them happy so they stay.', costs: ['🧑‍🏫 Coaches & front desk', '🏋️ Machines', '🧽 Towels & cleaning'], risks: ['🤕 Broken machine injures someone', '🏷️ A cheaper gym opens nearby'], mgrs: ['🧑‍💼 GM: classes, PR, hiring', '📋 Ops: machine repairs, supplies'], ups: ['📜 Annual contracts: members stay longer', '🧑‍🤝‍🧑 Classes & events: more sign-ups', '🏢 Corporate memberships'], start: ['Cardio machines + weights + squat rack', 'Hire 2 coaches', 'Run ads to get the first members', 'Inspect equipment so nobody gets hurt'] },
+    farm: { money: 'Grow crops, raise cows and grow fruit. Money comes in big chunks at harvest or when cattle sell.', costs: ['🌱 Seed & 🌾 feed', '👨‍🌾 Farmhands', '🚜 Tractors & barns'], risks: ['🌦️ Weather and frost', '🙋 Not enough workers at harvest'], mgrs: ['📋 Ops (farm boss): buys seed & feed, sprays fields, sells cattle', '🧑‍💼 GM: does the same farm orders a bit less well'], ups: ['🔄 Crop rotation: better soil', '🧺 Farm stand: sell for more', '🤝 Co-op: better prices'], start: ['Pick farmland that fits crops, cows or orchard', 'Tractor + planter (crops) or barn + pen (cows)', 'Buy seed before spring / feed for 2 months', 'Hire an Ops manager so orders run every month'] },
+    freight: { money: 'Drivers haul loads with trucks. Each load pays; diesel is the big cost.', costs: ['⛽ Diesel', '🚛 Trucks', '🧑‍✈️ Drivers'], risks: ['⏰ Missed delivery breaks a contract', '📦 Cargo theft'], mgrs: ['📋 Ops: buys diesel, replaces broken trucks', '🧑‍💼 GM: hires drivers, bids on lanes'], ups: ['🛡️ Driver safety training', '📍 GPS tracking', '🔁 Backhaul board: fewer empty trips'], start: ['1-2 semi trucks + yard fuel tank', 'Hire a driver per truck', 'Fill the tank for 1 month', 'Add GPS and safety training'] },
+    brand: { money: 'Design clothes, order batches from a factory and sell online. Big orders are cheaper per piece but risky.', costs: ['👕 Batches from the factory', '📣 Ads', '📦 Packers'], risks: ['🚚 Shipping delays and refunds', '🕵️ Knockoffs copy you'], mgrs: ['🧑‍💼 GM / 📋 Ops: reorder batches before you sell out', '📣 Ads manager: ads work harder'], ups: ['🧪 Small test batches first', '🔍 Factory quality checks', '™️ Trademark against knockoffs'], start: ['Shelving + packing station', 'Order a small test batch', 'Run online ads', 'Reorder only what sold'] },
+    hotel: { money: 'Rent rooms by the night. Full rooms in busy seasons make the money.', costs: ['🛏️ Housekeepers & front desk', '🧺 Linens & amenities', '🔥 Heating, power, upkeep'], risks: ['🐛 Bedbugs', '💧 Plumbing floods floors'], mgrs: ['🧑‍💼 GM: staff, pricing, PR', '📋 Ops: boilers & laundry, supplies'], ups: ['🌐 Direct booking website: no booking fees', '📈 Seasonal pricing', '🍽️ Restaurant & bar'], start: ['Laundry + HVAC + linen room', 'Housekeepers for the rooms + front desk', 'Buy linens for 1 month', 'Pest control contract right away'] },
+    law: { money: 'Attorneys bill clients for legal work. Clients pay about a month later.', costs: ['⚖️ Attorneys (licensed, well paid)', '📚 Research & filings', '🏢 Office'], risks: ['💸 A client refuses to pay', '🧑‍⚖️ Losing a big case hurts your name'], mgrs: ['🧑‍💼 GM: hires attorneys, matches job offers', '🧮 Accountant: catches billing problems'], ups: ['📑 Collections & retainer policy: fewer unpaid bills', '🤝 Referral network: more clients', '🗂️ Document automation'], start: ['Small office + case system + research', 'Hire 1-2 attorneys', 'Keep 2 months of cash (clients pay late)', 'Ads: online search fits best'] },
+    clinic: { money: 'Doctors and nurses see patients. Insurers pay later. Big to start, steady after.', costs: ['🩺 Doctors & nurses', '💊 Medical supplies', '🩻 Imaging & lab machines'], risks: ['🧾 Insurance payments late', '⚖️ Malpractice suits'], mgrs: ['📋 Ops: supplies & machines', '🧮 Accountant: billing', '⚖️ Lawyer: lawsuits'], ups: ['📞 Telehealth: more visits', '🏥 Walk-in hours', '🛒 Group purchasing: cheaper supplies'], start: ['Exam rooms + supply room', 'Hire doctors (license takes time)', 'Get malpractice insurance', 'Keep cash for slow insurer payments'] },
+    construction: { money: 'Bid on building jobs, build them, get paid. Big jobs pay big but need crews and machines.', costs: ['👷 Workers', '🏗️ Excavators & cranes', '🧱 Materials per job'], risks: ['🤕 Worker injury', '💸 A job costs more than your bid'], mgrs: ['🧑‍💼 GM: bids on jobs for you', '📋 Ops: leases machines when jobs need them'], ups: ['📑 Performance bonds (for large jobs)', '🧮 Contingency budget in bids', '🦺 Safety program'], start: ['Crew tools & trucks', 'Hire 6+ workers', 'Bid on small jobs first', 'Lease heavy machines only when a job needs them'] },
+    factory: { money: 'Production lines turn raw materials into products sold by the thousand.', costs: ['🪨 Raw materials', '👷 Line workers', '⚙️ Lines & upkeep'], risks: ['📉 Raw material shortage', '🔁 Defective batch & recall'], mgrs: ['📋 Ops: materials, breakdowns', '🧑‍💼 GM: staff, labor relations'], ups: ['🔧 Preventive maintenance', '✅ Quality control', '🔀 Multiple suppliers'], start: ['1 production line + silo', 'Hire line workers for it', 'Order materials for 1 month', 'Add QC before selling a lot'] },
+    tech: { money: 'Build an app. Users sign up; some pay. Slow start, can grow very fast, can also fail.', costs: ['💻 Engineers', '🖥️ Servers', '📣 Ads to find users'], risks: ['🧑‍💻 Key engineer leaves', '🔓 Data breach', '🦈 A big company copies you'], mgrs: ['🧑‍💼 GM: hiring, investor offers', '🤝 HR: keeps engineers'], ups: ['🔎 Market research first', '🔐 Security audit', '🚀 Better onboarding'], start: ['Servers + dev tools', 'Hire 2-3 engineers', 'Keep 12 months of cash', 'Ads for users, then annual plans'] },
+    franchise: { money: 'Other people open shops with your name and pay you fees. You grow by approving good owners.', costs: ['🧑‍💼 Regional managers', '🎓 Training centre', '📣 Brand ads'], risks: ['🙅 Bad franchisees hurt your name', '🏚️ Shops close'], mgrs: ['🧑‍💼 GM: approves or rejects applications', '📣 Ads manager: national ads'], ups: ['🕵️ Mystery shoppers', '📏 Strict standards', '🗺️ Territory planning'], start: ['Systems & training centre', 'Hire regional managers', 'Approve only good applicants', 'Add standards early'] },
+  };
+})();
+
+</script>
 <script>/* js/world.js */
 /* world.js - economy cycles, interest rates, inflation, weather, world events, supply & demand markets, news. */
 (function () {
@@ -6019,8 +6070,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     price *= condF(cond) / condF(70);
     if (distressed) price *= R.range(RC().flip.distressDiscount[0], RC().flip.distressDiscount[1]);
     price = Math.round(price / 1000) * 1000;
+    const yld = TG.V12 && k.rentPct ? TG.V12.yieldFor(g, kindId) / (nb * condF(cond) / condF(70)) : undefined; /* v12: rent = price x yield, whatever the neighbourhood */
     const acres = kindId === 'land' ? Math.round(R.range(2, 40)) : 0;
-    return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres,
+    return { id: U.uid('r'), kind: kindId, name: `${R.int(1, 999)} ${R.pick(STREETS)} ${R.pick(['St', 'Ave', 'Ct', 'Blvd'])}`, region, loc, grade, units, price, cond, nb, trend, distressed, acres, yld,
       age: R.int(2, 80), hidden: R.chance(RC().flip.hiddenProblem * (distressed ? 1.5 : 0.6)) ? R.range(RC().flip.hiddenCost[0], RC().flip.hiddenCost[1]) : 0, listed: g.month,
       life: R.int(TG.CONFIG.v10.listingLife[0], TG.CONFIG.v10.listingLife[1]) }; /* v10: on the market 3-7 months, then gone */
   };
@@ -6038,9 +6090,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   RE.marketRent = (g, h) => {
     const k = RC().kinds[h.kind]; if (!k.rentPct) return 0;
-    const perUnit = (h.basePrice || h.price) * k.rentPct / Math.max(1, h.units);
-    return Math.round(perUnit * Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4) /* v11: rents also keep up with prices over long holds */ * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
+    const perUnit = (h.basePrice || h.price) * (h.yld || k.rentPct) / Math.max(1, h.units); /* v12: h.yld = the rent yield when listed (higher when mortgage rates are high) */
+    return Math.round(perUnit * RE.rentF(g, h) * h.nb * condF(h.cond) / condF(70) * (h.rentBump || 1));
   };
+  // v12: how much market rent has grown since purchase (housing^0.6 x prices^0.4); rents are sticky: never below the purchase level
+  RE.rentF = (g, h) => { const f = Math.pow(g.world.housing / (h.housingAtBuy || g.world.housing), 0.6) * Math.pow(g.world.priceIdx / (h.pAtBuy || g.world.priceIdx), 0.4); return TG.CONFIG.v12 ? Math.max(1, f) : f; };
+  // v12: running costs (tax, upkeep, insurance) are charged on a value that grows like rent, so a rental stays profitable when values rise 1x-4x
+  RE.costBase = (g, h) => { const v = RE.value(g, h); if (!TG.CONFIG.v12 || !h.base) return v; return Math.round(Math.min(v, h.base * (h.housingAtBuy || g.world.housing) * RE.rentF(g, h) * h.nb * condF(h.cond) * (h.over ? 0.92 : 1))); };
   // v6: the rent YOU set (share of market rent), applicants and tenant search
   const TC = () => TG.CONFIG.tenants;
   // v10: every unit can have its own rent (h.unitR[u] = share of market rent); otherwise the building's default (h.rentR)
@@ -6267,7 +6323,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       try { RE.holdingMonth(g, h, { C, rc, w, mgr, earn, spend, overSelf, mgrPart: mgrWage * share(h), handyPart: handy * share(h) }); } finally { g._own = prevOwn; }
     }
     if (mgr && !g.re.holdings.length) spend(mgrWage, 'Property manager');
-    if (mgr && R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; }
+    if (mgr && R.chance(0.01 * (mgr.morale < 40 ? 4 : 1))) { if (TG.V12) TG.V12.remWantsQuit(g, mgr); /* v12: asks you first */ else { TG.rep.event(g, null, 'bad', `Property manager ${mgr.name} quit`, `Morale ${Math.round(mgr.morale)}`, { major: 'keyQuit' }); g.re.manager = null; } }
     // fund distributions
     const net = g.re.m.rev - g.re.m.cost;
     if (g.re.fund && net > 0) spend(net * g.re.fund.share, 'Fund investor distributions');
@@ -6291,12 +6347,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     h.nb = U.clamp(h.nb * (1 + h.trend * rc.neighborhoodShift / 6), 0.5, 2);
     const decay = rc.conditionDecay * (h.upkeep === 'low' ? 1.8 : h.upkeep === 'high' ? 0.4 : 1);
     h.cond = U.clamp(h.cond - decay * R.range(0.5, 1.5) - 0.6 * h.issues.length / Math.sqrt(Math.max(1, h.units || 1)), 0, 100); // open repairs wear the building faster
-    const v = RE.value(g, h);
-    spend(v * rc.propertyTax / 12 * h.taxMult, 'Real estate property tax');
+    const v = RE.costBase(g, h); const X12 = C.v12;
+    if (X12) { h.taxMult = Math.min(X12.taxMultCap, 1 + (h.taxMult - 1) * X12.taxEase); } /* v12: tax hikes ease back over the years and are capped */
+    { let tax = v * rc.propertyTax / 12 * h.taxMult; if (X12 && h.units) tax = Math.min(tax, X12.taxRentCap * RE.marketRent(g, h) * h.units); spend(tax, 'Real estate property tax'); }
     spend(v * rc.upkeepPct * (h.upkeep === 'low' ? 0.4 : h.upkeep === 'high' ? 2.2 : 1), 'Real estate upkeep');
     if (h.upkeep === 'high') h.cond = U.clamp(h.cond + 0.4, 0, 100);
     if (h.insured) spend(v * rc.insurancePct, 'Real estate insurance');
-    if (R.chance(rc.taxHikeChance)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
+    if (R.chance(rc.taxHikeChance) && !(C.v12 && h.taxMult * 1.2 > C.v12.taxMultCap + 1e-9)) { h.taxMult *= 1.2; TG.rep.event(g, null, 'bad', `Property tax hike on ${h.name} (+20%)`, 'Local tax reassessment'); }
     if (h.flip) { RE.flipMonth(g, h, spend); return; }
     if (h.dev) { RE.devMonth(g, h, spend); return; }
     if (h.mode === 'sale') {
@@ -7142,7 +7199,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 11;
+  const VERSION = 12;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -7934,6 +7991,193 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 })();
 
 </script>
+<script>/* js/v12.js */
+/* v12.js - v12 game rules (loaded after v11.js):
+   - CEO training, raises and bonuses (business managers already use the staff tools); effects shown before paying
+   - GMs reliably order supplies: hiring a GM / Ops manager / CEO turns 🤖 Auto on, managers keep a small buffer
+   - GM poach policy for regular workers (always / good only / replace / ask me); handled without stopping the skip
+   - CEO keeps chosen manager roles hired per business
+   - managers (any manager role, CEO, property manager) who want to quit or get a job offer: a card + the skip stops
+   - rentals: costs follow rent; rent yields follow mortgage rates so a normal rental with 20% down always covers a normal month
+   - v11 -> v12 save migration */
+(function () {
+  const TG = globalThis.TG; const U = TG.U, R = TG.R, F = TG.F, C = TG.CONFIG, D = TG.D, S = TG.S;
+  const V = (TG.V12 = {});
+  const X = () => C.v12;
+  const isMgrRole = (r) => !!C.specialists[r];
+
+  // ================= 1. CEO TRAINING / RAISE / BONUS =================
+  V.ceoTrainPreview = (g, level) => {
+    const e = g.ceo; const t = X().ceoTrain[level] || X().ceoTrain.basic; const cost = Math.round(t.cost * g.world.priceIdx);
+    const dim = S.trainDim(e.skill); const lo = Math.round(t.skill[0] * dim), hi = Math.round(t.skill[1] * dim), avg = (lo + hi) / 2;
+    return { cost, lo, hi, now: D.pGood(g, e, true), after: D.pGood(g, Object.assign({}, e, { skill: U.clamp(e.skill + avg, 1, 99) }), true) };
+  };
+  V.ceoTrain = (g, level) => {
+    const e = g.ceo; if (!e) return { ok: false, msg: 'No CEO.' }; const p = V.ceoTrainPreview(g, level);
+    if (g.cash < p.cost) return { ok: false, msg: `Coaching costs ${U.money(p.cost)}.` };
+    F.spend(g, p.cost, 'Training', null, true); if (S.spam(g, e, 'train')) return { ok: true, spam: true };
+    const from = Math.round(e.skill); e.skill = U.clamp(e.skill + R.range(p.lo, p.hi), 1, 99); e.skillSeen = Math.round(e.skill); e.morale = U.clamp(e.morale + 4, 0, 100);
+    return { ok: true, from, to: Math.round(e.skill) };
+  };
+  V.ceoRaisePreview = (g) => { const e = g.ceo; const to = Math.round(e.wage * (1 + C.staff.raisePct) / 10) * 10; return { to, add: to - e.wage, quitNow: V.ceoQuitP(e), quitAfter: V.ceoQuitP(Object.assign({}, e, { morale: U.clamp(e.morale + C.staff.raiseMorale, 0, 100) })) }; };
+  V.ceoRaise = (g) => { const e = g.ceo; if (!e) return { ok: false }; if (S.spam(g, e, 'raise')) return { ok: true, spam: true }; const from = e.wage; e.wage = V.ceoRaisePreview(g).to; e.morale = U.clamp(e.morale + C.staff.raiseMorale, 0, 100); e.loyalty = U.clamp((e.loyalty || 50) + 5, 0, 100); return { ok: true, from, to: e.wage }; };
+  V.ceoBonus = (g) => { const e = g.ceo; if (!e) return { ok: false }; const cost = Math.round(e.wage * 0.5); F.spend(g, cost, 'Bonuses'); if (S.spam(g, e, 'bonus')) return { ok: true, spam: true }; e.morale = U.clamp(e.morale + C.staff.bonusMorale, 0, 100); e.loyalty = U.clamp((e.loyalty || 50) + 10, 0, 100); return { ok: true, cost, morale: e.morale }; };
+  V.ceoQuitP = (c) => 0.004 + (c.morale < 35 ? 0.04 : 0) + (c.skill > 75 ? 0.006 : 0);
+  // what training does for a business manager: right calls now -> after (shown before paying)
+  V.mgrTrainEffect = (g, b, e, level) => { const p = S.trainPreview(g, b, e, level); return { now: D.pGood(g, e), after: D.pGood(g, Object.assign({}, e, { skill: U.clamp(e.skill + p.avg, 1, 99) })), avg: p.avg }; };
+
+  // ================= 2. SUPPLIES: hiring a manager who orders turns Auto on =================
+  V.orderer = (g, b) => { const st = b.stock; const h = D.handler(g, b, 'stock'); if (!h) return { who: 'you', h: null }; if (st && !st.auto) return { who: 'off', h }; return { who: 'mgr', h }; };
+  V.autoOn = (g, b, why) => { const st = b.stock || (TG.ST.def(b) ? TG.ST.ensure(b) : null); if (st && !st.auto) { st.auto = true; TG.rep.event(g, b, 'info', `🤖 Supplies at ${b.name} are now ordered by ${why}`, 'Turn Auto off on the Now tab if you want to order yourself.'); } };
+  const hire0 = S.hire;
+  S.hire = (g, b, cand, by) => { const r = hire0(g, b, cand, by); if (b && (cand.role === 'gm' || cand.role === 'ops') && !g._pv) V.autoOn(g, b, `your new ${C.specialists[cand.role].label.toLowerCase()} ${cand.name}`); return r; };
+  const prom0 = S.promote;
+  S.promote = (g, b, empId, role) => { const e = prom0(g, b, empId, role); if (e && (role === 'gm' || role === 'ops')) V.autoOn(g, b, `${C.specialists[role].label.toLowerCase()} ${e.name}`); return e; };
+  const ceoHire0 = D.hireCeo;
+  D.hireCeo = (g, cand) => { ceoHire0(g, cand); for (const b of g.businesses) V.autoOn(g, b, `CEO ${cand.name}`); };
+  // a manager orders a little extra so a normal month does not run short
+  const restock0 = TG.ST.restock;
+  TG.ST.restock = (g, b, need) => restock0(g, b, (need || 0) * (D.handler(g, b, 'stock') ? X().restockBuffer : 1));
+
+  // ================= 5. GM POACH POLICY (regular workers) + 8. MANAGERS ASK YOU =================
+  V.poachPol = (b) => (b && b.poachPol) || X().poachDefault;
+  V.ask = (g, b, text, why) => TG.rep.event(g, b, 'major', text, why, { major: 'mgrAsk' });
+  const add0 = D.add;
+  D.add = (g, dec) => {
+    if (dec.kind !== 'poach' || g._pv) return add0(g, dec);
+    const b = TG.B.get(g, dec.bizId); const e = b && S.allStaff(b).find((x) => x.id === dec.empId); if (!e) return add0(g, dec);
+    if (isMgrRole(e.role)) { // a manager got a job offer: you decide (the skip stops)
+      dec.mgr = true; const d = add0(g, dec); V.ask(g, b, `${e.name} (${C.specialists[e.role].label}) got a job offer: you decide`, `Offer ${U.money(dec.offer)}/mo vs your ${U.money(e.wage)}/mo. Answer the card, or they leave next month.`); return d;
+    }
+    const pol = V.poachPol(b); const h = D.handler(g, b, 'poach');
+    if (!h || pol === 'ask') { const d = add0(g, dec); if (h && pol === 'ask') TG.rep.event(g, b, 'major', `${e.name} got a job offer: your GM is asking you`, 'Your poach setting is "Ask me".', { major: 'poachAsk' }); return d; }
+    // the GM / HR / CEO handles it right away with your setting (no card, the skip keeps going); still a roll of their skill
+    let opt, why, out = 'ok';
+    if (pol === 'always') { opt = 'counter'; why = 'your setting: always match'; }
+    else if (pol === 'replace') { opt = 'let'; why = 'your setting: let them go and hire a replacement'; }
+    else { const c = D.choose(g, Object.assign({}, dec), h); opt = c.opt || 'let'; out = c.outcome; why = `your setting: match good workers only (${c.why})`; } // a skill roll: a weak manager can misjudge
+    const fake = Object.assign({ id: U.uid('d'), month: g.month }, dec); g.decisions.push(fake);
+    TG.rep.decision(g, b, h.label, `${dec.title}: ${opt === 'counter' ? `matched ${U.money(dec.offer)}/mo` : 'let them go'} (${why})`, out);
+    const ev0 = TG.rep.event; TG.rep.event = (g1, b1, type, text, why, o) => ev0(g1, b1, type === 'major' ? 'bad' : type, text, why, null); // handled by your manager: not a reason to stop the skip
+    try { D.resolve(g, fake, opt, h.label); } finally { TG.rep.event = ev0; } // 'let' keeps the spot (target) so the manager hires a replacement
+    return fake;
+  };
+  // a manager who wants to quit: a card instead of leaving on the spot
+  V.keepOdds = (e) => U.clamp(X().keepBase + (e.morale - 35) / 150 + (e.loyalty || 50) / 300, 0.15, 0.85);
+  V.quitCard = (g, b, e, kind, why) => {
+    if (g.decisions.some((d) => d.kind === 'mgrQuit' && d.empId === e.id)) return true;
+    const to = Math.round(e.wage * (1 + X().keepRaise) / 10) * 10; const odds = V.keepOdds(e);
+    const label = kind === 'ceo' ? 'CEO' : kind === 'rem' ? 'Property manager' : C.specialists[e.role].label;
+    add0(g, { kind: 'mgrQuit', mgr: true, who: kind, bizId: b ? b.id : null, empId: e.id, to, title: `${e.name} (${label}) wants to quit`, text: `${why}. Pay now ${U.money(e.wage)}/mo.`, why: `Morale ${Math.round(e.morale)}, loyalty ${Math.round(e.loyalty || 50)}.`,
+      options: [{ id: 'keep', label: `💵 Raise to ${U.money(to)}/mo (+${U.money(to - e.wage)}) · ${U.pct(odds)} they stay` }, { id: 'let', label: '👋 Let them go' }], def: 'let' });
+    V.ask(g, b, `${e.name} (${label}) wants to quit: you decide`, `${why}. Answer the card, or they leave next month.`);
+    return true;
+  };
+  const leave0 = S.leave;
+  S.leave = (g, b, e, why, natural) => {
+    if (natural === true && !g._pv && isMgrRole(e.role) && b.spec && b.spec[e.role] === e && !g._v12go) { V.quitCard(g, b, e, 'biz', why[0].toUpperCase() + why.slice(1)); return; }
+    return leave0(g, b, e, why, natural);
+  };
+  // CEO month: same as before, but a CEO who wants to quit asks first
+  D.ceoMonth = (g, profit) => {
+    const c = g.ceo; if (!c) return;
+    c.months++;
+    F.spend(g, c.wage, 'CEO salary');
+    if (profit > 0) F.spend(g, Math.round(profit * c.profitShare), 'CEO profit share');
+    const target = 60 + (profit > 0 ? 8 : -10) - Math.max(0, g.businesses.length - C.ceo.spanFree) * 3;
+    c.morale = U.clamp(c.morale + (target - c.morale) * 0.15 + R.normal(0, 2), 0, 100);
+    if (c.skill < 95 && R.chance(0.3)) c.skill = U.clamp(c.skill + 0.3, 1, 99);
+    if (R.chance(V.ceoQuitP(c))) V.quitCard(g, null, c, 'ceo', c.morale < 35 ? `Morale ${Math.round(c.morale)}/100` : 'A bigger company wants them');
+  };
+  V.remWantsQuit = (g, e) => V.quitCard(g, null, e, 'rem', `Morale ${Math.round(e.morale)}`);
+  const res0 = D.resolve;
+  D.resolve = (g, dec, opt, by) => {
+    if (dec.kind !== 'mgrQuit') return res0(g, dec, opt, by);
+    g.decisions = g.decisions.filter((x) => x !== dec);
+    const b = dec.bizId ? TG.B.get(g, dec.bizId) : null;
+    const e = dec.who === 'ceo' ? (g.ceo && g.ceo.id === dec.empId ? g.ceo : null) : dec.who === 'rem' ? (g.re.manager && g.re.manager.id === dec.empId ? g.re.manager : null) : b && S.allStaff(b).find((x) => x.id === dec.empId);
+    if (!e) return;
+    const stay = opt === 'keep' && R.chance(V.keepOdds(e));
+    if (opt === 'keep') { e.wage = dec.to; e.morale = U.clamp(e.morale + 15, 0, 100); e.loyalty = U.clamp((e.loyalty || 50) + 10, 0, 100); }
+    if (stay) { TG.rep.staff(g, b, `${e.name} stayed for ${U.money(e.wage)}/mo`); return; }
+    const why = opt === 'keep' ? 'took the other job anyway' : 'you let them go';
+    if (dec.who === 'ceo') { g.ceo = null; TG.rep.event(g, null, 'bad', `CEO ${e.name} left`, why); }
+    else if (dec.who === 'rem') { g.re.manager = null; TG.rep.event(g, null, 'bad', `Property manager ${e.name} left`, why); }
+    else { g._v12go = true; try { leave0(g, b, e, why, false); } finally { g._v12go = false; } }
+  };
+  // manager cards wait for YOU: if you skip past them, the default happens (no other manager decides for you)
+  const auto0 = D.autoResolve;
+  D.autoResolve = (g) => {
+    for (const dec of g.decisions.slice()) if (dec.mgr && dec.month < g.month) { TG.rep.decision(g, dec.bizId ? TG.B.get(g, dec.bizId) : null, 'Nobody (you did not answer)', `${dec.title}: ${dec.kind === 'mgrQuit' ? 'they left' : 'they took the offer'}`, 'ok'); D.resolve(g, dec, dec.def || 'let', null); }
+    return auto0(g);
+  };
+
+  // ================= 7. CEO KEEPS CHOSEN MANAGER ROLES HIRED =================
+  V.keepRoles = (b) => Object.keys(b.keep || {}).filter((r) => b.keep[r] && C.specialists[r]);
+  V.ceoKeep = (g, b) => {
+    if (!g.ceo || g._pv) return;
+    for (const role of V.keepRoles(b)) {
+      if (b.spec && b.spec[role]) continue;
+      const pool = S.poolFor(g, b, role).filter((c) => c.wage * 3 <= Math.max(0, g.cash)); const label = C.specialists[role].label;
+      if (!pool.length) { if (!b.keepMiss || g.month - b.keepMiss >= 6) { b.keepMiss = g.month; TG.rep.decision(g, b, `CEO ${g.ceo.name}`, `Could not hire a ${label.toLowerCase()}: nobody affordable (needs 3 months of their pay in cash)`, 'ok'); } continue; }
+      const out = D.roll({ p: D.pGood(g, g.ceo, true) }); const cand = D.bestCand(pool, out);
+      S.hire(g, b, cand, `CEO ${g.ceo.name}`);
+      TG.rep.decision(g, b, `CEO ${g.ceo.name}`, `Hired ${cand.name} as ${label} (${U.money(cand.wage)}/mo, skill ~${Math.round(cand.skillSeen || cand.skill)}) because you asked to always keep one`, out === 'bad' ? 'bad' : 'good');
+    }
+  };
+  const manage0 = D.manage;
+  D.manage = (g, b) => { V.ceoKeep(g, b); return manage0(g, b); };
+
+  // ================= 3/4. RENTALS: yields follow mortgage rates (the mortgage rule) =================
+  const pmt = (r, n) => (r <= 0 ? 1 / n : (r / 12) / (1 - Math.pow(1 + r / 12, -n)));
+  V.pmt = pmt;
+  // the worst mortgage rate a buyer can get right now (lowest credit a mortgage allows)
+  V.worstRate = (g, base) => { const L = C.finance.loans.mortgage; const cc = C.credit || {}; const minS = L.minCredit || 600; return U.clamp((base != null ? base : g.world.baseRate) + L.spread + Math.max(0, 760 - minS) * (cc.rateSpread || 0.00025), 0.01, 0.45); };
+  V.maxRate = (g) => V.worstRate(g, C.economy.rateMax);
+  // running costs as a share of the price at purchase (normal upkeep, insured, worst capped tax), and the rent share kept
+  V.costShare = () => { const rc = C.realEstate; return rc.propertyTax / 12 * X().taxMultCap + rc.upkeepPct + rc.insurancePct; };
+  V.needYield = (rate) => { const Q = X().rule, rc = C.realEstate; return (V.costShare() + (1 - Q.down) * pmt(rate, Q.term)) / (1 - Math.max(rc.managerFeePct, Q.selfPen) - Q.margin); }; // with a manager you pay the fee; without one, the self-manage penalty (smaller)
+  V.yieldFor = (g, kindId) => { const k = C.realEstate.kinds[kindId]; return Math.max(k.rentPct, V.needYield(V.worstRate(g))); };
+  // a normal month for a rental bought with 20% down at `rate`: full at market rent, no surprises
+  V.normalMonth = (g, h, rate, opts) => {
+    opts = opts || {}; const rc = C.realEstate; const Q = X().rule; const units = Math.max(1, h.units || 1);
+    const rent = TG.RE.marketRent(g, h) * units; const v = TG.RE.costBase(g, h);
+    const taxM = opts.taxMult != null ? opts.taxMult : X().taxMultCap;
+    const tax = Math.min(v * rc.propertyTax / 12 * taxM, X().taxRentCap * rent), upkeep = v * rc.upkeepPct, ins = v * rc.insurancePct;
+    const mgr = rent * rc.managerFeePct + (opts.selfPen ? rent * Q.selfPen : 0);
+    const loan = (opts.price || h.basePrice || h.price) * (1 - Q.down) * pmt(rate, Q.term);
+    return { rent, tax, upkeep, ins, mgr, loan, net: rent - tax - upkeep - ins - mgr - loan };
+  };
+
+  // mortgages need the minimum credit score (shown as the reason), so the worst rate a buyer can get is known
+  const quote0 = TG.CREDIT.quote;
+  TG.CREDIT.quote = (g, type, amount, opts) => {
+    const q = quote0(g, type, amount, opts); const L = C.finance.loans[type];
+    if (type === 'mortgage' && L && L.minCredit) { const sc = TG.CREDIT.score(g).score; if (sc < L.minCredit) { q.odds = 0; q.block = q.block || `Mortgages need a credit score of ${L.minCredit}+ (yours is ${sc}).`; } }
+    return q;
+  };
+
+  // ================= MIGRATION v11 -> v12 =================
+  V.migrate = (g) => {
+    const notes = [];
+    const MT = g.settings.majorTypes = g.settings.majorTypes || {}; if (MT.mgrAsk == null) MT.mgrAsk = true; if (MT.poachAsk == null) MT.poachAsk = true;
+    let on = 0; for (const b of g.businesses || []) { const st = b.stock; if (st && !st.auto && D.handler(g, b, 'stock')) { st.auto = true; on++; } }
+    if (on) notes.push(`📦 ${on} business${on > 1 ? 'es' : ''} had a manager but 🤖 Auto supplies were off, so nobody ordered. Auto is on again (turn it off on the Now tab if you order yourself).`);
+    for (const h of (g.re && g.re.holdings) || []) if (h.taxMult > X().taxMultCap) h.taxMult = X().taxMultCap;
+    for (const l of (g.re && g.re.listings) || []) if (l.yld == null && C.realEstate.kinds[l.kind].rentPct) l.yld = V.yieldFor(g, l.kind);
+    notes.push('👔 Managers and your CEO can now be trained, get raises and bonuses (effects shown first).');
+    notes.push('🙋 When a manager wants to quit or gets a job offer, the month skip stops so you decide.');
+    notes.push('🧑‍💼 Set how your GM handles job offers for workers, and which managers your CEO always keeps hired (Staff tab).');
+    notes.push('🏘️ Rental property tax, upkeep and insurance now follow rent, and new listings price in mortgage rates: a normal rental with 20% down covers its normal month.');
+    g.v12notes = notes; g.v = 12;
+  };
+  const mig0 = TG.Game.migrate;
+  TG.Game.migrate = (g) => { mig0(g); if ((g.v || 0) < 12) V.migrate(g); return g; };
+  const ng0 = TG.Game.newGame;
+  TG.Game.newGame = (opts) => { const g = ng0(opts); const MT = g.settings.majorTypes; MT.mgrAsk = true; MT.poachAsk = true; return g; };
+})();
+
+</script>
 <!-- UI -->
 <script>/* js/ui/ui-core.js */
 /* ui-core.js - rendering helpers, navigation, modal, turn controls, actions dispatch, autosave. */
@@ -8542,6 +8786,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const mh = TG.S.mgrHelpers(b); const kr = TG.M.keyRole(d); const krl = d.roles[kr] ? d.roles[kr].label.toLowerCase() : 'worker';
     const mgrLine = `<div class="ev info">🛠️ Managers order supplies; your crew works the site. ${mh.length ? `${mh.map((h) => `${esc(h.e.name)} (${esc(C.specialists[h.role].label)})`).join(' and ')} also work${mh.length > 1 ? '' : 's'} at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)} each: +${TG.S.mgrW(b).toFixed(2)} ${esc(krl)}'s worth of work.` : `A GM or Ops manager would also work at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)}.`}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Managers & specialists</h3>${mgrLine}${specs.map(([r, e]) => empRow(b, e, TG.S.roleDef(b, r).label)).join('')}</div>`;
+    if (UI.mgrSettings) o += UI.mgrSettings(g, b); // v12: GM job-offer setting + CEO keeps managers hired
     o += `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length}) ${UI.tipBtn('stLeg' + b.id)}</h3>${UI.tipLine('stLeg' + b.id, `⭐ skill = how good they are. 💵 what you pay; 📈 market = what other companies would pay them. 🎯 = chance per month another company hires them away (higher when you pay under market, when they are skilled, and for 📈 climbers). Personality: 🤝 loyal (stays cheap) · 🙂 steady · 📈 climber (chases pay) · ❓ not known yet (shows after ~3 months). 🌱 trainee = cheap, low skill, train them up. Tap Manage for training and raises.`)}<div class="small mute">🤝 loyal · 🙂 steady · 📈 climber · ❓ not known yet · 🎯 = chance they get hired away this month</div>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`;
     return o;
   }
@@ -9568,7 +9813,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     o += `<div class="card"><h3 style="margin-top:0">CEO</h3>`;
     if (g.ceo) { const c = g.ceo; o += `<div class="kv"><span>Name</span><span>${esc(c.name)}</span><span>Skill</span><span>~${c.skillSeen}</span><span>Morale</span><span>${Math.round(c.morale)}</span><span>Pay</span><span>${m(c.wage)}/mo + ${U.pct(c.profitShare, 1)} of profit</span><span>Good-call chance</span><span>${U.pct(TG.D.pGood(g, c, true))}</span><span>Style</span><span>${esc(c.trait || 'steady')}</span></div>
         <div class="kv" style="margin-top:6px"><span>CEO makes big moves (expansions, equipment, hiring)</span><span>${UI.btn(g.settings.ceoBigMoves ? 'On' : 'Off', 'setToggle', 'ceoBigMoves', 'sm')}</span></div>
-        <div class="btns">${UI.btn(`Fire (severance ${m(c.wage * 3)})`, 'ceoFire', null, 'sm badb')}</div><div class="mute">A CEO covers every business when no specialist does, but gets worse past ${C.ceo.spanFree} businesses (spread thin).</div>`; }
+        ${UI.ceoUpCard ? UI.ceoUpCard(g) : ''}<div class="btns">${UI.btn(`Fire (severance ${m(c.wage * 3)})`, 'ceoFire', null, 'sm badb')}</div><div class="mute">A CEO covers every business when no specialist does, but gets worse past ${C.ceo.spanFree} businesses (spread thin).</div>`; }
     else {
       o += `<div class="mute">A CEO handles decisions across all businesses. Expensive: worth it once you run several.</div>`;
       for (const c of TG.D.ceoPool(g)) o += `<div class="ev"><div class="row sp"><b>${esc(c.name)}</b><span>${m(c.wage)}/mo + ${U.pct(c.profitShare, 1)} profit</span></div><div class="small">Skill ~${c.skillSeen} · ${c.years} yrs · style ${esc(c.trait || '?')}</div><div class="btns">${UI.btn('Hire', 'ceoHire', c.id, 'sm pri')}</div></div>`;
@@ -9674,7 +9919,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const pick = `<div class="row" style="flex-wrap:wrap;gap:4px">${UI.btn('📖 How to play', 'tab', 'helpb:how', 'sm' + (t0 === 'how' ? ' pri' : ''))}${Object.entries(C.businesses).map(([k, d]) => UI.btn(d.icon + ' ' + esc(d.name.split(' / ')[0]), 'tab', 'helpb:' + k, 'sm' + (t0 === k ? ' pri' : ''))).join('')}${TG.CR.on(g) ? UI.btn('🕶️ Crime', 'tab', 'helpb:crime', 'sm' + (t0 === 'crime' ? ' pri' : '')) : ''}</div>`;
     if (t0 === 'crime') return `<div class="card">${pick}</div>${crimeHelp(g, C)}`;
     if (t0 === 'how' || !C.businesses[t0]) return `<div class="card">${pick}</div>${howTo(C)}`;
-    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div><div class="card"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
+    const d = C.businesses[t0]; const k = t0; let o = `<div class="card">${pick}</div>${UI.bizHelp ? UI.bizHelp(g, t0) : ''}<div class="card"><h3 style="margin-top:0">${UI.bizHelp ? '🔍 The details' : `${d.icon} ${esc(d.name)}`}</h3><div class="mute">${esc(d.blurb || '')}</div>`;
     o += UI.irow('hm' + k, '💰', 'Makes money', null, MONEY[k] || '');
     o += `<h4>👥 Staff</h4>` + Object.entries(d.roles).map(([r, rd]) => UI.irow('hr' + k + r, rd.support ? '🧹' : '🧑', rd.label, rd.cap > 1 ? `${N(rd.cap)}/mo` : '', `${rd.desc || ''} Training raises how much each can do. Overworked staff get unhappy and quit more.`)).join('');
     o += `<h4>🛠️ Equipment</h4>` + d.equip.map((e) => { const cat = C.equipCats[e.cat] || ['🛠️']; return UI.irow('he' + k + e.id, cat[0], e.label, U.money(e.price), `${e.desc || ''} Lasts about ${Math.round(e.life / 12)} yrs. Breaks about ${(e.brk * 100).toFixed(1)}% a month when new; more when old or run near 100%.`); }).join('');
@@ -10755,6 +11000,89 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const g = TG.G; if (!g || !g.v11notes || !g.v11notes.length || document.getElementById('modal')) return;
     const notes = g.v11notes; g.v11notes = null; UI.save();
     UI.modal('🆕 Game updated (v11)', `<div class="card">${notes.map((n) => `<div class="ev info">${esc(n)}</div>`).join('')}<div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
+  };
+  const r0 = UI.render; UI.render = () => { r0(); try { showNotes(); } catch (e) { console.error(e); } };
+})();
+
+</script>
+<script>/* js/ui/ui-v12.js */
+/* ui-v12.js - v12 screens: CEO coaching/raise/bonus, manager training effects, GM job-offer setting,
+   CEO keeps managers hired, who orders supplies, a real help page per business, the v12 update note. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI, U = TG.U; const V = TG.V12; const C = TG.CONFIG;
+  const m = (x) => U.money(x); const esc = UI.esc;
+
+  // ---------- CEO: coaching, raise, bonus (effects and cost before paying) ----------
+  UI.ceoUpCard = (g) => {
+    const e = g.ceo; if (!e) return '';
+    const pb = V.ceoTrainPreview(g, 'basic'), pa = V.ceoTrainPreview(g, 'advanced'), rp = V.ceoRaisePreview(g);
+    const row = (lvl, p) => `<div class="ev"><div class="row sp"><b>${lvl === 'advanced' ? '🎓 Advanced coaching' : '📘 Coaching'}</b><span>${m(p.cost)}</span></div>
+      <div class="small">⭐ skill +${p.lo} to +${p.hi} · 🎯 good calls ${U.pct(p.now)} → <b>${U.pct(p.after)}</b> · ✅ keeps working</div>
+      <div class="btns">${UI.btn(`${lvl === 'advanced' ? '🎓' : '📘'} Coach ${m(p.cost)}`, 'ceoDo', lvl, 'sm', g.cash < p.cost)}</div></div>`;
+    return `<div class="card" id="ceoUp"><h4 style="margin:0">⬆️ Make your CEO better</h4>${row('basic', pb)}${row('advanced', pa)}
+      <div class="ev"><div class="small">💵 Raise: ${m(e.wage)} → <b>${m(rp.to)}</b>/mo (+${m(rp.add)}) · 🚪 quit risk ${U.pct(rp.quitNow, 1)} → ${U.pct(rp.quitAfter, 1)}/mo</div>
+      <div class="small">🎁 Bonus ${m(e.wage * 0.5)} once: morale ${Math.round(e.morale)} → ${Math.min(100, Math.round(e.morale + C.staff.bonusMorale))}</div>
+      <div class="btns">${UI.btn(`💵 Raise (+${m(rp.add)}/mo)`, 'ceoDo', 'raise', 'sm')}${UI.btn(`🎁 Bonus ${m(e.wage * 0.5)}`, 'ceoDo', 'bonus', 'sm')}</div></div></div>`;
+  };
+  UI.A.ceoDo = (k) => {
+    const g = TG.G; let r;
+    if (k === 'raise') { r = V.ceoRaise(g); UI.toast(r.spam ? 'Another raise this month backfired (morale down).' : `Raise: ${m(r.from)} → ${m(r.to)}/mo.`, !!r.spam); }
+    else if (k === 'bonus') { r = V.ceoBonus(g); UI.toast(r.spam ? 'Too many bonuses this month (morale down).' : `Bonus paid. Morale now ${Math.round(r.morale)}.`, !!r.spam); }
+    else { r = V.ceoTrain(g, k); UI.toast(!r.ok ? r.msg : r.spam ? 'Too much coaching this month: burned out.' : `CEO skill ${r.from} → ${r.to}.`, !r.ok || !!r.spam); }
+    UI.refresh();
+  };
+
+  // ---------- business managers: what training does to their calls ----------
+  const tc0 = UI.trainCard;
+  UI.trainCard = (g, b, e) => {
+    const o = tc0(g, b, e); if (!C.specialists[e.role]) return o;
+    const a = V.mgrTrainEffect(g, b, e, 'basic'), z = V.mgrTrainEffect(g, b, e, 'advanced');
+    return `<div class="ev info" id="mgrTrainFx">🎯 Right calls on decisions: <b>${U.pct(a.now)}</b> now → about <b>${U.pct(a.after)}</b> after 📘 basic, <b>${U.pct(z.after)}</b> after 🎓 advanced. ✅ Keeps working while training.</div>` + o;
+  };
+
+  // ---------- Staff tab: GM job-offer setting + CEO keeps managers hired ----------
+  UI.mgrSettings = (g, b) => {
+    const P = C.v12.poachPol; const pol = V.poachPol(b); const h = TG.D.handler(g, b, 'poach');
+    let o = `<div class="card" id="poachCard"><h3 style="margin-top:0">🎯 When a worker gets a job offer ${UI.tipBtn('pp' + b.id)}</h3>${UI.tipLine('pp' + b.id, 'Other companies try to hire your workers away. Pick what your manager does. Manager job offers always come to you.')}
+      <div class="small">${h ? `👔 Handled by <b>${esc(h.label)}</b>${pol === 'ask' ? '' : ' right away: the month skip keeps going'}` : '<span class="warn">No GM, HR manager or CEO: offers come to you as cards.</span>'}</div>
+      <select id="poachSel" data-change="poachPol">${Object.entries(P).map(([k, x]) => `<option value="${k}"${k === pol ? ' selected' : ''}>${x.ic} ${esc(x.label)}</option>`).join('')}</select>
+      <div class="small mute" id="poachTxt">${esc(P[pol].txt)}</div></div>`;
+    const roles = Object.keys(C.specialists); const keep = b.keep || {};
+    o += `<div class="card" id="keepCard"><h3 style="margin-top:0">👑 CEO keeps these managers hired ${UI.tipBtn('kp' + b.id)}</h3>${UI.tipLine('kp' + b.id, 'When a chosen spot is empty, your CEO hires the best candidate you can afford (needs 3 months of their pay in cash). Their skill sets how good the pick is.')}
+      <div class="small">${g.ceo ? `👑 CEO <b>${esc(g.ceo.name)}</b> checks every month.` : '<span class="warn">Needs a CEO (More → Managers). Until then nobody hires managers for you.</span>'}</div>
+      <div class="row" style="flex-wrap:wrap;gap:4px">${roles.map((r) => UI.btn(`${keep[r] ? '✅' : '⬜'} ${C.specialists[r].icon || ''} ${esc(C.specialists[r].label)}${b.spec && b.spec[r] ? ' 👤' : ''}`, 'keepRole', r, 'xs' + (keep[r] ? ' goodb' : ''))).join('')}</div>
+      <div class="small mute">👤 = hired now. Pay is shown on each candidate before the CEO hires.</div></div>`;
+    return o;
+  };
+  UI.A.poachPol = (v) => { const b = TG.B.get(TG.G, UI.bizId); b.poachPol = v; UI.toast(`${C.v12.poachPol[v].ic} ${C.v12.poachPol[v].label}`); UI.refresh(); };
+  UI.A.keepRole = (r) => { const b = TG.B.get(TG.G, UI.bizId); b.keep = b.keep || {}; b.keep[r] = !b.keep[r]; UI.refresh(); };
+
+  // ---------- who orders supplies (Now tab) ----------
+  const auto0 = UI.autoBtn;
+  UI.autoBtn = (g, b, st) => {
+    const o = V.orderer(g, b); const last = st.lastBy ? ` · last order: aimed for about ${Math.round(st.need || 0).toLocaleString()} on hand, bought ${Math.round(st.inM || 0).toLocaleString()}` : '';
+    const line = o.who === 'mgr' ? `🤖 Ordering supplies: <b>${esc(o.h.label)}</b>${last}` : o.who === 'off' ? `⏸️ <b>You</b> order supplies (🤖 Auto is off; ${esc(o.h.label)} could do it)` : '🙋 <b>You</b> order supplies (no GM, Ops manager or CEO)';
+    return `<div class="small" id="supWho">${line}</div>` + auto0(g, b, st);
+  };
+
+  // ---------- help pages ----------
+  UI.bizHelp = (g, k) => {
+    const d = C.businesses[k]; const H = C.v12.help[k] || {}; const li = (a) => (a || []).map((x) => `<li>${esc(x)}</li>`).join('');
+    return `<div class="card" id="bizHelp"><h3 style="margin-top:0">${d.icon} ${esc(d.name)}</h3>
+      <div class="ev good">💰 <b>How it makes money:</b> ${esc(H.money || d.blurb || '')}</div>
+      <h4>💸 Main costs</h4><ul class="plain small">${li(H.costs)}</ul>
+      <h4>⚠️ Main risks</h4><ul class="plain small">${li(H.risks)}</ul>
+      <h4>👔 Managers that matter here</h4><ul class="plain small">${li(H.mgrs)}</ul>
+      <h4>⬆️ Best first upgrades</h4><ul class="plain small">${li(H.ups)}</ul>
+      <h4>🚀 Getting started</h4><ol class="small">${li(H.start)}</ol>
+      <div class="small mute">💵 Setup about ${m(d.setupCost * g.world.priceIdx)} · Nothing is guaranteed: every month is rolled from odds.</div></div>`;
+  };
+
+  // ---------- v12 update note (once) ----------
+  const showNotes = () => {
+    const g = TG.G; if (!g || !g.v12notes || !g.v12notes.length || document.getElementById('modal')) return;
+    const notes = g.v12notes; g.v12notes = null; UI.save();
+    UI.modal('🆕 Game updated (v12)', `<div class="card">${notes.map((n) => `<div class="ev info">${esc(n)}</div>`).join('')}<div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
   };
   const r0 = UI.render; UI.render = () => { r0(); try { showNotes(); } catch (e) { console.error(e); } };
 })();

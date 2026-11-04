@@ -113,6 +113,18 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
 - **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
 
+## Version 12 highlights (managers you can grow, GM supplies fix, rentals that pay)
+
+- **Manager & CEO upgrades:** every manager (GM, Ops, HR, accountant, lawyer, safety, ads, property manager) and the CEO can get basic/advanced training, raises and bonuses. The card shows the cost and the effect first (🎯 right calls now → after). Trainees keep working.
+- **GMs order supplies reliably:** hiring a GM, Ops manager or CEO switches 🤖 Auto supplies on (old saves too). Managers order about 8% extra so a normal month does not run short. The Now tab says who orders supplies: your manager, you, or Auto off.
+- **Rentals keep paying as values rise:** property tax, upkeep and insurance are charged on a value that grows like rent. Tax hikes are capped (+44%) and ease back over the years.
+- **Mortgage rule:** a rental bought at a normal price with 20% down and a 30-year mortgage, rented at market rent, covers its normal month (mortgage, tax, insurance, upkeep, manager fee) at any year and any rate a buyer can get (worst: credit 600 at the highest base rate, 18%). Rent yields of new listings rise when mortgage rates are high. Mortgages need a credit score of 600+. Vacancies, bad tenants, repairs and lawsuits can still cause a losing month.
+- **GM job-offer setting (Staff tab):** always match / match good workers only / let them go and hire a replacement / ask me. When the GM handles it, the month skip keeps going.
+- **CEO keeps managers hired (Staff tab):** pick the roles; the CEO hires the best affordable candidate when one is empty.
+- **Managers ask you:** when any manager or the CEO wants to quit or gets a job offer, you get a card and the month skip stops. A raise gives a shown chance they stay.
+- **Help pages:** each business has a guide: how it makes money, main costs and risks, which managers matter, best first upgrades, and a getting-started plan (details below it).
+- **Tests:** `test/v12.test.js`, `test/v12-ui.test.js`; `tools/money-check-v12.txt` holds the 10-year money check.
+
 ## Version 11 highlights (ads that work, law firm fix, lawyer, compact real estate)
 
 - **Ads that work:** pick an ad type (📄 flyers, 📱 social, 🔎 online search, 📻 radio & TV), each with its own cost, reach, flop odds and fit per business (⭐ stars), and pick who sees it (📍 nearby, 🌍 everyone, 🔁 past customers). Budget has diminishing returns: the preview shows the next $500 adds less. Before saving, a preview runs next month with and without the ad (same luck, 3 tries) and shows extra customers served, extra sales, net after costs and whether it pays for itself, plus a warning when you are already full. Ads help low-reputation businesses most.
