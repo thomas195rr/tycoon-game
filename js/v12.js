@@ -124,7 +124,7 @@
     if (!g.ceo || g._pv) return;
     for (const role of V.keepRoles(b)) {
       if (b.spec && b.spec[role]) continue;
-      const pool = S.poolFor(g, b, role).filter((c) => c.wage * 3 <= Math.max(0, g.cash)); const label = C.specialists[role].label;
+      let pool = S.poolFor(g, b, role).filter((c) => c.wage * 3 <= Math.max(0, g.cash)); if (TG.V13 && pool.length) { pool = TG.V13.filter(g, b, role, pool, `CEO ${g.ceo.name}`); if (!pool.length) continue; } const label = C.specialists[role].label;
       if (!pool.length) { if (!b.keepMiss || g.month - b.keepMiss >= 6) { b.keepMiss = g.month; TG.rep.decision(g, b, `CEO ${g.ceo.name}`, `Could not hire a ${label.toLowerCase()}: nobody affordable (needs 3 months of their pay in cash)`, 'ok'); } continue; }
       const out = D.roll({ p: D.pGood(g, g.ceo, true) }); const cand = D.bestCand(pool, out);
       S.hire(g, b, cand, `CEO ${g.ceo.name}`);

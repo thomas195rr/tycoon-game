@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 12;
+  const VERSION = 13;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================

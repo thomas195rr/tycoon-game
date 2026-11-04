@@ -179,7 +179,8 @@
       for (const role in b.target) {
         let missing = b.target[role] - (c[role] || 0);
         while (missing > 0) {
-          const out = D.roll(h); const cand = D.bestCand(S.poolFor(g, b, role), out);
+          const out = D.roll(h); const pool0 = S.poolFor(g, b, role); const pool = TG.V13 ? TG.V13.filter(g, b, role, pool0, h.label) : pool0; const cand = D.bestCand(pool, out);
+          if (!cand && pool0.length) break; // v13: nobody met the minimum skill (note posted)
           if (!cand) { TG.rep.decision(g, b, h.label, `Could not find a ${S.roleDef(b, role).label.toLowerCase()} to hire (thin labor pool)`, 'ok'); break; }
           S.hire(g, b, cand, h.label); missing--;
           if (out === 'bad') TG.rep.decision(g, b, h.label, `Rushed the hire of ${cand.name} without checking references`, 'bad');
