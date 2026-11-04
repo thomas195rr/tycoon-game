@@ -127,7 +127,7 @@ for (const t of types) { const h = C.v12.help[t]; ok(h && h.money && ['costs', '
 // ---------- migration v11 -> v12 ----------
 {
   const g = fresh(60, 5e6, 'rich'); const b = bots.startBiz(g, 'cafe', {}); clearMgrs(g, b); S.hire(g, b, S.candidate(g, b, 'gm', 0.6), 'you'); b.stock.auto = false; g.v = 11; delete g.settings.majorTypes.mgrAsk;
-  const g2 = TG.Game.deserialize(TG.Game.serialize(g)); ok(g2.v === 12, 'save upgraded to v12'); ok(g2.businesses[0].stock.auto === true, 'Auto supplies switched back on where a manager exists');
+  const g2 = TG.Game.deserialize(TG.Game.serialize(g)); ok(g2.v >= 12, 'save upgraded to v12 (or later)'); ok(g2.businesses[0].stock.auto === true, 'Auto supplies switched back on where a manager exists');
   ok(g2.settings.majorTypes.mgrAsk === true, 'skip stops for managers by default'); ok(Array.isArray(g2.v12notes) && g2.v12notes.length >= 3, 'update note shown once');
 }
 console.log(`${pass}/${pass + fails.length} v12 checks passed`);

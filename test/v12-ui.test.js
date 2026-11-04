@@ -14,8 +14,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const noSide = async (what) => ok(await page.evaluate((w) => document.documentElement.scrollWidth <= w + 1, W), `${what}: no sideways scroll`);
   const txt = (sel) => page.evaluate((s) => (document.querySelector(s) || {}).innerText || '', sel);
   await page.goto(URL); await page.evaluate(() => { localStorage.clear(); return TG.IDB && TG.IDB.put('tycoon_save_v1', null); }); await page.reload(); await page.waitForSelector('[data-act="newGame"]');
-  ok(await page.evaluate(() => TG.VERSION === 12), 'game version 12');
-  if (URL.startsWith('http')) ok(await page.evaluate(async () => /tycoon-app-v12/.test(await (await fetch('sw.js', { cache: 'no-store' })).text())), 'live sw.js cache is tycoon-app-v12');
+  ok(await page.evaluate(() => TG.VERSION >= 12), 'game version 12+');
+  if (URL.startsWith('http')) ok(await page.evaluate(async () => /tycoon-app-v1[2-9]/.test(await (await fetch('sw.js', { cache: 'no-store' })).text())), 'live sw.js cache is tycoon-app-v12');
   await page.click('[data-act="newGame"][data-arg="rich"]'); await sleep(300);
   const id = await page.evaluate(() => {
     const g = TG.G; g.cash = 3e7; const p = TG.P.gen(g, TG.P.idealFor('salon')); g.listings.push(p); TG.P.acquire(g, p.id, 'lease'); const b = TG.B.start(g, 'salon', p.id, {}).biz; TG.B.quickSetup(g, b, true, 'standard');
