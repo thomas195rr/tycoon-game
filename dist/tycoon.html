@@ -94,7 +94,12 @@ select { max-width: 100%; }
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 @media (min-width: 560px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .tile { background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 8px 10px; text-align: center; cursor: pointer; }
-.tile .ti { font-size: 28px; line-height: 1.1; } .tile .tv { font-size: 21px; font-weight: 800; } .tile .tl { font-size: 13px; color: var(--mute); font-weight: 700; }
+.tile .ti { font-size: 32px; line-height: 1.1; } .tile .tv { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; } .tile .tl { font-size: 13px; color: var(--mute); font-weight: 800; }
+details.fold { background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 8px 12px; margin: 0 0 12px; }
+details.fold > summary { cursor: pointer; font-weight: 800; font-size: 16px; padding: 6px 0; }
+details.fold[open] > summary { margin-bottom: 6px; }
+.tabs .btn { font-size: 16px; }
+@media (min-width: 900px) { #app { max-width: 980px; } .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .tile.g { border-color: #86efac; background: #f0fdf4; } .tile.y { border-color: #fcd34d; background: #fffbeb; } .tile.r { border-color: #fca5a5; background: #fef2f2; }
 .irow { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 2px dashed var(--line); flex-wrap: wrap; }
 .irow:last-child { border-bottom: 0; }
@@ -1062,14 +1067,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     factory: {
       name: 'Manufacturing plant', icon: '🏭', tier: 'corp', model: 'factory', cat: 'home',
       blurb: 'Massive machines, massive output; a single line stoppage is very costly.',
-      setupCost: 900000, space: { unit: 'sqft', min: 15000, ideal: 90000 },
-      locPref: { city: 0.25, suburb: 0.6, town: 0.85, rural: 1, remote: 0.55 },
-      site: { labor: 0.35, road: 0.3, space: 0.2, loc: 0.15 },
+      setupCost: 280000, space: { unit: 'sqft', min: 12000, ideal: 40000 },
+      locPref: { city: 0.35, suburb: 0.75, town: 0.95, rural: 1, remote: 0.6 },
+      site: { labor: 0.2, road: 0.25, space: 0.25, loc: 0.3 },
       econSens: 0.8, weatherSens: 0, season: flat(1),
-      factory: { market: 'goods', materialCost: 21, sqftPerLine: 9000, storagePerUnit: 0.3, maxStockMonths: 4 },
+      factory: { market: 'goods', materialCost: 18, sqftPerLine: 9000, storagePerUnit: 0.22, maxStockMonths: 4 },
       roles: { worker: { label: 'Line worker', wage: [3000, 4600], cap: 850, key: true, min: 1 } },
       equip: [
-        { id: 'line', label: 'Production line', price: 1800000, cap: 12000, critical: true, brk: 0.013, life: 180, injuryOnCat: 0.5 },
+        { id: 'line', label: 'Production line', price: 980000, cap: 12000, critical: true, brk: 0.013, life: 180, injuryOnCat: 0.5 },
         { id: 'forklift', label: 'Forklift', price: 35000, support: true, brk: 0.012, life: 96, failRisk: 'accident' },
       ],
       insurance: ['liability', 'property', 'equipment'],
@@ -2009,6 +2014,35 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     minNoteEvery: 3,    // months between 'nobody good enough' notes per role
   };
   C.specialists.ads.desc = 'Makes ad spend work harder, runs campaigns after reputation drops, and holds the reputation target you pick.';
+})();
+
+</script>
+<script>/* js/config-v14.js */
+/* config-v14.js - v14 numbers: people manager, crime street boss, save-slot labels. */
+(function () {
+  const C = globalThis.TG.CONFIG;
+  C.specialists.people = {
+    label: 'People manager', icon: '💛', wage: [9000, 22000],
+    desc: 'Late-game boss for a big team. Keeps morale up, makes people want to stay (fewer quits and poach offers), and hires so nobody is overworked. Expensive. Part of the pay is team perks.',
+  };
+  C.perks.people = [
+    [40, 'morale', 2, '+2 morale for everyone'],
+    [60, 'quitCut', 0.1, '-10% odds staff quit'],
+    [80, 'morale', 2, 'another +2 morale'],
+  ];
+  C.v14 = {
+    people: {
+      perkShare: 0.35, // share of the salary that is team perks (still a wage cost)
+      morale: [4, 12], // added to the morale target at skill 0 → 100
+      quitCut: [0.2, 0.55], // multiplies quit odds (lower is better)
+      poachCut: [0.25, 0.6],
+      over: 1.05, // work bar above this → hire one person, if it fits the cash
+      maxHire: 1, // hires per month (skill can raise this)
+    },
+    crimeMgr: {
+      boss: { icon: '🕶️', label: 'Street boss', wage: [5500, 14000], desc: 'Buys product for what your clients want and replaces crew who leave. Without one, nothing on the street is ordered for you.' },
+    },
+  };
 })();
 
 </script>
@@ -3505,15 +3539,29 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   // ---------- valuation & net worth ----------
   F.bizAssets = (g, b) => TG.E.value(g, b) + (b.inventoryValue ? b.inventoryValue(g) : TG.B.inventoryValue(g, b)) + U.sum(b.recv || [], (r) => r.amt);
+  // v14: a one-month spike must not set the sale price. With 3+ months the median ignores one wild month.
+  // With only 1-2 months, that profit counts once, not as if it repeats all year.
+  F.profitRunRate = (b) => {
+    const ps = (b.hist || []).slice(-12).map((x) => x.profit).filter((x) => Number.isFinite(x));
+    if (!ps.length) return 0;
+    const sorted = ps.slice().sort((a, c) => a - c);
+    const med = sorted[Math.floor((sorted.length - 1) / 2)];
+    if (ps.length < 3) return Math.max(0, Math.min(...ps));
+    return Math.max(0, med) * 12;
+  };
   F.bizValue = (g, b) => {
     const C = TG.CONFIG.finance.saleMultiple;
-    const h = b.hist.slice(-12); const p12 = U.sum(h, (x) => x.profit) * (12 / Math.max(1, h.length));
+    const p12 = F.profitRunRate(b);
     let mult = C.base + C.rep * (b.rep - 50) / 10 * 10;
     mult = U.clamp(C.base + (b.rep - 50) * C.rep, 1, 6);
     let v = F.bizAssets(g, b) + Math.max(0, p12) * mult;
-    if (b.type === 'tech' && b.tech && b.tech.phase === 'live') v = Math.max(v, b.tech.users * TG.CONFIG.businesses.tech.tech.arpu * 12 * (2 + 6 * b.tech.pmf));
+    if (b.type === 'tech' && b.tech && b.tech.phase === 'live') {
+      const cap = Math.max(0, TG.E.capacity(b, 'server'));
+      const users = Math.min(cap, b.tech.userAvg != null ? b.tech.userAvg : b.tech.users);
+      v = Math.max(v, users * TG.CONFIG.businesses.tech.tech.arpu * 12 * (2 + 6 * b.tech.pmf));
+    }
     if (b.type === 'tech' && b.tech && b.tech.phase === 'build') v = Math.max(v, 400000 + b.tech.dev * 30000 * (0.5 + (b.tech.pmfEst || 0.3)));
-    if (b.type === 'franchise' && b.fr) v = Math.max(v, b.fr.locations.length * 120000);
+    if (b.type === 'franchise' && b.fr) { const cap = Math.max(0, TG.E.capacity(b, 'systems')); const n = Math.min(b.fr.locations.length, cap); v = Math.max(v, n * 120000); }
     return Math.round(Math.max(0, v));
   };
   F.netWorth = (g, detail) => {
@@ -3839,12 +3887,30 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     }
     if (!apply) return { cost, steps };
     for (const s of steps) {
-      if (s.kind === 'equip') { if (g.cash >= s.cost) TG.E.buy(g, b, s.type, s.tier); }
-      else { const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); } }
+      if (s.kind === 'equip') {
+        const ed = TG.E.def(b, s.type); const critical = !!(ed && ed.critical);
+        const tryTiers = s.tier === 'premium' ? ['premium', 'standard', 'budget'] : s.tier === 'standard' ? ['standard', 'budget', 'used'] : s.tier === 'budget' ? ['budget', 'used'] : ['used'];
+        let bought = false;
+        for (const t of tryTiers) { const pr = TG.E.price(g, b, s.type, t); if (g.cash >= pr) { TG.E.buy(g, b, s.type, t); bought = true; break; } }
+        // v14: a critical machine (the line, the truck, the oven) is leased if buying any tier does not fit, so the place can actually run
+        if (!bought && critical && s.tier !== 'used') {
+          const t = 'budget'; const pay = Math.round(TG.E.price(g, b, s.type, t) * TG.CONFIG.equipment.leaseMonthlyPct);
+          if (g.cash >= pay) TG.E.buy(g, b, s.type, t, { leased: true });
+        }
+      } else {
+        if (b.type === 'factory' && s.role === 'worker' && !b.equip.some((x) => x.type === 'line' && x.broken !== 'destroyed')) continue;
+        const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); }
+      }
     }
     if (TG.D) TG.D.syncTargets(b);
     // v7: a first supplies order (you pay for it); after this, no manager = you reorder yourself
-    if (TG.ST && TG.ST.def(b)) { TG.ST.ensure(b); const q = TG.ST.suggest(b, g); if (q > 0 && g.cash > q * TG.ST.unitCost(g, b) * 2) TG.ST.buy(g, b, q, 0); }
+    // v14: buy what you can afford (the old rule skipped the whole order unless you could pay double). A plant keeps a cash buffer for wages.
+    if (TG.ST && TG.ST.def(b)) {
+      TG.ST.ensure(b);
+      let q = TG.ST.suggest(b, g);
+      if (b.factory) { const lineCap = TG.E.capacity(b, 'line') || 0; const unit = Math.max(0.01, TG.ST.unitCost(g, b)); const roomCash = Math.max(0, g.cash - 12000); q = Math.min(TG.ST.cap(b), Math.floor(roomCash / unit), Math.max(q, Math.ceil(lineCap))); }
+      if (q > 0 && g.cash > TG.ST.unitCost(g, b) * 5) TG.ST.buy(g, b, q, 0);
+    }
     for (const t of d.insurance) if (t === 'liability' || t === 'malpractice' || (t === 'property' && g.properties.find((p) => p.id === b.propId && p.owned))) b.ins[t] = true;
     return { cost, steps };
   };
@@ -4565,7 +4631,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       // flow
       const gd = P.good(b); const unit = d.supply ? '' : '';
       if (sd) FL.row(b, '📥', 'Stock in', b.stock.inM, '', b.stock.inM > 0 ? 'g' : 'y', b.stock.lastBy ? 'Ordered by ' + b.stock.lastBy : 'Auto-order off');
-      if (s.makeAhead) FL.row(b, '🍳', 'Made', made, '', 'g');
+      if (s.makeAhead) FL.row(b, '🍳', 'Made', made, '', made > 0 ? 'g' : 'r', b.type === 'foodtruck' ? `Cooks can make about ${Math.round(k.keyCap)} meals. No cooks means no food.` : `Bakers can make about ${Math.round(k.keyCap)}. No bakers means nothing comes out of the oven.`);
       if (b.type === 'gym') {
         const prev = b.members == null ? served : b.members; const left = prev * s.churn * (r > 1.05 ? 1 + (r - 1) * 2 : 1);
         const joined = Math.max(0, served - prev + left); b.members = served;
@@ -4770,7 +4836,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     init(g, b) { b.factory = { stock: 0, policy: 'hold', premium: 0 }; },
     lines(b) { return b.equip.filter((x) => x.type === 'line'); },
     maxLines(b) { return Math.max(1, Math.floor(b.sqft / TG.CONFIG.businesses.factory.factory.sqftPerLine)); },
-    needs(g, b) { const n = Math.max(1, this.lines(b).length); const d = TG.CONFIG.businesses.factory; return { equip: [{ type: 'line', count: n }, { type: 'forklift', count: 1 }].concat(TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] }) < n * d.equip[0].cap * 1.05 ? [{ type: 'rawsilo', count: Math.ceil((n * d.equip[0].cap * 1.05 - TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] })) / 20000) }] : []), staff: [{ role: 'worker', count: Math.ceil(n * d.equip[0].cap / d.roles.worker.cap * (1 - ((b.fixesOn && b.fixesOn.workerCut) || 0))) }] }; },
+    needs(g, b) { const n = Math.max(1, this.lines(b).length); const d = TG.CONFIG.businesses.factory; const eff = 0.78; return { equip: [{ type: 'line', count: n }, { type: 'forklift', count: 1 }].concat(TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] }) < n * d.equip[0].cap * 1.05 ? [{ type: 'rawsilo', count: Math.ceil((n * d.equip[0].cap * 1.05 - TG.ST.cap({ type: 'factory', sqft: b.sqft, equip: [] })) / 20000) }] : []), staff: [{ role: 'worker', count: Math.ceil(n * d.equip[0].cap / (d.roles.worker.cap * eff) * (1 - ((b.fixesOn && b.fixesOn.workerCut) || 0))) }] }; },
     baseRev(g, b) { return Math.max(1, this.lines(b).length) * 12000 * TG.CONFIG.markets.goods.base * g.world.priceIdx; },
     month(g, b, ctx) {
       const C = TG.CONFIG, d = C.businesses.factory, fd = d.factory, f = b.factory, fo = b.fixesOn || {};
@@ -4789,8 +4855,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       if (g.world.shortage.home) TG.F.spend(g, Math.round(prod * fd.materialCost * g.world.priceIdx * 0.05), 'Raw materials', b.id);
       f.stock += prod;
       if (fo.rnd && R.chance(fo.rnd)) { f.premium = Math.min(0.3, f.premium + 0.04); g.markets.goods.demand12 *= 1.02; TG.rep.event(g, b, 'good', 'R&D launched a new product line (+4% price premium)', '3% monthly chance with an R&D department'); }
-      const pNow = TG.W.price(g, 'goods', f.stock * 6) * (1 + f.premium) * (0.9 + 0.2 * ctx.quality / 100);
-      const floor = fd.materialCost * g.world.priceIdx * 1.5;
+      const pNow = TG.W.price(g, 'goods', Math.min(f.stock, Math.max(prod, 1)) * 2) * (1 + f.premium) * (0.9 + 0.2 * ctx.quality / 100);
+      // v14: hold only when the market price does not cover what the materials actually cost. The old floor was 1.5x the sticker price and ignored industry slumps, so a normal dip made the plant stop selling while wages and rent kept running.
+      const floor = TG.ST.unitCost(g, b) * 1.08;
       let sell = f.stock;
       if (f.policy === 'hold' && pNow < floor && b.ask == null) sell = Math.max(0, f.stock - prod * fd.maxStockMonths);
       sell = Math.min(sell, f.stock);
@@ -4934,7 +5001,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         ctx.cap = Math.round(t.dev); ctx.demand = T.devPoints; ctx.served = 0; ctx.util = 1; ctx.busy = 1;
         ctx.note = `Building the app: ${Math.min(100, Math.round(t.dev / T.devPoints * 100))}% done after this month`;
         { const FL = TG.FL; FL.start(b); FL.row(b, '🧑‍💻', 'Build progress', Math.min(100, t.dev / T.devPoints * 100), '%', 'g'); FL.next(b, '🚀', 'Months to launch', Math.max(0, (T.devPoints - t.dev) / Math.max(0.1, engEff * M.paceMult(b))), '', 'g'); }
-        if (t.dev >= T.devPoints) { t.phase = 'live'; t.liveAt = g.month; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
+        if (t.dev >= T.devPoints) { t.phase = 'live'; t.liveAt = g.month; t.users = Math.round(300 + 3000 * t.pmf * (0.5 + b.rep / 100)); t.userAvg = t.users; TG.rep.event(g, b, 'good', `Product launched with ${t.users.toLocaleString()} early users`, t.pmfEst != null ? `Research estimated product-market fit around ${U.pct(t.pmfEst)}` : 'No market research: fit unknown until users show up'); }
         return;
       }
       M.techRounds(g, b);
@@ -4946,36 +5013,44 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       let organic = (t.users * T.organic * t.pmf * (T.orgFit || 2) * (b.rep / 50) + (T.orgFloor || 150) * t.pmf) * (((b.fixesOn || {}).organicMult) || 1); /* v10: invite-a-friend */
       let hit = 1; for (const h of b.hits) hit *= h.mult; if (b.boost) hit *= b.boost.mult;
       ctx.adStat = { extra: paid * hit, unit: 'new users', share: paid / Math.max(1e-9, paid + organic), flop };
+      const serverCap = Math.max(0, TG.E.capacity(b, 'server'));
       let newU = (paid + organic) * hit * TG.W.econMult(g, 0.5) * TG.IN.demand(g, 'tech') * (1 - share) * TG.PR.demandF(TG.PR.ratio(g, b));
-      const engNeed = 2 + t.users / 150000;
+      const room = Math.max(0, serverCap - t.users);
+      const turned = Math.max(0, newU - room); newU = Math.min(newU, room); // v14: ads cannot sign up users the servers cannot hold
+      const engNeed = 2 + Math.min(t.users, serverCap) / 150000;
       const engCov = U.clamp(engEff / engNeed, 0, 1);
-      const serverCap = TG.E.capacity(b, 'server');
       TG.WK.add(ctx, 'eq', '🖥️', 'Servers', b.equip.filter((x) => (x.type === 'server' || x.type === 'cdn') && !x.broken).length, serverCap, t.users, 'users', ['server'], 'Each server handles about 60,000 users. Over 100% = outages and users leave.');
       TG.WK.add(ctx, 'staff', '🧑‍💻', 'Engineers', ctx.key.length + (ctx.own ? 1 : 0), engEff, engNeed, 'eng. needed', [], 'Fix bugs and keep users happy: about 2 + 1 per 150,000 users needed.');
-      const overload = t.users > serverCap;
-      const pOut = T.outageBase * (overload ? 5 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
+      const overload = serverCap > 0 && t.users >= serverCap * 0.98;
+      const pOut = T.outageBase * (overload ? 1.8 : 1) * (b.fixes.backup ? 0.3 : 1) * ctx.streakMult;
       if (t.users > 0 && R.chance(pOut)) { const x = R.range(0.03, 0.08); t.users = Math.round(t.users * (1 - x)); b.rep = U.clamp(b.rep - R.range(3, 8), 0, 100); TG.rep.event(g, b, 'bad', `Server outage: ${U.pct(x)} of users left`, `${U.pct(pOut)} outage chance: ${overload ? `servers overloaded (${t.users.toLocaleString()} users, capacity ${Math.round(serverCap).toLocaleString()})` : 'normal load'}${b.fixes.backup ? ', backup servers' : ', no backup servers'}`); }
       const churnRate = Math.max(0.01, T.churnBase - (((b.fixesOn || {}).churnCut) || 0) - (T.churnFit || 0.07) * t.pmf + (1 - engCov) * 0.05 + (TG.PR.ratio(g, b) > 1 ? (TG.PR.ratio(g, b) - 1) * C.pricing.techChurnPerOver * 2.5 : -(1 - TG.PR.ratio(g, b)) * 0.02));
       const prevU = t.users;
       const churn = t.users * churnRate;
-      t.users = Math.max(0, Math.round(t.users + newU - churn));
+      t.users = Math.max(0, Math.round(Math.min(serverCap, t.users + newU - churn)));
       t.peak = Math.max(t.peak, t.users);
+      const prevAvg = t.userAvg == null ? 0 : t.userAvg;
+      const step = Math.max(400, prevAvg * 0.2);
+      t.userAvg = Math.min(t.users, prevAvg + step);
       g.markets.software.cur = (g.markets.software.cur || 0) + t.users / 12;
-      const rev = t.users * TG.PR.ask(g, b);
+      const paying = Math.min(t.users, serverCap);
+      const rev = paying * TG.PR.ask(g, b);
       const FL = TG.FL; FL.start(b);
       FL.row(b, '🙋', 'New users', newU, '', 'g'); FL.row(b, '👋', 'Users lost', churn, '', churn > newU ? 'r' : 'y', `${U.pct(churnRate, 1)} leave each month`);
-      FL.row(b, '📱', 'Users now', t.users, '/' + Math.round(serverCap), overload ? 'r' : 'g', overload ? 'Servers overloaded: outages' : '');
+      FL.row(b, '📱', 'Users now', t.users, '/' + Math.round(serverCap), t.users >= serverCap && serverCap > 0 ? 'y' : 'g', turned > 1 ? `${Math.round(turned).toLocaleString()} more wanted to join but the servers were full` : (serverCap <= 0 ? 'No working servers: nobody can use the app' : ''));
       FL.row(b, '💵', 'Price', TG.PR.ask(g, b), '$/user', TG.PR.tone(TG.PR.ratio(g, b)));
       FL.next(b, '📱', 'Users expected', Math.max(0, t.users + newU - t.users * churnRate), '', 'g');
       FL.next(b, '👋', 'Will leave', t.users * churnRate, '', 'y');
       TG.F.earn(g, Math.round(rev), 'Subscriptions', b.id);
-      TG.F.spend(g, Math.round(t.users * T.serverCostPerUser * g.world.priceIdx), 'Hosting', b.id);
-      ctx.cap = Math.round(serverCap); ctx.demand = Math.round(t.users); ctx.served = Math.round(newU);
+      TG.F.spend(g, Math.round(paying * T.serverCostPerUser * g.world.priceIdx), 'Hosting', b.id);
+      ctx.cap = Math.round(serverCap); ctx.demand = Math.round(t.users + turned); ctx.served = Math.round(paying);
+      ctx.limit = (serverCap <= 0 || t.users >= serverCap * 0.98) ? 'equipment' : (engCov < 0.8 ? 'staff' : 'demand');
+      ctx.limitEquip = 'server';
       ctx.util = serverCap > 0 ? t.users / serverCap : 1.5; ctx.busy = U.clamp(1 / Math.max(0.3, engCov), 0, 1.3);
       ctx.note = `${t.users.toLocaleString()} users, ${U.pct(churnRate, 1)} monthly churn, customer cost ${U.money(cac)}`;
       if (engCov < 0.8) ctx.note += '; engineering team stretched thin';
     },
-    extraRisks(g, b) { const T = TG.CONFIG.businesses.tech.tech; if (b.tech.phase !== 'live') return []; const over = b.tech.users > TG.E.capacity(b, 'server'); return [{ label: 'Server outage', p: T.outageBase * (over ? 5 : 1) * (b.fixes.backup ? 0.3 : 1), why: over ? 'servers overloaded' : 'normal load' }]; },
+    extraRisks(g, b) { const T = TG.CONFIG.businesses.tech.tech; if (b.tech.phase !== 'live') return []; const cap = TG.E.capacity(b, 'server'); const full = cap > 0 && b.tech.users >= cap * 0.98; return [{ label: 'Server outage', p: T.outageBase * (full ? 1.8 : 1) * (b.fixes.backup ? 0.3 : 1), why: full ? 'servers are full' : 'normal load' }]; },
   };
   // v9: milestone funding. Hitting a user milestone brings an investor offer (cash for a share of the company); you or a manager decide.
   M.techRoundOffer = (g, b, r) => ({ cash: Math.round(Math.max(r.min, b.tech.users * r.perUser) * g.world.priceIdx / 1000) * 1000, pct: r.pct });
@@ -5037,12 +5112,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       const cannibal = 1 / (1 + Math.pow(sat, 1.5) * (fo.cannibalCut ? 0.5 : 1));
       const concept = C.businesses[s.concept];
       const conceptMult = concept && concept.svc ? U.clamp(concept.svc.baseDemand * concept.svc.ticket / 30000, 0.5, 1.6) : 1;
-      let royalty = 0;
+      let royalty = 0; s._paid = 0;
       for (const l of s.locations) {
         l.age++;
         if (l.status === 'building') { if (l.age >= 3) { l.status = 'open'; } continue; }
         const sales = fr.avgSales * conceptMult * (0.6 + 0.8 * l.q) * TG.W.econMult(g, C.businesses.franchise.econSens) * (0.6 + b.rep / 125) * cannibal * g.world.priceIdx;
-        royalty += sales * fr.royalty;
+        const sysCap = TG.E.capacity(b, 'systems');
+        if ((s._paid || 0) < sysCap) { s._paid = (s._paid || 0) + 1; royalty += sales * fr.royalty; l.dark = false; }
+        else l.dark = true; // v14: shops past the ordering system pay no royalty this month
         if (R.chance(l.bad ? 0.02 : fr.closeChance * (g.world.phase === 'recession' ? 2 : 1))) { l.status = 'closed'; TG.rep.event(g, b, 'bad', `Franchisee ${l.name} closed their location`, l.bad ? 'Weak franchisee (hidden quality revealed)' : 'Normal franchise turnover'); }
         if (l.bad && R.chance(fr.scandalPerBad * (fo.scandalCut || 1) * ctx.streakMult)) {
           const x = R.range(10, 20); b.rep = U.clamp(b.rep - x, 0, 100); l.revealed = true;
@@ -6974,15 +7051,34 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (!c.started || !CR.on(g)) { c.heat = Math.max(0, c.heat * (1 - k.heatDecay) - k.heatFlat); return; } // off = frozen: nothing sells, nothing is paid
     const active = CR.on(g);
     const cap = CR.capacity(g); const J = CR.jailed(g);
-    // cooks make product (needs workshops and money)
+    // cooks make product. Output scales with how many cooks fit in workshops and with their skill.
+    // They cook the product you picked (or the one clients want most), not whichever rare good just unlocked.
     let made = 0;
-    if (active && cap.cooks > 0) {
-      const p = ['void', 'haze', 'glow', 'sugar'].find((x) => CR.unlocked(g, k.products[x].unlock)) || 'sugar';
-      const cooks = c.crew.filter((e) => e.role === 'cook').slice(0, cap.cooks);
-      let q = U.sum(cooks, (e) => k.cookMakes[p] * (0.6 + 0.8 * e.skill / 100)) * (J ? 0.5 : 1);
-      q = Math.min(q, CR.room(g) - CR.units(g)); const cost = q * CR.wholesale(g, p) * k.cookCostShare;
-      if (q > 0 && c.dirty >= cost) { c.dirty -= cost; c.stock[p] += Math.floor(q); made = Math.floor(q); row(c, '🧪', `Cooked ${k.products[p].label}`, made, 'units', 'g', `Cost ${U.money(cost)}: about ${U.pct(k.cookCostShare)} of buying it`); }
-      c.last.cookUtil = cap.shops ? cap.cooks / cap.shops : 0;
+    const cooksAll = c.crew.filter((e) => e.role === 'cook');
+    if (active && cooksAll.length) {
+      const unlocked = Object.keys(k.products).filter((x) => CR.unlocked(g, k.products[x].unlock));
+      const wantScore = (x) => (c.clients || 0) * k.products[x].want * Math.max(0, CR.street(g, x) - CR.wholesale(g, x));
+      let p = c.cookProd && unlocked.includes(c.cookProd) ? c.cookProd : unlocked.slice().sort((a, b2) => wantScore(b2) - wantScore(a))[0] || 'sugar';
+      c.lastCook = p;
+      const cooks = cooksAll.slice(0, Math.max(0, cap.cooks));
+      const per = (e) => k.cookMakes[p] * (0.6 + 0.8 * e.skill / 100) * (J ? 0.5 : 1);
+      let q = U.sum(cooks, per);
+      const whyNo = !cap.shops ? 'No working workshop: cooks need one (🗺️ Turf). Each workshop fits 2 cooks.' : cap.cooks < cooksAll.length ? `Only ${cap.cooks} of ${cooksAll.length} cooks fit in the workshops.` : '';
+      const roomLeft = Math.max(0, CR.room(g) - CR.units(g));
+      if (q > roomLeft) q = roomLeft;
+      const unitCost = CR.wholesale(g, p) * k.cookCostShare;
+      const afford = unitCost > 0 ? Math.floor(c.dirty / unitCost) : 0;
+      const shortCash = q > afford;
+      q = Math.min(q, afford);
+      if (q > 0) {
+        const cost = q * unitCost; c.dirty -= cost; c.stock[p] += Math.floor(q); made = Math.floor(q);
+        row(c, '🧪', `Cooked ${k.products[p].label}`, made, 'units', 'g', `${cooks.length} cook${cooks.length > 1 ? 's' : ''} · cost ${U.money(cost)} (${U.pct(k.cookCostShare)} of buying it)${shortCash ? ' · not enough street cash for a full batch' : ''}${whyNo ? ' · ' + whyNo : ''}`);
+      } else {
+        const why = !cap.shops ? 'No working workshop, so nothing was cooked.' : roomLeft < 1 ? 'Stash is full. Sell some or buy a stash house.' : 'Not enough street cash to buy ingredients.';
+        row(c, '🧪', `Cooked ${k.products[p].label}`, 0, 'units', 'r', why);
+      }
+      c.last.cookUtil = cap.shops ? Math.min(1, cooks.length / cap.shops) : 0;
+      c.last.cooked = made;
     }
     // demand: clients x what they want, cheaper = more
     const dem = {}; let workNeed = 0;
@@ -7223,7 +7319,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 13;
+  const VERSION = 14;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -7433,6 +7529,50 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   TG.store = store;
   const SAVE_KEY = 'tycoon_save_v1';
+  const SLOT_IDX = 'tycoon_slots_v1';
+  // v14: several games on one device. The old single save (tycoon_save_v1) is copied into slot 1 the first time.
+  const Slots = {
+    read() { try { return JSON.parse(store.get(SLOT_IDX) || 'null'); } catch (e) { return null; } },
+    write(idx) { try { store.set(SLOT_IDX, JSON.stringify(idx)); } catch (e) { /* best effort */ } },
+    key(id) { return 'tycoon_slot_' + id; },
+    metaKey(id) { return 'tycoon_meta_' + id; },
+    summary(g, name) { return { month: g.month || 0, cash: Math.round(g.cash || 0), savedAt: g.savedAt || Date.now(), v: g.v, name: name || (g.player && g.player.name ? g.player.name + "'s game" : 'Game') }; },
+    ensure() {
+      let idx = Slots.read();
+      if (idx && Array.isArray(idx.slots)) return idx;
+      idx = { slots: [], active: null };
+      const leg = store.get(SAVE_KEY);
+      if (leg) {
+        const id = '1'; store.set(Slots.key(id), leg);
+        let row = { id, name: 'Game 1', month: 0, cash: 0, savedAt: Date.now() };
+        try { const g = JSON.parse(leg); Object.assign(row, Slots.summary(g, 'Game 1')); row.id = id; } catch (e) { /* keep defaults */ }
+        idx.slots.push(row); idx.active = id;
+      }
+      Slots.write(idx); return idx;
+    },
+    active() { const idx = Slots.ensure(); return idx.active; },
+    create(name) {
+      const idx = Slots.ensure(); const id = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+      idx.slots.push({ id, name: name || ('Game ' + (idx.slots.length + 1)), month: 0, cash: 0, savedAt: Date.now() });
+      idx.active = id; Slots.write(idx); if (E.markSeen) E.markSeen(); return id;
+    },
+    rename(id, name) { const idx = Slots.ensure(); const s = idx.slots.find((x) => x.id === id); if (s && name) { s.name = String(name).slice(0, 32); Slots.write(idx); } },
+    remove(id) {
+      const idx = Slots.ensure(); idx.slots = idx.slots.filter((x) => x.id !== id); store.del(Slots.key(id)); store.del(Slots.metaKey(id));
+      if (TG.IDB) TG.IDB.put(Slots.key(id), null);
+      if (idx.active === id) idx.active = idx.slots.length ? idx.slots[idx.slots.length - 1].id : null;
+      Slots.write(idx); return idx;
+    },
+    activate(id) { const idx = Slots.ensure(); if (!idx.slots.some((x) => x.id === id)) return false; idx.active = id; Slots.write(idx); if (E.markSeen) E.markSeen(); return true; },
+    touch(g) {
+      const idx = Slots.ensure(); let id = idx.active;
+      if (!id) { id = '1'; idx.slots.push({ id, name: 'Game 1', month: 0, cash: 0, savedAt: Date.now() }); idx.active = id; }
+      const row = idx.slots.find((x) => x.id === id) || (idx.slots.push({ id, name: 'Game 1' }), idx.slots[idx.slots.length - 1]);
+      Object.assign(row, Slots.summary(g, row.name)); row.id = id; Slots.write(idx);
+      return id;
+    },
+  };
+  E.slots = Slots;
   E.serialize = (g) => JSON.stringify(g);
   E.validate = (g) => {
     if (!g || typeof g !== 'object') throw new Error('Not a save file');
@@ -7535,7 +7675,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   // revision (another tab saved after it loaded) refuses to save and asks you to reload, so it cannot wipe that progress.
   const META_KEY = 'tycoon_save_meta';
   E.TAB = Math.random().toString(36).slice(2, 10);
-  E.meta = () => { try { return JSON.parse(store.get(META_KEY) || 'null') || {}; } catch (e) { return {}; } };
+  E.metaKey = () => { const id = Slots.active(); return id ? Slots.metaKey(id) : META_KEY; };
+  const readMeta = (k) => { try { return JSON.parse(store.get(k) || 'null') || {}; } catch (e) { return {}; } };
+  E.meta = () => { const a = readMeta(E.metaKey()), b = readMeta(META_KEY); return (b.rev || 0) > (a.rev || 0) ? b : a; };
   E.seenRev = null; E.stale = false;
   E.markSeen = () => { E.seenRev = E.meta().rev || 0; E.stale = false; };
   E.save = (g, force) => {
@@ -7543,16 +7685,21 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     if (!force && E.seenRev != null && (mt.rev || 0) !== E.seenRev && mt.tab && mt.tab !== E.TAB) { E.stale = true; E.saveState = { ok: false, at: Date.now(), where: '', err: 'stale', stale: true }; if (E.onStale) E.onStale(); return false; }
     const rev = (mt.rev || 0) + 1;
     let txt; try { g.savedAt = Date.now(); txt = E.serialize(g); } catch (e) { E.saveState = { ok: false, at: Date.now(), where: '', err: 'could not package the game' }; return false; }
-    const lsOk = E.saveText(txt); if (lsOk) { try { store.set(META_KEY, JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId })); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    const lsOk = E.saveText(txt); if (lsOk) { try { const meta = JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId, slot: Slots.active() }); store.set(E.metaKey(), meta); store.set(META_KEY, meta); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    try { const id = Slots.touch(g); store.set(Slots.key(id), txt); if (TG.IDB) TG.IDB.put(Slots.key(id), txt); } catch (e) { /* slot copy is best-effort; the main save already landed */ }
     E.saveIdb(txt, st);
     if (E.onSaved) E.onSaved(st); return lsOk; };
-  E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
+  E.loadAsync = () => { const id = Slots.ensure().active; const sk = id ? Slots.key(id) : SAVE_KEY; return IDB.get(sk).then((s2) => { let a = null, b = null; const s1 = store.get(sk) || (!id ? null : store.get(SAVE_KEY));
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); /* v10: the caller decides when to make it the live game */
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); }; /* v10: the caller decides when to make it the live game */
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
-  E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
-  E.clearSave = () => store.del(SAVE_KEY);
+  E.load = () => {
+    E.markSeen(); const idx = Slots.ensure(); const id = idx.active;
+    const s = (id && store.get(Slots.key(id))) || store.get(SAVE_KEY);
+    if (!s) return null; try { const g = E.deserialize(s); TG.G = g; if (id) store.set(SAVE_KEY, s); return g; } catch (e) { return null; }
+  };
+  E.clearSave = () => { const id = Slots.active(); store.del(SAVE_KEY); if (id) Slots.remove(id); };
   const b64e = (s) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'));
   const b64d = (s) => (typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'));
   E.exportCode = (g) => 'TYC1:' + b64e(E.serialize(g));
@@ -8265,6 +8412,172 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 })();
 
 </script>
+<script>/* js/v14.js */
+/* v14: people manager, factory-site fit, crime street boss, save notes, property fit for plants. */
+(function () {
+  const TG = globalThis.TG;
+  const C = TG.CONFIG, U = TG.U, R = TG.R, S = TG.S, D = TG.D;
+  const X = () => C.v14; const V = TG.V14 = {};
+
+  const sk = (e) => U.clamp(((e && e.skill) || 0) / 100, 0, 1);
+  const lerp = (a, t) => a[0] + (a[1] - a[0]) * t;
+
+  // ================= PEOPLE MANAGER =================
+  V.people = (b) => b && b.spec && b.spec.people;
+  V.peopleFx = (e) => {
+    const t = sk(e); const P = X().people;
+    return {
+      morale: Math.round(lerp(P.morale, t)),
+      quit: lerp(P.quitCut, t),
+      poach: lerp(P.poachCut, t),
+      perk: P.perkShare,
+      hires: 1 + (t >= 0.75 ? 1 : 0),
+    };
+  };
+  // what hiring this candidate would change, shown before you pay
+  V.peoplePreview = (g, b, cand) => {
+    const fx = V.peopleFx(cand); const wage = cand.wage;
+    const perk = Math.round(wage * fx.perk);
+    const team = (b.staff || []).length;
+    let over = 0;
+    for (const w of b.work || []) if (w.kind === 'staff' && w.util > X().people.over) over++;
+    return { wage, perk, morale: fx.morale, quit: fx.quit, poach: fx.poach, hires: fx.hires, team, over };
+  };
+  const perk0 = S.perk;
+  S.perk = (b, key) => {
+    let t = perk0(b, key);
+    const p = V.people(b); if (!p) return t;
+    const fx = V.peopleFx(p);
+    if (key === 'morale') t += fx.morale;
+    if (key === 'quitCut') t += fx.quit;
+    return t;
+  };
+  const po0 = S.poachOdds;
+  S.poachOdds = (g, b, e, guess) => {
+    const o = po0(g, b, e, guess); const p = V.people(b); if (!p || (TG.CONFIG.specialists[e.role])) return o;
+    const fx = V.peopleFx(p); o.p = U.clamp(o.p * (1 - fx.poach), 0, TG.CONFIG.staff.poach.max);
+    o.reasons = o.reasons.slice(); o.reasons.push(`people manager (skill ~${Math.round(p.skill)}) cuts poach odds`);
+    return o;
+  };
+  // quit odds already go through S.perk('quitCut'), which now includes the people manager
+  // staffing: hire so a red work bar comes down. One (or two, if skilled) hire a month. Nothing if you cannot pay.
+  V.peopleAct = (g, b) => {
+    const p = V.people(b); if (!p || g._pv) return;
+    const fx = V.peopleFx(p); let left = fx.hires;
+    const rows = (b.work || []).filter((w) => w.kind === 'staff' && w.role && w.util > X().people.over && !TG.CONFIG.specialists[w.role]).sort((a, c) => c.util - a.util);
+    for (const w of rows) {
+      if (left <= 0) break;
+      let pool = S.poolFor(g, b, w.role);
+      if (TG.V13 && TG.V13.filter) pool = TG.V13.filter(g, b, w.role, pool, p.name);
+      pool = pool.filter((c) => c.wage * 3 <= Math.max(0, g.cash));
+      if (!pool.length) { TG.rep.decision(g, b, p.name, `Wanted another ${((S.roleDef(b, w.role) || {}).label || 'worker').toLowerCase()} so the team is not overworked, but nobody affordable applied`, 'ok'); continue; }
+      const best = pool.slice().sort((a, c) => (c.skillSeen != null ? c.skillSeen : c.skill) - (a.skillSeen != null ? a.skillSeen : a.skill))[0];
+      S.hire(g, b, best, p.name); left--;
+      TG.rep.decision(g, b, p.name, `Hired ${best.name} so ${((S.roleDef(b, w.role) || {}).label || 'the team').toLowerCase()}s are not overworked (${Math.round(w.util * 100)}% busy)`, 'good');
+    }
+  };
+  const manage0 = D.manage;
+  D.manage = (g, b) => { const r = manage0(g, b); try { V.peopleAct(g, b); } catch (e) { /* a bad hire must not stop the month */ } return r; };
+
+  // ================= FACTORY SITES =================
+  // A plant in a hotel or a giant city building looked "great" and the rent ate the profit.
+  const suit0 = TG.P.suit;
+  TG.P.suit = (p, type) => {
+    let s = suit0(p, type);
+    if (type === 'factory') {
+      if (p.kind !== 'warehouse') s *= 0.42;
+      if (p.sqft > 55000) s *= 0.72;
+    }
+    return U.clamp(s, 0, 1);
+  };
+
+  // ================= CRIME: STREET BOSS =================
+  V.bossFx = (e) => {
+    const t = sk(e);
+    return { order: 0.85 + 0.2 * t, waste: 0.25 - 0.15 * t, hire: t >= 0.45 };
+  };
+  V.bossPreview = (g, e) => {
+    const fx = V.bossFx(e); const k = C.crime;
+    return { wage: e.wage, order: fx.order, waste: fx.waste, hire: fx.hire, perk: 'Buys about ' + Math.round(fx.order * 100) + '% of what clients will want, and replaces crew who leave.' };
+  };
+  V.crimeBoss = (g) => {
+    const c = g.crime; if (!c || !c.started || !TG.CR.on(g) || TG.CR.jailed(g)) return;
+    const boss = c.mgr && c.mgr.boss; if (!boss) return;
+    const k = C.crime; const fx = V.bossFx(boss);
+    // reorder the product clients want most, up to stash room, paid from street cash
+    const products = Object.keys(k.products).filter((p) => TG.CR.unlocked(g, k.products[p].unlock));
+    if (products.length && c.supplier) {
+      const p = products.slice().sort((a, b2) => (c.clients * k.products[b2].want) - (c.clients * k.products[a].want))[0];
+      const dem = Math.max(0, (c.clients || 0) * k.products[p].want * (0.5 + c.rep / 100));
+      const have = c.stock[p] || 0; let want = Math.max(0, dem * fx.order - have);
+      if (R.chance(fx.waste)) want *= R.chance(0.5) ? 0.7 : 1.3; // skill: a weak boss over- or under-orders
+      want = Math.floor(Math.min(want, TG.CR.room(g) - TG.CR.units(g)));
+      if (want >= 10) {
+        const r = TG.CR.buy(g, c.supplier || 'plug', p, want);
+        if (r && r.ok && r.got) TG.rep.event(g, null, 'info', `🕶️ ${boss.name} bought ${Math.round(r.got).toLocaleString()} ${k.products[p].label}`, `Street boss, skill ~${Math.round(boss.skill)}. Aimed for about ${Math.round(fx.order * 100)}% of what clients want.`);
+      }
+    }
+    // replace a missing crew role up to the count you had (stored as c.keep)
+    c.keep = c.keep || {};
+    if (fx.hire) {
+      for (const role of Object.keys(k.crew)) {
+        const need = c.keep[role] || 0; const have = TG.CR.count(g, role);
+        if (have >= need || need < 1) continue;
+        const cand = (TG.CR.candidates(g) || []).filter((x) => x.role === role).sort((a, b2) => b2.skill - a.skill)[0];
+        if (!cand) continue;
+        const fee = Math.round(cand.wage * k.hireCost); if (c.dirty < fee + cand.wage) continue;
+        const r = TG.CR.hire(g, cand.id);
+        if (r && r.ok) TG.rep.event(g, null, 'info', `🕶️ ${boss.name} hired ${cand.name} (${k.crew[role].label})`, 'A crew spot you were holding was empty.');
+      }
+    }
+  };
+  const crMonth = TG.CR.month;
+  TG.CR.month = (g) => { try { V.crimeBoss(g); } catch (e) { /* boss must not stop the month */ } return crMonth(g); };
+  const hireCrew = TG.CR.hire;
+  TG.CR.hire = (g, id) => {
+    const r = hireCrew(g, id); if (r && r.ok && g.crime) { const e = g.crime.crew[g.crime.crew.length - 1]; g.crime.keep = g.crime.keep || {}; if (e) g.crime.keep[e.role] = TG.CR.count(g, e.role); }
+    return r;
+  };
+  const fireCrew = TG.CR.fire;
+  TG.CR.fire = (g, id) => { const c = g.crime; const e = c && c.crew.find((x) => x.id === id); const role = e && e.role; fireCrew(g, id); if (c && role) { c.keep = c.keep || {}; c.keep[role] = TG.CR.count(g, role); } };
+  TG.CR.bossPool = (g) => {
+    const c = TG.CR.ensure(g); if (c.bossM === g.month && c.bossCands) return c.bossCands;
+    c.bossM = g.month; c.bossCands = [];
+    const W = X().crimeMgr.boss;
+    for (let i = 0; i < 3; i++) {
+      const skill = Math.round(U.clamp(R.normal(48 + c.rep / 8, 14), 8, 96));
+      c.bossCands.push({ id: U.uid('m'), name: S.name(), role: 'boss', skill, wage: Math.round(U.lerp(W.wage[0], W.wage[1], skill / 100) * g.world.priceIdx / 10) * 10 });
+    }
+    return c.bossCands;
+  };
+  TG.CR.hireBoss = (g, id) => {
+    const c = TG.CR.ensure(g); if (TG.CR.jailed(g)) return { ok: false, msg: 'You are in jail.' };
+    const k = TG.CR.bossPool(g).find((x) => x.id === id); if (!k) return { ok: false, msg: 'They moved on.' };
+    if (c.dirty < k.wage) return { ok: false, msg: `Needs ${U.money(k.wage)} street cash for the first month.` };
+    c.dirty -= k.wage; c.mgr = c.mgr || {}; c.mgr.boss = Object.assign({}, k, { since: g.month, morale: 70 }); c.started = true;
+    return { ok: true };
+  };
+  TG.CR.fireBoss = (g) => { const c = g.crime; if (c && c.mgr) c.mgr.boss = null; };
+
+  // ================= MIGRATION v13 -> v14 =================
+  V.migrate = (g) => {
+    for (const b of g.businesses || []) if (b.tech && b.tech.userAvg == null) b.tech.userAvg = b.tech.users || 0;
+    if (g.crime && !g.crime.mgr) g.crime.mgr = {};
+    g.v14notes = [
+      '🛠️ Gear: pick a quality, then Buy. You can buy many at once. The price each and the total show before you confirm.',
+      '💛 People manager: a late-game boss for each business. Keeps morale up, cuts quitting and poaching, and hires so nobody is overworked. Part of the high salary is team perks. The CEO "keep hired" list includes them.',
+      '🏭 Manufacturing: a sensible plant can make money. Quick setup buys a line you can afford (or leases one), stocks materials, and will not hire a crew for a line it did not get. The best sites are warehouses, not giant city buildings. The plant keeps selling when the price still covers materials.',
+      '💾 Save slots: your old save is Game 1. You can keep more games, rename them, and delete one after a confirmation.',
+      '💻 Sales cannot go past what the servers (or other capacity) can handle, and a one-month spike no longer inflates the sale price.',
+      '🕶️ Crime has a street boss so buying product and replacing crew can run without you. Cooks make the product you pick, and the amount depends on how many cooks you have and how good they are.',
+    ];
+    g.v = 14;
+  };
+  const mig0 = TG.Game.migrate;
+  TG.Game.migrate = (g) => { mig0(g); if ((g.v || 0) < 14) V.migrate(g); return g; };
+})();
+
+</script>
 <!-- UI -->
 <script>/* js/ui/ui-core.js */
 /* ui-core.js - rendering helpers, navigation, modal, turn controls, actions dispatch, autosave. */
@@ -8336,7 +8649,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
 
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
-  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
+  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax', 'crRole', 'slotLoad', 'slotRename', 'slotRenameGo', 'slotDel', 'slotDelGo', 'slotNew'];
   // v6 instant updates: derived numbers (capacity, work bars, limits, forecast) for a business as it is RIGHT NOW.
   // TG.B.live recomputes them whenever the business changed (it is cached otherwise), so every action shows its effect at once.
   const LV = (b) => (TG.G && b ? TG.B.live(TG.G, b) : null);
@@ -8593,7 +8906,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
       <div class="mute">Crime options add illegal side hustles (risky: fines, jail). You can change this later in Settings.</div>
       <div class="mute">Game code: leave blank for a new random world. Type the same code twice to get the same world (to replay or compare with a friend).</div></div>
       <h3>Choose a start</h3>${Object.entries(sc).map(([id, s]) => `<div class="card"><div class="row sp"><div class="grow"><b>${esc(s.label)}</b><div class="mute">${esc(s.desc)}</div></div>${UI.btn('Start', 'newGame', id, 'pri')}</div></div>`).join('')}
-      ${first ? '' : '<div class="mute">Starting a new game replaces the current autosave (export it first in Settings if you want to keep it).</div>'}`;
+      ${first ? '' : '<div class="mute">A new game goes in its own slot. Your other games stay. Delete one from More → Settings → Games.</div>'}`
     if (first) { document.querySelector('#app').innerHTML = `<header class="top"><span class="date">🏢 Tycoon</span></header><main><h2>New game</h2>${o}</main>`; }
     else UI.modal('New game', o);
   };
@@ -8765,10 +9078,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     o += UI.stockCard(g, b);
     if (PR().hasPrice(b)) o += UI.priceCard(g, b);
     { const ss = UI.salesSummary(g, b); if (ss) o += `<div class="card">${ss}</div>`; }
-    o += UI.workCard(g, b);
-    // how it runs
-    o += `<div class="card"><h3>⚙️ How it runs</h3>
-      ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}</div>`;
+    o += UI.fold('wk' + b.id, '💪 Work — tap for every team and machine', UI.workCard(g, b));
+    o += UI.fold('pace' + b.id, '⚙️ Work pace', `<div class="card"><h3>⚙️ How it runs</h3>
+      ${UI.irow('pace', '🏃', 'Work pace', null, 'Rush = more output, more wear and accidents. Careful = safer, less output.', ['careful', 'normal', 'rush'].map((p) => UI.btn({ careful: '🐢', normal: '🚶', rush: '🏃' }[p] + ' ' + p, 'bizPace', p, 'xs' + (b.pace === p ? ' pri' : ''))).join(''))}</div>`);
     o += `<div class="btns">${UI.btn('📊 Reports: this month, next month, forecast', 'tab', 'biz:rep', 'sm')}</div>`;
     return o;
   }
@@ -8856,7 +9168,12 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const d = TG.B.def(b); const C = TG.CONFIG;
     if (!b.target) TG.D.syncTargets(b);
     const roles = Object.keys(d.roles);
-    let o = UI.staffWorkCard(g, b);
+    const pay = TG.S.payroll(b); const mor = b.staff.length ? Math.round(U.avg(b.staff, (e) => e.morale)) : '–';
+    let o = `<div class="tiles">${UI.tile('stN' + b.id, '👥', b.staff.length, 'People', '', 'Everyone on the crew, not counting managers.')}
+      ${UI.tile('stP' + b.id, '💵', m(pay), 'Pay / month', '', 'Wages for the whole team, before payroll tax.')}
+      ${UI.tile('stM' + b.id, '💛', mor, 'Morale', mor === '–' ? '' : mor >= 60 ? 'g' : mor >= 40 ? 'y' : 'r', 'Average mood. Low morale means more quitting.')}
+      ${UI.tile('stR' + b.id, '⭐', Math.round(b.rep), 'Reputation', '', 'Customers. Held by your ads manager if you set a target.')}</div>`;
+    o += UI.staffWorkCard(g, b);
     // hire
     const hr = UI.S.hireRole && (d.roles[UI.S.hireRole] || C.specialists[UI.S.hireRole]) ? UI.S.hireRole : roles[0];
     const pool = TG.S.poolFor(g, b, hr);
@@ -8874,7 +9191,7 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const mgrLine = `<div class="ev info">🛠️ Managers order supplies; your crew works the site. ${mh.length ? `${mh.map((h) => `${esc(h.e.name)} (${esc(C.specialists[h.role].label)})`).join(' and ')} also work${mh.length > 1 ? '' : 's'} at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)} each: +${TG.S.mgrW(b).toFixed(2)} ${esc(krl)}'s worth of work.` : `A GM or Ops manager would also work at ${Math.round(C.staff.mgrWorkFrac * 100)}% of a ${esc(krl)}.`}</div>`;
     o += `<div class="card"><h3 style="margin-top:0">Managers & specialists</h3>${mgrLine}${specs.map(([r, e]) => empRow(b, e, TG.S.roleDef(b, r).label)).join('')}</div>`;
     if (UI.mgrSettings) o += UI.mgrSettings(g, b); // v12: GM job-offer setting + CEO keeps managers hired
-    o += `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length}) ${UI.tipBtn('stLeg' + b.id)}</h3>${UI.tipLine('stLeg' + b.id, `⭐ skill = how good they are. 💵 what you pay; 📈 market = what other companies would pay them. 🎯 = chance per month another company hires them away (higher when you pay under market, when they are skilled, and for 📈 climbers). Personality: 🤝 loyal (stays cheap) · 🙂 steady · 📈 climber (chases pay) · ❓ not known yet (shows after ~3 months). 🌱 trainee = cheap, low skill, train them up. Tap Manage for training and raises.`)}<div class="small mute">🤝 loyal · 🙂 steady · 📈 climber · ❓ not known yet · 🎯 = chance they get hired away this month</div>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`;
+    o += UI.fold('roster' + b.id, `👥 Full roster (${b.staff.length}) — tap to see everyone`, `<div class="card"><h3 style="margin-top:0">Staff (${b.staff.length}) ${UI.tipBtn('stLeg' + b.id)}</h3>${UI.tipLine('stLeg' + b.id, `⭐ skill = how good they are. 💵 what you pay; 📈 market = what other companies would pay them. 🎯 = chance per month another company hires them away (higher when you pay under market, when they are skilled, and for 📈 climbers). Personality: 🤝 loyal (stays cheap) · 🙂 steady · 📈 climber (chases pay) · ❓ not known yet (shows after ~3 months). 🌱 trainee = cheap, low skill, train them up. Tap Manage for training and raises.`)}<div class="small mute">🤝 loyal · 🙂 steady · 📈 climber · ❓ not known yet · 🎯 = chance they get hired away this month</div>${b.staff.length ? b.staff.slice().sort((x, y) => x.role.localeCompare(y.role) || y.skill - x.skill).map((e) => empRow(b, e, d.roles[e.role] ? d.roles[e.role].label : e.role)).join('') : '<div class="mute">No staff. Hire above.</div>'}</div>`);
     return o;
   }
   // ---------- 🧑‍💼 manager: your standing orders (the manager carries them out; skill decides how well) ----------
@@ -8884,7 +9201,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const who = (kind) => D.handler(g, b, kind);
     const hire = who('hire'), stockH = TG.ST.def(b) ? who('stock') : null; const fh = b.farm ? D.orderTaker(g, b, 'farm') : null;
     const mechs = TG.E.mechs(b), hasEq = b.equip.length > 0 && !!TG.S.roleDef(b, 'mech'); const NOM = '<span class="bad">No manager: you must do this yourself</span>';
-    let o = UI.gmOpsCard(g, b) + `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
+    const hiredN = Object.values(b.spec || {}).filter(Boolean).length;
+    const ppl = b.spec && b.spec.people;
+    let o = `<div class="tiles">${UI.tile('mgN' + b.id, '👔', hiredN, 'Managers', hiredN ? 'g' : 'y', 'Specialists on this business. Nothing they cover runs by itself.')}
+      ${UI.tile('mgP' + b.id, '💛', ppl ? Math.round(ppl.skill) : '–', 'People mgr', ppl ? 'g' : '', ppl ? `${ppl.name} keeps morale up and hires when the team is overworked.` : 'No people manager yet. Hire one on the Staff tab when the team is large.')}
+      ${UI.tile('mgS' + b.id, '📦', stockH ? 'Auto' : 'You', stockH ? 'g' : 'y', stockH ? 'A manager orders supplies.' : 'You order supplies yourself.')}
+      ${UI.tile('mgH' + b.id, '👥', hire ? 'Auto' : 'You', hire ? 'g' : 'y', hire ? 'A manager hires to your numbers.' : 'You hire yourself.')}</div>`;
+    o += UI.gmOpsCard(g, b) + `<div class="card"><h3>🧑‍💼 Who follows your orders ${UI.tipBtn('mw' + b.id)}</h3>${UI.tipLine('mw' + b.id, 'You give the orders; your manager carries them out. A skilled manager gets it right more often. A bad call can mean a forgotten order, a rushed hire or wasted spray. Costs come out of your cash as normal.')}
       ${UI.irow('mwh' + b.id, '👥', 'Hiring & spare staff', hire ? U.pct(hire.p) : '<span class="bad">nobody</span>', hire ? `${hire.label} hires to your numbers below. Gets it right about ${U.pct(hire.p)} of the time.` : 'No GM or HR manager: nobody hires for you. Hire one in the Staff tab (Managers & specialists).', null, hire ? esc(hire.label) : 'no manager')}
       ${hasEq ? UI.irow('mwm' + b.id, '🔧', 'Machines', mechs.length ? `${mechs.length} mechanic${mechs.length > 1 ? 's' : ''}` : '<span class="bad">nobody</span>', mechs.length ? `Your mechanics service machines when they judge it is time and fix broken ones (cheaper than outside repair). Skill ${Math.round(TG.E.mechSkill(b))}: services at about ${Math.round(TG.E.mechServiceAt(b))}% wear, repairs cost x${TG.E.mechRepairMult(b).toFixed(2)}. They cover ${N(TG.E.mechCap(b))} of ${N(TG.E.machines(b))} machines.` : 'No mechanic: broken machines STAY broken until you tap Fix (full price), and nothing gets serviced unless you do it. Managers never fix machines. Hire a mechanic in the Staff tab.', mechs.length ? null : UI.btn('➕ Mechanic', 'hireRole', 'mech', 'xs'), mechs.length ? `can look after ${N(TG.E.mechCap(b))} · you have ${N(TG.E.machines(b))}` : NOM) : ''}
       ${TG.ST.def(b) ? UI.irow('mws' + b.id, '📦', 'Buying supplies', stockH ? U.pct(stockH.p) : '<span class="bad">nobody</span>', stockH ? `${stockH.label} reorders supplies each month (if your order below is on).` : 'No Ops manager, GM or CEO: nobody buys supplies. Buy them yourself on the Now tab before they run out. (Managers order; your crew works the site.)', null, stockH ? esc(stockH.label) : NOM) : ''}
@@ -8946,7 +9269,9 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const rel = c.revealed.reliability ? U.pct(1 - C.staff.noShowBase * (1.6 - c.reliability / 100)) : '?';
     if (C.specialists[c.role]) {
       const P = (C.perks[c.role] || []).filter(([lvl]) => sk >= lvl).map((x) => x[3]);
-      return `<div class="small">🎯 Makes the right call ~${U.pct(TG.D.pGood(g, est))} of the time · 🕒 shows up ${rel}${P.length ? ' · 🏅 ' + esc(P.join(', ')) : ' · 🏅 no perks yet (skill 40+)'}</div>`;
+      let extra = '';
+      if (c.role === 'people' && TG.V14) { const pv = TG.V14.peoplePreview(g, b, est); extra = `<div class="small" id="peoplePrev">💛 At skill ~${Math.round(sk)}: morale target +${pv.morale}, quit odds ×${(1 - pv.quit).toFixed(2)}, poach odds ×${(1 - pv.poach).toFixed(2)}. Pay ${m(pv.wage)}/mo, of which about ${m(pv.perk)} is team perks. Hires up to ${pv.hires}/mo when a work bar is over 100%${pv.over ? ` (${pv.over} role${pv.over > 1 ? 's' : ''} overworked now)` : ''}.</div>`; }
+      return `<div class="small">🎯 Makes the right call ~${U.pct(TG.D.pGood(g, est))} of the time · 🕒 shows up ${rel}${P.length ? ' · 🏅 ' + esc(P.join(', ')) : ' · 🏅 no perks yet (skill 40+)'}</div>${extra}`;
     }
     const rd = TG.S.roleDef(b, c.role) || {}; const unit = ((TG.PR.good(b) || {}).unit || 'customer') + 's';
     let each, team = '';
@@ -9051,7 +9376,10 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   function equip(g, b) {
     const d = TG.B.def(b), C = TG.CONFIG; const E = TG.E;
     const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease;
-    let o = UI.machinesCard(g, b) + `<div class="card"><h3>🛍️ How to buy</h3><div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
+    const tDef = C.equipTiers[tier];
+    let o = `<div class="card" id="gearBuy"><h3>🛍️ 1. Quality, then Buy</h3><div class="big">${{ used: '♻️', budget: '🧰', standard: '🔧', premium: '💎' }[tier] || '🛠️'} ${esc(tDef.label)}</div>
+      <div class="small">Price ×${tDef.price} · output ×${tDef.out} · breaks ×${tDef.brk}${lease ? ` · lease ${U.pct(C.equipment.leaseMonthlyPct, 1)} of the price a month` : ''}</div>
+      <div class="btns">${Object.entries(C.equipTiers).map(([k, t]) => UI.btn(`${{ used: '♻️', budget: '🧰', standard: '🔧', premium: '💎' }[k] || ''} ${t.label}`, 'eqTierSet', k, 'sm' + (tier === k ? ' pri' : ''))).join('')}${UI.btn(lease ? '📄 Lease ✓' : '📄 Lease', 'eqLeaseSet', null, 'sm' + (lease ? ' pri' : ''))} ${UI.tipBtn('eqhow')}</div>
       ${UI.tipLine('eqhow', `${C.equipTiers[tier].label}: price x${C.equipTiers[tier].price}, breaks x${C.equipTiers[tier].brk}, output x${C.equipTiers[tier].out}. Used gear may hide wear. Lease = ${U.pct(C.equipment.leaseMonthlyPct, 1)} of price a month, repairs included.`)}</div>`;
     const cats = []; const byCat = {};
     for (const ed of d.equip) { const c = ed.cat || 'other'; if (!byCat[c]) { byCat[c] = []; cats.push(c); } byCat[c].push(ed); }
@@ -9063,12 +9391,14 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
         const n = E.count(b, ed.id), mx = E.maxCount(b, ed.id); const pr = E.price(g, b, ed.id, tier);
         const pool = ed.pool || ed.id; const crit = pools.indexOf(pool) >= 0;
         const sub = `${esc(effectTxt(g, b, ed))}${ed.upkeep ? ` · upkeep ${m(ed.upkeep * g.world.priceIdx)}/mo` : ''}${crit ? ` · <b>${Math.round(E.capacity(b, pool)).toLocaleString()}</b> now` : ''}`;
-        o += UI.irow('eq' + ed.id, ed.icon || cd[0], ed.label, `${n}${mx < 999 ? '/' + mx : ''}`, `${effectTxt(g, b, ed)}. Costs ${m(pr)}${lease ? ' (or ' + m(pr * C.equipment.leaseMonthlyPct) + '/mo leased)' : ''}. Wears out with use.`, UI.btn(lease ? `📄 ${m(pr * C.equipment.leaseMonthlyPct)}/mo` : `🛒 ${m(pr)}`, 'eqBuy', ed.id, 'xs goodb', n >= mx), sub);
+        const each = lease ? Math.round(pr * C.equipment.leaseMonthlyPct) : pr;
+        o += UI.irow('eq' + ed.id, ed.icon || cd[0], ed.label, `${n}${mx < 999 ? '/' + mx : ''}`, `${effectTxt(g, b, ed)}. ${m(each)} each${lease ? ' per month, leased' : ''}. Buy asks how many, then shows ${m(each)} × the quantity before you confirm.`, UI.btn(n >= mx ? 'Full' : 'Buy', 'eqBuy', ed.id, 'xs goodb', n >= mx), sub);
       }
       const mine = b.equip.filter((it) => { const ed = E.def(b, it.type); return ed && (ed.cat || 'other') === c; });
       if (mine.length) o += `<details><summary>🔧 Yours (${mine.length})${mine.some((x) => x.broken) ? ' <span class="pill bad">broken!</span>' : ''}</summary>${mine.map((it) => itemRow(g, b, it)).join('')}</details>`;
       o += '</div>';
     }
+    o += UI.fold('mcare' + b.id, '🔧 Machine care and insurance', UI.machinesCard(g, b));
     return o;
   }
   // v10: who looks after your machines, and the machine insurance (both in one place, on the Gear tab)
@@ -10136,16 +10466,38 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   }
 
   // ---------- 👥 crew ----------
+  function cookLine(g, e) {
+    const p = (g.crime && g.crime.cookProd) || 'sugar'; const P = K().products[p] || K().products.sugar;
+    const q = Math.round(K().cookMakes[p] * (0.6 + 0.8 * e.skill / 100));
+    return `${q.toLocaleString()} ${P.label}/mo`;
+  }
   function crew(g, c, CR) {
-    const D = K().crew; let o = `<div class="card"><h3>👥 Your crew (${c.crew.length}) · wages ${m(U.sum(c.crew, (e) => e.wage))}/mo</h3>`;
-    o += c.crew.length ? c.crew.map((e) => crewRow(g, e, CR)).join('') : '<div class="mute">Nobody yet. You do everything yourself.</div>';
+    const D = K().crew; const role = UI.S.crRole && D[UI.S.crRole] ? UI.S.crRole : 'dealer';
+    const mine = c.crew.filter((e) => e.role === role); const want = CR.candidates(g).filter((k) => k.role === role);
+    const d0 = D[role];
+    let o = `<div class="tiles">${UI.tile('crwN', '👥', c.crew.length, 'Crew', '', 'Everyone on the street payroll.')}
+      ${UI.tile('crwP', '💵', m(U.sum(c.crew, (e) => e.wage)), 'Wages', '', 'Paid from street cash each month.')}
+      ${UI.tile('crwC', '🧪', CR.count(g, 'cook'), 'Cooks', '', 'Cooks make product. Output depends on how many fit in workshops and on their skill.')}
+      ${UI.tile('crwB', '🕶️', c.mgr && c.mgr.boss ? 'On' : 'Off', 'Street boss', c.mgr && c.mgr.boss ? 'g' : 'y', 'A street boss buys product and replaces crew. Nothing is ordered for you without one.')}</div>`;
+    o += `<div class="card" id="crewCats"><h3>👥 Pick a crew</h3><div class="btns">${Object.entries(D).map(([k, d]) => UI.btn(`${d.icon} ${d.label} ${CR.count(g, k)}`, 'crRole', k, 'sm' + (k === role ? ' pri' : ''))).join('')}</div>
+      <div class="small">${d0.icon} <b>${esc(d0.label)}</b> — ${esc(d0.desc)} You have ${mine.length}.</div></div>`;
+    o += `<div class="card"><h3>${d0.icon} Your ${esc(d0.label.toLowerCase())}s (${mine.length})</h3>`;
+    o += mine.length ? mine.map((e) => crewRow(g, e, CR)).join('') : `<div class="mute">No ${esc(d0.label.toLowerCase())}s yet.</div>`;
     o += `<div class="row" style="margin-top:6px">${UI.btn(c.selfDeal ? '🙋 You sell on the street ✓' : '🙋 You stay off the street', 'crSelf', null, 'sm')}${UI.tipBtn('crSelf')}</div>${UI.tipLine('crSelf', `Selling yourself adds ${K().youDeal} deals and ${K().youRun} runs a month, but if police raid you are 30% more likely to be arrested.`)}</div>`;
-    o += `<div class="card"><h3>🧑‍🤝‍🧑 Who wants in ${UI.tipBtn('crHire')}</h3>${UI.tipLine('crHire', `New faces each month. Hiring costs ${U.pct(K().hireCost)} of a month's wage up front. Skill = how much they get done. Loyalty = how likely they stay quiet and stay.`)}`;
-    for (const k of CR.candidates(g)) {
-      const d = D[k.role]; const cap = CR.capOf(k); const u = k.role === 'enforcer' || k.role === 'lookout' ? 'blocks' : k.role === 'cook' ? 'workshop slot' : k.role === 'dealer' ? 'deals/mo' : 'runs/mo';
-      o += `<div class="irow"><span class="ic">${d.icon}</span><span class="lb" data-act="tip" data-arg="crk${k.id}" data-nosave="1">${esc(k.name)}<small>${d.label} · adds ${k.role === 'cook' ? N(K().cookMakes.sugar * (0.6 + 0.8 * k.skill / 100)) + ' Sugar/mo' : (cap < 10 ? cap.toFixed(1) : N(cap)) + ' ' + u}</small></span>
-        <span class="small">🎯 ${k.skill} · 🤝 ${k.loyalty} · ${m(k.wage)}/mo</span>${UI.btn(`Hire ${m(k.wage * K().hireCost)}`, 'crHire', k.id, 'xs goodb')}${UI.tipLine('crk' + k.id, `${d.desc} Skill ${k.skill}: does ${Math.round((0.6 + 0.8 * k.skill / 100) * 100)}% of a normal ${d.label.toLowerCase()} (skill 50 = 100%). Loyalty ${k.loyalty}: under 60 they may snitch, more when heat is high.`)}</div>`;
+    if (role === 'cook') {
+      const prod = c.cookProd || 'sugar';
+      o += `<div class="small">Cook this: ${Object.entries(K().products).map(([p, P]) => UI.btn(`${P.icon} ${P.label}`, 'crCookProd', p, 'xs' + (prod === p ? ' pri' : ''))).join(' ')}</div>`;
+      o += `<div class="small mute">Last month cooked ${N(c.last && c.last.cooked || 0)} ${(K().products[c.lastCook || prod] || {}).label || ''}. A workshop fits 2 cooks. No workshop, no food.</div>`;
     }
+    o += `</div><div class="card"><h3>🧑‍🤝‍🧑 Hire a ${esc(d0.label.toLowerCase())} ${UI.tipBtn('crHire')}</h3>${UI.tipLine('crHire', `Only ${esc(d0.label.toLowerCase())}s are listed. Hiring costs ${U.pct(K().hireCost)} of a month's wage up front.`)}`;
+    for (const k of want) {
+      const cap = CR.capOf(k); const u = k.role === 'enforcer' || k.role === 'lookout' ? 'blocks' : k.role === 'cook' ? 'made' : k.role === 'dealer' ? 'deals/mo' : 'runs/mo';
+      const adds = k.role === 'cook' ? cookLine(g, k) : ((cap < 10 ? cap.toFixed(1) : N(cap)) + ' ' + u);
+      o += `<div class="irow"><span class="ic">${d0.icon}</span><span class="lb" data-act="tip" data-arg="crk${k.id}" data-nosave="1">${esc(k.name)}<small>adds ${adds}</small></span>
+        <span class="small">🎯 ${k.skill} · 🤝 ${k.loyalty} · ${m(k.wage)}/mo</span>${UI.btn(`Hire ${m(k.wage * K().hireCost)}`, 'crHire', k.id, 'xs goodb')}${UI.tipLine('crk' + k.id, `${d0.desc} Skill ${k.skill}. Loyalty ${k.loyalty}: under 60 they may snitch when heat is high.`)}</div>`;
+    }
+    if (!want.length) o += `<div class="mute">Nobody for this job this month. Check again next month.</div>`;
+    o += UI.crimeBossCard ? UI.crimeBossCard(g, c) : '';
     return o + '</div>';
   }
   const crewRow = (g, e, CR) => {
@@ -10235,6 +10587,8 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   UI.A.crBuy = (p) => { const r = TG.CR.buy(TG.G, S().sup, p, UI.num('crQ' + p, 0)); res(r, (x) => (x.out === 'ok' ? `Got ${N(x.got)} for ${m(x.cost)}` : x.out === 'short' ? `Short order: got ${N(x.got)} for ${m(x.cost)}` : x.out === 'sting' ? 'It was a police sting!' : 'They never showed.')); };
   UI.A.crDump = (p) => res(TG.CR.dump(TG.G, p, UI.num('crQ' + p, 0)), (x) => `Sold back for ${m(x.v)}`);
   UI.A.crHire = (id) => res(TG.CR.hire(TG.G, id), 'Hired.');
+  UI.A.crRole = (role) => { UI.S.crRole = role; UI.refresh(); };
+  UI.A.crCookProd = (p) => { const c = TG.G.crime; if (c) c.cookProd = p; UI.toast('Cooks will make ' + (TG.CONFIG.crime.products[p] || {}).label); UI.refresh(); };
   UI.A.crCrew = (arg) => { const [id, a] = arg.split('|'); const g = TG.G; if (a === 'fire') { TG.CR.fire(g, id); return res({}, 'Let go.'); } const r = a === 'train' ? TG.CR.train(g, id) : TG.CR.bonus(g, id); res(r, (x) => (x.spam ? 'Too much this month: it backfired (loyalty down).' : a === 'train' ? `Skill +${x.gain}` : 'Loyalty +10')); };
   UI.A.crSelf = () => { const c = TG.CR.ensure(TG.G); c.selfDeal = !c.selfDeal; UI.refresh(); };
   UI.A.crGear = (k) => res(TG.CR.buyGear(TG.G, k), 'Bought.');
@@ -10434,9 +10788,13 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
   };
   UI.reportsTab = (g, b) => {
     const h = b.hist, last = h[h.length - 1];
-    let o = UI.flowCard(g, b) + UI.forecastCard(g, b) + UI.salesCard(g, b);
+    const lastP = last ? last.profit : null;
+    let o = `<div class="tiles">${UI.tile('rpP' + b.id, '💰', last ? (lastP >= 0 ? '+' : '−') + m(Math.abs(lastP)) : '–', 'Last month', last ? (lastP >= 0 ? 'g' : 'r') : '', 'Profit after the month’s costs.')}
+      ${UI.tile('rpR' + b.id, '⭐', Math.round(b.rep), 'Reputation', '', 'What customers think.')}
+      ${UI.tile('rpC' + b.id, '📈', b.revAvg ? m(b.revAvg) : '–', 'Sales lately', '', 'Average revenue of the last few months.')}</div>`;
+    o += UI.flowCard(g, b);
     const risks = TG.B.topRisks(g, b).slice(0, 8);
-    o += `<div class="card"><h3>⚠️ Risks next month</h3><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></div>`;
+    o += UI.fold('rpMore' + b.id, '🔮 Forecast, sales detail, and risks', (UI.forecastCard(g, b) || '') + (UI.salesCard(g, b) || '') + `<div class="card"><h3>⚠️ Risks next month</h3><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></div>`);
     if (last) o += `<div class="card"><details><summary>🧾 Money in & out</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table>${h.length > 2 ? UI.spark(h.slice(-36).map((x) => x.profit), '#2563eb') : ''}</details></div>`;
     const ev = g.log.filter((e) => e.bizId === b.id || e.biz === b.name).slice(-12).reverse();
     if (ev.length) o += `<div class="card"><details><summary>📰 What happened</summary>${ev.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> ${e.type === 'decision' ? `<b>${esc(e.by)}</b>: ` : ''}${esc(e.text)}</div>`).join('')}</details></div>`;
@@ -11204,6 +11562,132 @@ header.top .chip.help { cursor: pointer; background: var(--infobg); }
     const g = TG.G; if (!g || g.v12notes || !g.v13notes || !g.v13notes.length || document.getElementById('modal')) return;
     const notes = g.v13notes; g.v13notes = null; UI.save();
     UI.modal('🆕 Game updated (v13)', `<div class="card">${notes.map((n) => `<div class="ev info">${esc(n)}</div>`).join('')}<div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
+  };
+  const r0 = UI.render; UI.render = () => { r0(); try { showNotes(); } catch (e) { console.error(e); } };
+})();
+
+</script>
+<script>/* js/ui/ui-v14.js */
+/* ui-v14.js - gear quantity confirm, save slots, people/crime notes, compact folds, update note. */
+(function () {
+  const TG = globalThis.TG; const UI = TG.UI, U = TG.U; const esc = UI.esc; const m = (x) => U.money(x);
+  UI.fold = (id, title, html) => `<details class="fold" id="${esc(id)}"><summary>${title}</summary>${html || ''}</details>`;
+
+  // ---------- gear: quality is already picked; Buy asks how many and shows each × total ----------
+  UI.A.eqBuy = (type) => {
+    const g = TG.G, b = TG.B.get(g, UI.bizId); if (!b) return;
+    const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease && tier !== 'used';
+    const ed = TG.E.def(b, type); if (!ed) return;
+    const room = Math.max(0, TG.E.maxCount(b, type) - TG.E.count(b, type));
+    if (room <= 0) return UI.toast('No room for more of these.', true);
+    const each = lease ? Math.round(TG.E.price(g, b, type, tier) * TG.CONFIG.equipment.leaseMonthlyPct) : TG.E.price(g, b, type, tier);
+    const cap = Math.min(room, 500);
+    UI.S.eqEach = each; UI.S.eqCap = cap; UI.S.eqType = type; UI.S.eqLease = lease; UI.S.eqTier = tier;
+    const t = TG.CONFIG.equipTiers[tier];
+    UI.modal(`Buy ${ed.label}`, `<div class="card" id="gearConfirm"><h3 style="margin-top:0">${esc(ed.label)}</h3>
+      <div class="small">Quality: <b>${esc(t.label)}</b> · ${lease ? 'leased' : 'buy'} · output ×${t.out} · breaks ×${t.brk}</div>
+      <div class="big" id="eqEach">${m(each)} each${lease ? ' / month' : ''}</div>
+      <div class="row" style="margin-top:8px">
+        ${UI.btn('−10', 'eqN', '-10', 'sm')}${UI.btn('−1', 'eqN', '-1', 'sm')}
+        <input type="number" id="eqN" min="1" max="${cap}" value="1" data-input="eqTot" data-change="eqTot">
+        ${UI.btn('+1', 'eqN', '1', 'sm')}${UI.btn('+10', 'eqN', '10', 'sm')}${UI.btn('+100', 'eqN', '100', 'sm')}
+      </div>
+      <div class="small" id="eqMath">1 × ${m(each)}</div>
+      <div class="big" id="eqTotal">Total ${m(each)}</div>
+      <div class="mute">You can buy up to ${cap.toLocaleString()} (room left${cap >= 500 ? ', 500 at a time' : ''}). Cash ${m(g.cash)}.</div>
+      <div class="btns">${UI.btn('Confirm', 'eqBuyGo', type, 'pri')}${UI.btn('Cancel', 'closeModal')}</div></div>`);
+  };
+  const qty = () => { const cap = UI.S.eqCap || 1; let n = Math.floor(UI.num('eqN', 1)); if (!(n > 0)) n = 1; n = Math.max(1, Math.min(cap, n)); const el = document.getElementById('eqN'); if (el && String(el.value) !== String(n)) el.value = n; return n; };
+  UI.A.eqN = (d) => { const el = document.getElementById('eqN'); if (!el) return; el.value = (parseInt(el.value, 10) || 1) + Number(d); UI.A.eqTot(); };
+  UI.A.eqTot = () => {
+    const n = qty(); const each = UI.S.eqEach || 0; const tot = n * each;
+    const math = document.getElementById('eqMath'); const total = document.getElementById('eqTotal');
+    if (math) math.textContent = `${n.toLocaleString()} × ${m(each)}`;
+    if (total) { total.textContent = 'Total ' + m(tot); total.className = 'big' + (tot > TG.G.cash ? ' bad' : ''); }
+  };
+  UI.A.eqBuyGo = (type) => {
+    const g = TG.G, b = TG.B.get(g, UI.bizId); if (!b) return;
+    const n = qty(); const tier = UI.S.eqTier || 'standard'; const lease = !!UI.S.eqLease && tier !== 'used';
+    const each = lease ? Math.round(TG.E.price(g, b, type, tier) * TG.CONFIG.equipment.leaseMonthlyPct) : TG.E.price(g, b, type, tier);
+    if (n * each > g.cash + 0.5) return UI.toast(`Total is ${m(n * each)}. You have ${m(g.cash)}.`, true);
+    let got = 0;
+    for (let i = 0; i < n; i++) { const it = TG.E.buy(g, b, type, tier, lease ? { leased: true } : null); if (!it) break; got++; }
+    UI.closeModal();
+    UI.toast(got ? `${lease ? 'Leased' : 'Bought'} ${got} × ${TG.E.def(b, type).label} · ${m(each)} each · total ${m(got * each)}.` : 'Could not buy any.', !got);
+    UI.refresh();
+  };
+
+  // ---------- crime street boss card (on the crew tab) ----------
+  UI.crimeBossCard = (g, c) => {
+    const boss = c.mgr && c.mgr.boss; const W = TG.CONFIG.v14.crimeMgr.boss;
+    let o = `<div class="card" id="bossCard"><h3>🕶️ Street boss ${UI.tipBtn('bossTip')}</h3>${UI.tipLine('bossTip', 'Like a manager for the street business. Buys the product clients want and hires replacements for crew who leave. Nothing is ordered for you without one. Pay comes out of street cash. Skill changes how close the order is.')}`;
+    if (boss) {
+      const fx = TG.V14.bossFx(boss);
+      o += `<div class="small">👤 <b>${esc(boss.name)}</b> · skill ${Math.round(boss.skill)} · ${m(boss.wage)}/mo · orders about ${Math.round(fx.order * 100)}% of demand${fx.hire ? ' · replaces crew' : ''}</div>`;
+      o += `<div class="btns">${UI.btn('Let them go', 'crBossFire', null, 'sm badb')}</div>`;
+    } else {
+      o += `<div class="small warn">No street boss: you buy product and hire crew yourself.</div>`;
+      for (const k of TG.CR.bossPool(g)) {
+        const fx = TG.V14.bossPreview(g, k);
+        o += `<div class="ev"><div class="row sp"><b>${W.icon} ${esc(k.name)}</b><span>${m(k.wage)}/mo</span></div>
+          <div class="small">Skill ${k.skill}: orders about <b>${Math.round(fx.order * 100)}%</b> of what clients want (${Math.round(fx.waste * 100)}% chance of a sloppy order). ${fx.hire ? 'Replaces crew who leave.' : 'Too green to replace crew.'}</div>
+          <div class="btns">${UI.btn(`Hire ${m(k.wage)}`, 'crBossHire', k.id, 'sm pri')}</div></div>`;
+      }
+    }
+    return o + '</div>';
+  };
+  UI.A.crBossHire = (id) => { const r = TG.CR.hireBoss(TG.G, id); UI.toast(r.ok ? 'Street boss hired. They start next month.' : (r.msg || 'Could not hire.'), !r.ok); UI.refresh(); };
+  UI.A.crBossFire = () => { TG.CR.fireBoss(TG.G); UI.toast('Street boss let go.'); UI.refresh(); };
+
+  // ---------- save slots ----------
+  UI.slotCard = () => {
+    const S = TG.Game.slots; const idx = S.ensure(); const g = TG.G;
+    let o = `<div class="card" id="slotCard"><h3 style="margin-top:0">💾 Games</h3><div class="mute">Each slot is its own game. Your old save is in slot 1. Autosave writes the game you have open.</div>`;
+    for (const s of idx.slots) {
+      const on = s.id === idx.active;
+      o += `<div class="ev ${on ? 'good' : ''}"><div class="row sp"><b>${on ? '▶️ ' : ''}${esc(s.name || 'Game')}</b><span class="small">${m(s.cash || 0)} · mo ${s.month || 0}</span></div>
+        <div class="btns">${on ? '' : UI.btn('Load', 'slotLoad', s.id, 'sm pri')}${UI.btn('Rename', 'slotRename', s.id, 'sm')}${UI.btn('Delete', 'slotDel', s.id, 'sm badb')}</div></div>`;
+    }
+    if (!idx.slots.length) o += `<div class="mute">No saved games yet. Starting a game saves it here.</div>`;
+    o += `<div class="btns">${UI.btn('➕ New game in a new slot', 'slotNew', null, 'sm pri')}</div></div>`;
+    void g;
+    return o;
+  };
+  UI.A.slotLoad = (id) => {
+    if (!TG.Game.slots.activate(id)) return UI.toast('That game is gone.', true);
+    const g = TG.Game.load(); if (!g) return UI.toast('Could not load that game.', true);
+    TG.G = g; UI.toast('Loaded ' + ((TG.Game.slots.ensure().slots.find((s) => s.id === id) || {}).name || 'game') + '.'); UI.go('home');
+  };
+  UI.A.slotRename = (id) => {
+    const s = TG.Game.slots.ensure().slots.find((x) => x.id === id); if (!s) return;
+    UI.modal('Rename game', `<div class="card"><input type="text" id="slotName" value="${esc(s.name || '')}" maxlength="32"><div class="btns">${UI.btn('Save name', 'slotRenameGo', id, 'pri')}${UI.btn('Cancel', 'closeModal')}</div></div>`);
+  };
+  UI.A.slotRenameGo = (id) => { const name = (UI.val('slotName') || '').trim(); if (!name) return UI.toast('Type a name.', true); TG.Game.slots.rename(id, name); UI.closeModal(); UI.toast('Renamed.'); UI.refresh(); };
+  UI.A.slotDel = (id) => { const s = TG.Game.slots.ensure().slots.find((x) => x.id === id); UI.confirm(`Delete “${s ? s.name : 'this game'}”? This cannot be undone.`, 'slotDelGo', id); };
+  UI.A.slotDelGo = (id) => {
+    const was = TG.Game.slots.active() === id; TG.Game.slots.remove(id); UI.closeModal();
+    if (was) { const g = TG.Game.load(); if (g) { TG.G = g; UI.toast('Deleted. Opened your other game.'); UI.go('home'); } else { TG.G = null; UI.toast('Deleted.'); UI.newGameScreen(true); } }
+    else { UI.toast('Deleted.'); UI.refresh(); }
+  };
+  UI.A.slotNew = () => { UI.S.slotNew = true; UI.newGameScreen(false); };
+  const set0 = UI.screens.more;
+  UI.screens.more = () => set0().replace('<div class="card"><h3 style="margin-top:0">Save</h3>', UI.slotCard() + '<div class="card"><h3 style="margin-top:0">Save</h3>');
+
+  // new game from the dialog already lands in the slot slotNew created; the first-run button still uses one slot
+  const ng0 = UI.A.newGame;
+  UI.A.newGame = (scenario) => {
+    if (UI.S.slotNew || !TG.Game.slots.active()) { TG.Game.slots.create((UI.val('ngName') || 'New game').slice(0, 32)); UI.S.slotNew = false; }
+    return ng0(scenario);
+  };
+
+  // ---------- home: keep the top glance, fold the long news-style bits by enlarging tiles (css) ----------
+  // market listings stay; a one-line hint is enough
+
+  // ---------- update note ----------
+  const showNotes = () => {
+    const g = TG.G; if (!g || g.v13notes || g.v12notes || !g.v14notes || !g.v14notes.length || document.getElementById('modal')) return;
+    const notes = g.v14notes; g.v14notes = null; UI.save();
+    UI.modal('🆕 Game updated (v14)', `<div class="card">${notes.map((n) => `<div class="ev info">${esc(n)}</div>`).join('')}<div class="btns">${UI.btn('OK', 'closeModal', null, 'pri')}</div></div>`);
   };
   const r0 = UI.render; UI.render = () => { r0(); try { showNotes(); } catch (e) { console.error(e); } };
 })();

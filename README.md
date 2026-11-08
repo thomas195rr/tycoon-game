@@ -113,6 +113,18 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
 - **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
 
+## Version 14 highlights (gear bulk buy, less scrolling, people manager, factory, save slots)
+
+- **Gear:** pick the quality first, then tap Buy. Choose how many (up to hundreds). The screen shows the price each and the total before you confirm.
+- **Tabs:** the important numbers sit in big tiles at the top. Long lists (the full roster, work detail, machine care, forecast, risks) stay folded until you tap them.
+- **People manager:** a late-game boss for each business. Keeps morale up, cuts quitting and rival offers, and hires when a team is overworked. The pay is high, and part of it is team perks. Skill changes the effect, and that effect is shown before you hire. Trainable like other managers, and on the CEO “keep hired” list.
+- **Manufacturing:** a plant can make money if you pick a warehouse (not a giant city building), get a line you can afford, and keep materials in stock. Quick setup buys a cheaper line or leases one instead of hiring a crew for a line it skipped. The plant keeps selling when the price still covers materials.
+- **Save slots:** the old save becomes Game 1. Save a game, come back later, and start another in a new slot. Load, rename, and delete (it asks first).
+- **Sale price:** sales cannot go past capacity (servers, franchise systems, and the same idea elsewhere). A one-month spike does not set what the company is worth.
+- **Crime:** a street boss can buy product and replace crew, so the street business can run without you tapping every order. Cooks make the product you pick, and more or better cooks make more. The crew screen is one job at a time (dealers, or lookouts, or cooks).
+- **Saves:** v13 games upgrade on their own, with a one-time note. The offline cache is `tycoon-app-v14`.
+- **Tests:** `test/v14.test.js`. `tools/money-check-v14.txt` is the 10-year money check (6 seeds).
+
 ## Version 13 highlights (ads manager holds reputation, minimum hire skill)
 
 - **Reputation fix:** reputation could slide all the way to 0 even with an ads manager. The ads manager only reacted to one big hit (6+ points, a PR card). Small knocks never made a card: a closed month (-1.5), fights, ad flops, small scandals. Natural recovery is at most about 0.9 a month, so reputation kept falling and the manager never spent anything.

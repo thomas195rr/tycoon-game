@@ -122,7 +122,7 @@
       // flow
       const gd = P.good(b); const unit = d.supply ? '' : '';
       if (sd) FL.row(b, '📥', 'Stock in', b.stock.inM, '', b.stock.inM > 0 ? 'g' : 'y', b.stock.lastBy ? 'Ordered by ' + b.stock.lastBy : 'Auto-order off');
-      if (s.makeAhead) FL.row(b, '🍳', 'Made', made, '', 'g');
+      if (s.makeAhead) FL.row(b, '🍳', 'Made', made, '', made > 0 ? 'g' : 'r', b.type === 'foodtruck' ? `Cooks can make about ${Math.round(k.keyCap)} meals. No cooks means no food.` : `Bakers can make about ${Math.round(k.keyCap)}. No bakers means nothing comes out of the oven.`);
       if (b.type === 'gym') {
         const prev = b.members == null ? served : b.members; const left = prev * s.churn * (r > 1.05 ? 1 + (r - 1) * 2 : 1);
         const joined = Math.max(0, served - prev + left); b.members = served;

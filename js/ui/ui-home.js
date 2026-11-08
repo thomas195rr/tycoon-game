@@ -135,7 +135,7 @@
       <div class="mute">Crime options add illegal side hustles (risky: fines, jail). You can change this later in Settings.</div>
       <div class="mute">Game code: leave blank for a new random world. Type the same code twice to get the same world (to replay or compare with a friend).</div></div>
       <h3>Choose a start</h3>${Object.entries(sc).map(([id, s]) => `<div class="card"><div class="row sp"><div class="grow"><b>${esc(s.label)}</b><div class="mute">${esc(s.desc)}</div></div>${UI.btn('Start', 'newGame', id, 'pri')}</div></div>`).join('')}
-      ${first ? '' : '<div class="mute">Starting a new game replaces the current autosave (export it first in Settings if you want to keep it).</div>'}`;
+      ${first ? '' : '<div class="mute">A new game goes in its own slot. Your other games stay. Delete one from More → Settings → Games.</div>'}`
     if (first) { document.querySelector('#app').innerHTML = `<header class="top"><span class="date">🏢 Tycoon</span></header><main><h2>New game</h2>${o}</main>`; }
     else UI.modal('New game', o);
   };

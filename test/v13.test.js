@@ -59,7 +59,7 @@ const run = (t, seed, target, skill, months) => {
 {
   const g = fresh(6, 5e7); const b = bots.startBiz(g, 'cafe', {}); S.hire(g, b, S.candidate(g, b, 'ads', 0.6), 'test');
   const s = JSON.parse(JSON.stringify(g)); s.v = 12; delete s.businesses[0].repTarget; delete s.v13notes;
-  const g2 = TG.Game.migrate(s); ok(g2.v === 13 && g2.businesses[0].repTarget === 70 && g2.v13notes.length === 2, 'v12 save -> v13: target 70 for ads-managed business + note');
-  ok(TG.VERSION === 13, 'version 13');
+  const g2 = TG.Game.migrate(s); ok(g2.v >= 13 && g2.businesses[0].repTarget === 70 && g2.v13notes && g2.v13notes.length === 2, 'v12 save -> v13: target 70 for ads-managed business + note');
+  ok(TG.VERSION >= 13, 'version 13 or later');
 }
 console.log(fails.length ? `V13 CHECK(S) FAILED: ${fails.length}` : `V13 CHECKS PASSED (${pass})`); process.exit(fails.length ? 1 : 0);

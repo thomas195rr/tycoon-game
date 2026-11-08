@@ -84,16 +84,38 @@
   }
 
   // ---------- 👥 crew ----------
+  function cookLine(g, e) {
+    const p = (g.crime && g.crime.cookProd) || 'sugar'; const P = K().products[p] || K().products.sugar;
+    const q = Math.round(K().cookMakes[p] * (0.6 + 0.8 * e.skill / 100));
+    return `${q.toLocaleString()} ${P.label}/mo`;
+  }
   function crew(g, c, CR) {
-    const D = K().crew; let o = `<div class="card"><h3>👥 Your crew (${c.crew.length}) · wages ${m(U.sum(c.crew, (e) => e.wage))}/mo</h3>`;
-    o += c.crew.length ? c.crew.map((e) => crewRow(g, e, CR)).join('') : '<div class="mute">Nobody yet. You do everything yourself.</div>';
+    const D = K().crew; const role = UI.S.crRole && D[UI.S.crRole] ? UI.S.crRole : 'dealer';
+    const mine = c.crew.filter((e) => e.role === role); const want = CR.candidates(g).filter((k) => k.role === role);
+    const d0 = D[role];
+    let o = `<div class="tiles">${UI.tile('crwN', '👥', c.crew.length, 'Crew', '', 'Everyone on the street payroll.')}
+      ${UI.tile('crwP', '💵', m(U.sum(c.crew, (e) => e.wage)), 'Wages', '', 'Paid from street cash each month.')}
+      ${UI.tile('crwC', '🧪', CR.count(g, 'cook'), 'Cooks', '', 'Cooks make product. Output depends on how many fit in workshops and on their skill.')}
+      ${UI.tile('crwB', '🕶️', c.mgr && c.mgr.boss ? 'On' : 'Off', 'Street boss', c.mgr && c.mgr.boss ? 'g' : 'y', 'A street boss buys product and replaces crew. Nothing is ordered for you without one.')}</div>`;
+    o += `<div class="card" id="crewCats"><h3>👥 Pick a crew</h3><div class="btns">${Object.entries(D).map(([k, d]) => UI.btn(`${d.icon} ${d.label} ${CR.count(g, k)}`, 'crRole', k, 'sm' + (k === role ? ' pri' : ''))).join('')}</div>
+      <div class="small">${d0.icon} <b>${esc(d0.label)}</b> — ${esc(d0.desc)} You have ${mine.length}.</div></div>`;
+    o += `<div class="card"><h3>${d0.icon} Your ${esc(d0.label.toLowerCase())}s (${mine.length})</h3>`;
+    o += mine.length ? mine.map((e) => crewRow(g, e, CR)).join('') : `<div class="mute">No ${esc(d0.label.toLowerCase())}s yet.</div>`;
     o += `<div class="row" style="margin-top:6px">${UI.btn(c.selfDeal ? '🙋 You sell on the street ✓' : '🙋 You stay off the street', 'crSelf', null, 'sm')}${UI.tipBtn('crSelf')}</div>${UI.tipLine('crSelf', `Selling yourself adds ${K().youDeal} deals and ${K().youRun} runs a month, but if police raid you are 30% more likely to be arrested.`)}</div>`;
-    o += `<div class="card"><h3>🧑‍🤝‍🧑 Who wants in ${UI.tipBtn('crHire')}</h3>${UI.tipLine('crHire', `New faces each month. Hiring costs ${U.pct(K().hireCost)} of a month's wage up front. Skill = how much they get done. Loyalty = how likely they stay quiet and stay.`)}`;
-    for (const k of CR.candidates(g)) {
-      const d = D[k.role]; const cap = CR.capOf(k); const u = k.role === 'enforcer' || k.role === 'lookout' ? 'blocks' : k.role === 'cook' ? 'workshop slot' : k.role === 'dealer' ? 'deals/mo' : 'runs/mo';
-      o += `<div class="irow"><span class="ic">${d.icon}</span><span class="lb" data-act="tip" data-arg="crk${k.id}" data-nosave="1">${esc(k.name)}<small>${d.label} · adds ${k.role === 'cook' ? N(K().cookMakes.sugar * (0.6 + 0.8 * k.skill / 100)) + ' Sugar/mo' : (cap < 10 ? cap.toFixed(1) : N(cap)) + ' ' + u}</small></span>
-        <span class="small">🎯 ${k.skill} · 🤝 ${k.loyalty} · ${m(k.wage)}/mo</span>${UI.btn(`Hire ${m(k.wage * K().hireCost)}`, 'crHire', k.id, 'xs goodb')}${UI.tipLine('crk' + k.id, `${d.desc} Skill ${k.skill}: does ${Math.round((0.6 + 0.8 * k.skill / 100) * 100)}% of a normal ${d.label.toLowerCase()} (skill 50 = 100%). Loyalty ${k.loyalty}: under 60 they may snitch, more when heat is high.`)}</div>`;
+    if (role === 'cook') {
+      const prod = c.cookProd || 'sugar';
+      o += `<div class="small">Cook this: ${Object.entries(K().products).map(([p, P]) => UI.btn(`${P.icon} ${P.label}`, 'crCookProd', p, 'xs' + (prod === p ? ' pri' : ''))).join(' ')}</div>`;
+      o += `<div class="small mute">Last month cooked ${N(c.last && c.last.cooked || 0)} ${(K().products[c.lastCook || prod] || {}).label || ''}. A workshop fits 2 cooks. No workshop, no food.</div>`;
     }
+    o += `</div><div class="card"><h3>🧑‍🤝‍🧑 Hire a ${esc(d0.label.toLowerCase())} ${UI.tipBtn('crHire')}</h3>${UI.tipLine('crHire', `Only ${esc(d0.label.toLowerCase())}s are listed. Hiring costs ${U.pct(K().hireCost)} of a month's wage up front.`)}`;
+    for (const k of want) {
+      const cap = CR.capOf(k); const u = k.role === 'enforcer' || k.role === 'lookout' ? 'blocks' : k.role === 'cook' ? 'made' : k.role === 'dealer' ? 'deals/mo' : 'runs/mo';
+      const adds = k.role === 'cook' ? cookLine(g, k) : ((cap < 10 ? cap.toFixed(1) : N(cap)) + ' ' + u);
+      o += `<div class="irow"><span class="ic">${d0.icon}</span><span class="lb" data-act="tip" data-arg="crk${k.id}" data-nosave="1">${esc(k.name)}<small>adds ${adds}</small></span>
+        <span class="small">🎯 ${k.skill} · 🤝 ${k.loyalty} · ${m(k.wage)}/mo</span>${UI.btn(`Hire ${m(k.wage * K().hireCost)}`, 'crHire', k.id, 'xs goodb')}${UI.tipLine('crk' + k.id, `${d0.desc} Skill ${k.skill}. Loyalty ${k.loyalty}: under 60 they may snitch when heat is high.`)}</div>`;
+    }
+    if (!want.length) o += `<div class="mute">Nobody for this job this month. Check again next month.</div>`;
+    o += UI.crimeBossCard ? UI.crimeBossCard(g, c) : '';
     return o + '</div>';
   }
   const crewRow = (g, e, CR) => {
@@ -183,6 +205,8 @@
   UI.A.crBuy = (p) => { const r = TG.CR.buy(TG.G, S().sup, p, UI.num('crQ' + p, 0)); res(r, (x) => (x.out === 'ok' ? `Got ${N(x.got)} for ${m(x.cost)}` : x.out === 'short' ? `Short order: got ${N(x.got)} for ${m(x.cost)}` : x.out === 'sting' ? 'It was a police sting!' : 'They never showed.')); };
   UI.A.crDump = (p) => res(TG.CR.dump(TG.G, p, UI.num('crQ' + p, 0)), (x) => `Sold back for ${m(x.v)}`);
   UI.A.crHire = (id) => res(TG.CR.hire(TG.G, id), 'Hired.');
+  UI.A.crRole = (role) => { UI.S.crRole = role; UI.refresh(); };
+  UI.A.crCookProd = (p) => { const c = TG.G.crime; if (c) c.cookProd = p; UI.toast('Cooks will make ' + (TG.CONFIG.crime.products[p] || {}).label); UI.refresh(); };
   UI.A.crCrew = (arg) => { const [id, a] = arg.split('|'); const g = TG.G; if (a === 'fire') { TG.CR.fire(g, id); return res({}, 'Let go.'); } const r = a === 'train' ? TG.CR.train(g, id) : TG.CR.bonus(g, id); res(r, (x) => (x.spam ? 'Too much this month: it backfired (loyalty down).' : a === 'train' ? `Skill +${x.gain}` : 'Loyalty +10')); };
   UI.A.crSelf = () => { const c = TG.CR.ensure(TG.G); c.selfDeal = !c.selfDeal; UI.refresh(); };
   UI.A.crGear = (k) => res(TG.CR.buyGear(TG.G, k), 'Bought.');

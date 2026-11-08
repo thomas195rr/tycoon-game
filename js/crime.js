@@ -291,15 +291,34 @@
     if (!c.started || !CR.on(g)) { c.heat = Math.max(0, c.heat * (1 - k.heatDecay) - k.heatFlat); return; } // off = frozen: nothing sells, nothing is paid
     const active = CR.on(g);
     const cap = CR.capacity(g); const J = CR.jailed(g);
-    // cooks make product (needs workshops and money)
+    // cooks make product. Output scales with how many cooks fit in workshops and with their skill.
+    // They cook the product you picked (or the one clients want most), not whichever rare good just unlocked.
     let made = 0;
-    if (active && cap.cooks > 0) {
-      const p = ['void', 'haze', 'glow', 'sugar'].find((x) => CR.unlocked(g, k.products[x].unlock)) || 'sugar';
-      const cooks = c.crew.filter((e) => e.role === 'cook').slice(0, cap.cooks);
-      let q = U.sum(cooks, (e) => k.cookMakes[p] * (0.6 + 0.8 * e.skill / 100)) * (J ? 0.5 : 1);
-      q = Math.min(q, CR.room(g) - CR.units(g)); const cost = q * CR.wholesale(g, p) * k.cookCostShare;
-      if (q > 0 && c.dirty >= cost) { c.dirty -= cost; c.stock[p] += Math.floor(q); made = Math.floor(q); row(c, '🧪', `Cooked ${k.products[p].label}`, made, 'units', 'g', `Cost ${U.money(cost)}: about ${U.pct(k.cookCostShare)} of buying it`); }
-      c.last.cookUtil = cap.shops ? cap.cooks / cap.shops : 0;
+    const cooksAll = c.crew.filter((e) => e.role === 'cook');
+    if (active && cooksAll.length) {
+      const unlocked = Object.keys(k.products).filter((x) => CR.unlocked(g, k.products[x].unlock));
+      const wantScore = (x) => (c.clients || 0) * k.products[x].want * Math.max(0, CR.street(g, x) - CR.wholesale(g, x));
+      let p = c.cookProd && unlocked.includes(c.cookProd) ? c.cookProd : unlocked.slice().sort((a, b2) => wantScore(b2) - wantScore(a))[0] || 'sugar';
+      c.lastCook = p;
+      const cooks = cooksAll.slice(0, Math.max(0, cap.cooks));
+      const per = (e) => k.cookMakes[p] * (0.6 + 0.8 * e.skill / 100) * (J ? 0.5 : 1);
+      let q = U.sum(cooks, per);
+      const whyNo = !cap.shops ? 'No working workshop: cooks need one (🗺️ Turf). Each workshop fits 2 cooks.' : cap.cooks < cooksAll.length ? `Only ${cap.cooks} of ${cooksAll.length} cooks fit in the workshops.` : '';
+      const roomLeft = Math.max(0, CR.room(g) - CR.units(g));
+      if (q > roomLeft) q = roomLeft;
+      const unitCost = CR.wholesale(g, p) * k.cookCostShare;
+      const afford = unitCost > 0 ? Math.floor(c.dirty / unitCost) : 0;
+      const shortCash = q > afford;
+      q = Math.min(q, afford);
+      if (q > 0) {
+        const cost = q * unitCost; c.dirty -= cost; c.stock[p] += Math.floor(q); made = Math.floor(q);
+        row(c, '🧪', `Cooked ${k.products[p].label}`, made, 'units', 'g', `${cooks.length} cook${cooks.length > 1 ? 's' : ''} · cost ${U.money(cost)} (${U.pct(k.cookCostShare)} of buying it)${shortCash ? ' · not enough street cash for a full batch' : ''}${whyNo ? ' · ' + whyNo : ''}`);
+      } else {
+        const why = !cap.shops ? 'No working workshop, so nothing was cooked.' : roomLeft < 1 ? 'Stash is full. Sell some or buy a stash house.' : 'Not enough street cash to buy ingredients.';
+        row(c, '🧪', `Cooked ${k.products[p].label}`, 0, 'units', 'r', why);
+      }
+      c.last.cookUtil = cap.shops ? Math.min(1, cooks.length / cap.shops) : 0;
+      c.last.cooked = made;
     }
     // demand: clients x what they want, cheaper = more
     const dem = {}; let workNeed = 0;

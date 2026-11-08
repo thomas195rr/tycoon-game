@@ -1,7 +1,7 @@
 /* engine.js - game creation, the monthly turn, time skip, reports, achievements, leaderboard, save/load. */
 (function () {
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
-  const VERSION = 13;
+  const VERSION = 14;
   TG.VERSION = VERSION;
 
   // ================= REPORT HELPERS =================
@@ -211,6 +211,50 @@
   };
   TG.store = store;
   const SAVE_KEY = 'tycoon_save_v1';
+  const SLOT_IDX = 'tycoon_slots_v1';
+  // v14: several games on one device. The old single save (tycoon_save_v1) is copied into slot 1 the first time.
+  const Slots = {
+    read() { try { return JSON.parse(store.get(SLOT_IDX) || 'null'); } catch (e) { return null; } },
+    write(idx) { try { store.set(SLOT_IDX, JSON.stringify(idx)); } catch (e) { /* best effort */ } },
+    key(id) { return 'tycoon_slot_' + id; },
+    metaKey(id) { return 'tycoon_meta_' + id; },
+    summary(g, name) { return { month: g.month || 0, cash: Math.round(g.cash || 0), savedAt: g.savedAt || Date.now(), v: g.v, name: name || (g.player && g.player.name ? g.player.name + "'s game" : 'Game') }; },
+    ensure() {
+      let idx = Slots.read();
+      if (idx && Array.isArray(idx.slots)) return idx;
+      idx = { slots: [], active: null };
+      const leg = store.get(SAVE_KEY);
+      if (leg) {
+        const id = '1'; store.set(Slots.key(id), leg);
+        let row = { id, name: 'Game 1', month: 0, cash: 0, savedAt: Date.now() };
+        try { const g = JSON.parse(leg); Object.assign(row, Slots.summary(g, 'Game 1')); row.id = id; } catch (e) { /* keep defaults */ }
+        idx.slots.push(row); idx.active = id;
+      }
+      Slots.write(idx); return idx;
+    },
+    active() { const idx = Slots.ensure(); return idx.active; },
+    create(name) {
+      const idx = Slots.ensure(); const id = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+      idx.slots.push({ id, name: name || ('Game ' + (idx.slots.length + 1)), month: 0, cash: 0, savedAt: Date.now() });
+      idx.active = id; Slots.write(idx); if (E.markSeen) E.markSeen(); return id;
+    },
+    rename(id, name) { const idx = Slots.ensure(); const s = idx.slots.find((x) => x.id === id); if (s && name) { s.name = String(name).slice(0, 32); Slots.write(idx); } },
+    remove(id) {
+      const idx = Slots.ensure(); idx.slots = idx.slots.filter((x) => x.id !== id); store.del(Slots.key(id)); store.del(Slots.metaKey(id));
+      if (TG.IDB) TG.IDB.put(Slots.key(id), null);
+      if (idx.active === id) idx.active = idx.slots.length ? idx.slots[idx.slots.length - 1].id : null;
+      Slots.write(idx); return idx;
+    },
+    activate(id) { const idx = Slots.ensure(); if (!idx.slots.some((x) => x.id === id)) return false; idx.active = id; Slots.write(idx); if (E.markSeen) E.markSeen(); return true; },
+    touch(g) {
+      const idx = Slots.ensure(); let id = idx.active;
+      if (!id) { id = '1'; idx.slots.push({ id, name: 'Game 1', month: 0, cash: 0, savedAt: Date.now() }); idx.active = id; }
+      const row = idx.slots.find((x) => x.id === id) || (idx.slots.push({ id, name: 'Game 1' }), idx.slots[idx.slots.length - 1]);
+      Object.assign(row, Slots.summary(g, row.name)); row.id = id; Slots.write(idx);
+      return id;
+    },
+  };
+  E.slots = Slots;
   E.serialize = (g) => JSON.stringify(g);
   E.validate = (g) => {
     if (!g || typeof g !== 'object') throw new Error('Not a save file');
@@ -313,7 +357,9 @@
   // revision (another tab saved after it loaded) refuses to save and asks you to reload, so it cannot wipe that progress.
   const META_KEY = 'tycoon_save_meta';
   E.TAB = Math.random().toString(36).slice(2, 10);
-  E.meta = () => { try { return JSON.parse(store.get(META_KEY) || 'null') || {}; } catch (e) { return {}; } };
+  E.metaKey = () => { const id = Slots.active(); return id ? Slots.metaKey(id) : META_KEY; };
+  const readMeta = (k) => { try { return JSON.parse(store.get(k) || 'null') || {}; } catch (e) { return {}; } };
+  E.meta = () => { const a = readMeta(E.metaKey()), b = readMeta(META_KEY); return (b.rev || 0) > (a.rev || 0) ? b : a; };
   E.seenRev = null; E.stale = false;
   E.markSeen = () => { E.seenRev = E.meta().rev || 0; E.stale = false; };
   E.save = (g, force) => {
@@ -321,16 +367,21 @@
     if (!force && E.seenRev != null && (mt.rev || 0) !== E.seenRev && mt.tab && mt.tab !== E.TAB) { E.stale = true; E.saveState = { ok: false, at: Date.now(), where: '', err: 'stale', stale: true }; if (E.onStale) E.onStale(); return false; }
     const rev = (mt.rev || 0) + 1;
     let txt; try { g.savedAt = Date.now(); txt = E.serialize(g); } catch (e) { E.saveState = { ok: false, at: Date.now(), where: '', err: 'could not package the game' }; return false; }
-    const lsOk = E.saveText(txt); if (lsOk) { try { store.set(META_KEY, JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId })); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    const lsOk = E.saveText(txt); if (lsOk) { try { const meta = JSON.stringify({ rev, tab: E.TAB, at: Date.now(), gameId: g.gameId, slot: Slots.active() }); store.set(E.metaKey(), meta); store.set(META_KEY, meta); } catch (e) { /* meta is best-effort */ } E.seenRev = rev; E.stale = false; } const st = { ok: lsOk, at: Date.now(), where: lsOk ? 'device' : 'memory only', err: lsOk ? '' : 'browser storage blocked or full' }; E.saveState = st;
+    try { const id = Slots.touch(g); store.set(Slots.key(id), txt); if (TG.IDB) TG.IDB.put(Slots.key(id), txt); } catch (e) { /* slot copy is best-effort; the main save already landed */ }
     E.saveIdb(txt, st);
     if (E.onSaved) E.onSaved(st); return lsOk; };
-  E.loadAsync = () => IDB.get(SAVE_KEY).then((s2) => { let a = null, b = null; const s1 = store.get(SAVE_KEY);
+  E.loadAsync = () => { const id = Slots.ensure().active; const sk = id ? Slots.key(id) : SAVE_KEY; return IDB.get(sk).then((s2) => { let a = null, b = null; const s1 = store.get(sk) || (!id ? null : store.get(SAVE_KEY));
     try { if (s1) a = E.deserialize(s1); } catch (e) { a = null; } try { if (s2) b = E.deserialize(s2); } catch (e) { b = null; }
-    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); /* v10: the caller decides when to make it the live game */
+    const g = a && b ? ((b.savedAt || 0) > (a.savedAt || 0) ? b : a) : a || b; E.markSeen(); return g; }); }; /* v10: the caller decides when to make it the live game */
   E.saveIdb = (txt, st) => IDB.put(SAVE_KEY, txt).then((ok) => {
     if (ok && !st.ok) { st.ok = true; st.where = 'device (database)'; st.err = ''; } if (E.onSaved) E.onSaved(st); return ok; });
-  E.load = () => { E.markSeen(); const s = store.get(SAVE_KEY); if (!s) return null; try { const g = E.deserialize(s); TG.G = g; return g; } catch (e) { return null; } };
-  E.clearSave = () => store.del(SAVE_KEY);
+  E.load = () => {
+    E.markSeen(); const idx = Slots.ensure(); const id = idx.active;
+    const s = (id && store.get(Slots.key(id))) || store.get(SAVE_KEY);
+    if (!s) return null; try { const g = E.deserialize(s); TG.G = g; if (id) store.set(SAVE_KEY, s); return g; } catch (e) { return null; }
+  };
+  E.clearSave = () => { const id = Slots.active(); store.del(SAVE_KEY); if (id) Slots.remove(id); };
   const b64e = (s) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'));
   const b64d = (s) => (typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'));
   E.exportCode = (g) => 'TYC1:' + b64e(E.serialize(g));

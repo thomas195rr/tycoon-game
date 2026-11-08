@@ -67,7 +67,7 @@
 
   // ---------- frame ----------
   const NAV = [['home', '🏠', 'Home'], ['biz', '🏪', 'My Biz'], ['market', '🗺️', 'Shop'], ['money', '💰', 'Money'], ['more', '⚙️', 'More']];
-  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax'];
+  const JAIL_OK = ['help', 'reloadTab', 'stopToggle', 'nextAnyway', 'supNoWarn', 'skipAnyway', 'econInfo', 'next', 'skip', 'go', 'tab', 'tip', 'closeModal', 'decisions', 'decide', 'saveInfo', 'exportSave', 'lastReport', 'detail', 'crDetail', 'setToggle', 'setMajor', 'setFreq', 'newGameOpen', 'newGame', 'clearSave', 'clearGo', 'importSave', 'importGo', 'copyCode', 'goMoreTab', 'goMoneyTab', 'logF', 'emp', 'crSup', 'crH', 'mkType', 'mkSort', 'mkMax', 'crRole', 'slotLoad', 'slotRename', 'slotRenameGo', 'slotDel', 'slotDelGo', 'slotNew'];
   // v6 instant updates: derived numbers (capacity, work bars, limits, forecast) for a business as it is RIGHT NOW.
   // TG.B.live recomputes them whenever the business changed (it is cached otherwise), so every action shows its effect at once.
   const LV = (b) => (TG.G && b ? TG.B.live(TG.G, b) : null);
