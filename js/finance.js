@@ -230,15 +230,29 @@
 
   // ---------- valuation & net worth ----------
   F.bizAssets = (g, b) => TG.E.value(g, b) + (b.inventoryValue ? b.inventoryValue(g) : TG.B.inventoryValue(g, b)) + U.sum(b.recv || [], (r) => r.amt);
+  // v14: a one-month spike must not set the sale price. With 3+ months the median ignores one wild month.
+  // With only 1-2 months, that profit counts once, not as if it repeats all year.
+  F.profitRunRate = (b) => {
+    const ps = (b.hist || []).slice(-12).map((x) => x.profit).filter((x) => Number.isFinite(x));
+    if (!ps.length) return 0;
+    const sorted = ps.slice().sort((a, c) => a - c);
+    const med = sorted[Math.floor((sorted.length - 1) / 2)];
+    if (ps.length < 3) return Math.max(0, Math.min(...ps));
+    return Math.max(0, med) * 12;
+  };
   F.bizValue = (g, b) => {
     const C = TG.CONFIG.finance.saleMultiple;
-    const h = b.hist.slice(-12); const p12 = U.sum(h, (x) => x.profit) * (12 / Math.max(1, h.length));
+    const p12 = F.profitRunRate(b);
     let mult = C.base + C.rep * (b.rep - 50) / 10 * 10;
     mult = U.clamp(C.base + (b.rep - 50) * C.rep, 1, 6);
     let v = F.bizAssets(g, b) + Math.max(0, p12) * mult;
-    if (b.type === 'tech' && b.tech && b.tech.phase === 'live') v = Math.max(v, b.tech.users * TG.CONFIG.businesses.tech.tech.arpu * 12 * (2 + 6 * b.tech.pmf));
+    if (b.type === 'tech' && b.tech && b.tech.phase === 'live') {
+      const cap = Math.max(0, TG.E.capacity(b, 'server'));
+      const users = Math.min(cap, b.tech.userAvg != null ? b.tech.userAvg : b.tech.users);
+      v = Math.max(v, users * TG.CONFIG.businesses.tech.tech.arpu * 12 * (2 + 6 * b.tech.pmf));
+    }
     if (b.type === 'tech' && b.tech && b.tech.phase === 'build') v = Math.max(v, 400000 + b.tech.dev * 30000 * (0.5 + (b.tech.pmfEst || 0.3)));
-    if (b.type === 'franchise' && b.fr) v = Math.max(v, b.fr.locations.length * 120000);
+    if (b.type === 'franchise' && b.fr) { const cap = Math.max(0, TG.E.capacity(b, 'systems')); const n = Math.min(b.fr.locations.length, cap); v = Math.max(v, n * 120000); }
     return Math.round(Math.max(0, v));
   };
   F.netWorth = (g, detail) => {

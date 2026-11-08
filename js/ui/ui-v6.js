@@ -176,9 +176,13 @@
   };
   UI.reportsTab = (g, b) => {
     const h = b.hist, last = h[h.length - 1];
-    let o = UI.flowCard(g, b) + UI.forecastCard(g, b) + UI.salesCard(g, b);
+    const lastP = last ? last.profit : null;
+    let o = `<div class="tiles">${UI.tile('rpP' + b.id, '💰', last ? (lastP >= 0 ? '+' : '−') + m(Math.abs(lastP)) : '–', 'Last month', last ? (lastP >= 0 ? 'g' : 'r') : '', 'Profit after the month’s costs.')}
+      ${UI.tile('rpR' + b.id, '⭐', Math.round(b.rep), 'Reputation', '', 'What customers think.')}
+      ${UI.tile('rpC' + b.id, '📈', b.revAvg ? m(b.revAvg) : '–', 'Sales lately', '', 'Average revenue of the last few months.')}</div>`;
+    o += UI.flowCard(g, b);
     const risks = TG.B.topRisks(g, b).slice(0, 8);
-    o += `<div class="card"><h3>⚠️ Risks next month</h3><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></div>`;
+    o += UI.fold('rpMore' + b.id, '🔮 Forecast, sales detail, and risks', (UI.forecastCard(g, b) || '') + (UI.salesCard(g, b) || '') + `<div class="card"><h3>⚠️ Risks next month</h3><table>${risks.map((r) => `<tr><td>${esc(r.label)}<div class="mute">${esc(r.why)}</div></td><td class="n">${UI.risk(r.p)}</td></tr>`).join('') || '<tr><td class="mute">Nothing notable.</td></tr>'}</table></div>`);
     if (last) o += `<div class="card"><details><summary>🧾 Money in & out</summary><table>${Object.entries(last.lines || {}).sort((a, c) => Math.abs(c[1]) - Math.abs(a[1])).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n ${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '-'}${m(Math.abs(v))}</td></tr>`).join('')}</table>${h.length > 2 ? UI.spark(h.slice(-36).map((x) => x.profit), '#2563eb') : ''}</details></div>`;
     const ev = g.log.filter((e) => e.bizId === b.id || e.biz === b.name).slice(-12).reverse();
     if (ev.length) o += `<div class="card"><details><summary>📰 What happened</summary>${ev.map((e) => `<div class="small"><span class="mute">${U.dateStr(e.m)}</span> ${e.type === 'decision' ? `<b>${esc(e.by)}</b>: ` : ''}${esc(e.text)}</div>`).join('')}</details></div>`;

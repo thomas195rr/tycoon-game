@@ -59,12 +59,30 @@
     }
     if (!apply) return { cost, steps };
     for (const s of steps) {
-      if (s.kind === 'equip') { if (g.cash >= s.cost) TG.E.buy(g, b, s.type, s.tier); }
-      else { const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); } }
+      if (s.kind === 'equip') {
+        const ed = TG.E.def(b, s.type); const critical = !!(ed && ed.critical);
+        const tryTiers = s.tier === 'premium' ? ['premium', 'standard', 'budget'] : s.tier === 'standard' ? ['standard', 'budget', 'used'] : s.tier === 'budget' ? ['budget', 'used'] : ['used'];
+        let bought = false;
+        for (const t of tryTiers) { const pr = TG.E.price(g, b, s.type, t); if (g.cash >= pr) { TG.E.buy(g, b, s.type, t); bought = true; break; } }
+        // v14: a critical machine (the line, the truck, the oven) is leased if buying any tier does not fit, so the place can actually run
+        if (!bought && critical && s.tier !== 'used') {
+          const t = 'budget'; const pay = Math.round(TG.E.price(g, b, s.type, t) * TG.CONFIG.equipment.leaseMonthlyPct);
+          if (g.cash >= pay) TG.E.buy(g, b, s.type, t, { leased: true });
+        }
+      } else {
+        if (b.type === 'factory' && s.role === 'worker' && !b.equip.some((x) => x.type === 'line' && x.broken !== 'destroyed')) continue;
+        const pool = TG.S.poolFor(g, b, s.role); if (pool.length) { const best = pool.slice().sort((x, y) => (y.skill + y.attitude * 0.5) / y.wage - (x.skill + x.attitude * 0.5) / x.wage)[0]; TG.S.hire(g, b, best); }
+      }
     }
     if (TG.D) TG.D.syncTargets(b);
     // v7: a first supplies order (you pay for it); after this, no manager = you reorder yourself
-    if (TG.ST && TG.ST.def(b)) { TG.ST.ensure(b); const q = TG.ST.suggest(b, g); if (q > 0 && g.cash > q * TG.ST.unitCost(g, b) * 2) TG.ST.buy(g, b, q, 0); }
+    // v14: buy what you can afford (the old rule skipped the whole order unless you could pay double). A plant keeps a cash buffer for wages.
+    if (TG.ST && TG.ST.def(b)) {
+      TG.ST.ensure(b);
+      let q = TG.ST.suggest(b, g);
+      if (b.factory) { const lineCap = TG.E.capacity(b, 'line') || 0; const unit = Math.max(0.01, TG.ST.unitCost(g, b)); const roomCash = Math.max(0, g.cash - 12000); q = Math.min(TG.ST.cap(b), Math.floor(roomCash / unit), Math.max(q, Math.ceil(lineCap))); }
+      if (q > 0 && g.cash > TG.ST.unitCost(g, b) * 5) TG.ST.buy(g, b, q, 0);
+    }
     for (const t of d.insurance) if (t === 'liability' || t === 'malpractice' || (t === 'property' && g.properties.find((p) => p.id === b.propId && p.owned))) b.ins[t] = true;
     return { cost, steps };
   };
