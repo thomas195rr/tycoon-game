@@ -186,7 +186,7 @@
       const active = Math.min(trucks.filter((x) => !x.broken).length, Math.ceil(loads / 12));
       for (let i = 0; i < active; i++) {
         const t = trucks.filter((x) => !x.broken)[i]; if (!t) break;
-        const p = fr.crashBase * (1.6 - ctx.skill / 100) * (0.5 + TG.E.effWear(t) / 60) * (b.pace === 'rush' ? 1.6 : b.pace === 'careful' ? 0.75 : 1) * (b.fixes.safetytrain ? 0.6 : 1) * (b.spec.safety ? 0.6 : 1) * (w.hoursReg > 0 ? 0.85 : 1) * ctx.streakMult;
+        const p = fr.crashBase * (1.6 - ctx.skill / 100) * (0.5 + TG.E.effWear(t) / 60) * (b.pace === 'rush' ? 1.6 : b.pace === 'careful' ? 0.75 : 1) * (b.fixes.safetytrain ? 0.6 : 1) * (b.spec.people ? 0.6 : 1) * (w.hoursReg > 0 ? 0.85 : 1) * ctx.streakMult;
         if (R.chance(p)) {
           t.broken = R.chance(0.4) ? 'destroyed' : 'major';
           const why = `${U.pct(p, 2)} monthly crash chance per truck: driver skill ${Math.round(ctx.skill)}, truck wear ${Math.round(TG.E.effWear(t))}%, ${b.pace} pace${b.fixes.safetytrain ? ', safety training' : ', no safety training'}`;
@@ -208,7 +208,7 @@
     extraRisks(g, b, ctx) {
       const fr = TG.CONFIG.businesses.freight.freight; const t = b.equip.filter((x) => x.type === 'truck' && !x.broken);
       if (!t.length) return [];
-      const p = fr.crashBase * (1.6 - ctx.skill / 100) * (0.5 + TG.E.avgWear(b) / 60) * (b.fixes.safetytrain ? 0.6 : 1) * (b.spec.safety ? 0.6 : 1) * t.length;
+      const p = fr.crashBase * (1.6 - ctx.skill / 100) * (0.5 + TG.E.avgWear(b) / 60) * (b.fixes.safetytrain ? 0.6 : 1) * (b.spec.people ? 0.6 : 1) * t.length;
       return [{ label: 'A truck crash (lawsuit)', p: 1 - Math.pow(1 - p / t.length, t.length), why: `${t.length} trucks on the road, driver skill ${Math.round(ctx.skill)}` }];
     },
   };

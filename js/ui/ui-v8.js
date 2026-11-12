@@ -42,8 +42,8 @@
       const reEmpty = g.re && !g.re.manager ? U.sum(g.re.holdings.filter((h) => h.mode === 'rent'), (h) => TG.RE.vacant(h)) : 0;
       if (W.length || noMgr.length || reEmpty) {
         UI.modal('⏩ Before you skip', `<div class="card">${W.map((w) => `<div class="ev ${w.bad ? 'bad' : 'warn'}"><b>${esc(w.b.name)}</b> ${esc(w.text)}</div>`).join('')}${noMgr.map((b) => `<div class="ev warn"><b>${esc(b.name)}</b> has no manager to reorder supplies: it closes when they run out (about ${N((b.stock || {}).qty)} left).</div>`).join('')}${reEmpty ? `<div class="ev warn">🏘️ <b>${reEmpty} empty rental unit${reEmpty > 1 ? 's' : ''}</b>: with no property manager nobody looks for tenants during a skip, and repairs wait for you.</div>` : ''}
-          <div class="mute">During a skip nobody buys supplies for a business without an Ops manager, GM or CEO.${g.settings.stopOnMajor ? ' The skip will stop early if a shop closes.' : ''}</div>
-          <div class="btns">${W[0] || noMgr[0] ? UI.btn('🧑‍💼 Hire an Ops manager', 'hireLeadFor', (W[0] ? W[0].b : noMgr[0]).id, 'pri') : UI.btn('🧑‍💼 Property manager', 'goMoneyTab', 're', 'pri')}${UI.btn(`Skip ${n} months anyway`, 'skipAnyway', null, '')}</div></div>`);
+          <div class="mute">During a skip nobody buys supplies for a business without a GM or CEO.${g.settings.stopOnMajor ? ' The skip will stop early if a shop closes.' : ''}</div>
+          <div class="btns">${W[0] || noMgr[0] ? UI.btn('🧑‍💼 Hire a GM', 'hireLeadFor', (W[0] ? W[0].b : noMgr[0]).id, 'pri') : UI.btn('🧑‍💼 Property manager', 'goMoneyTab', 're', 'pri')}${UI.btn(`Skip ${n} months anyway`, 'skipAnyway', null, '')}</div></div>`);
         return;
       }
     }
@@ -52,7 +52,7 @@
 
   { const gm0 = UI.A.goMoneyTab; UI.A.goMoneyTab = (t) => { UI.closeModal(); gm0(t); }; }
   UI.A.skipAnyway = () => { UI.S.skipOK = TG.G.month; UI.closeModal(); UI.A.skip(); };
-  UI.A.hireLeadFor = (id) => { UI.closeModal(); UI.bizId = id; UI.go('bizd'); UI.A.hireRole('ops'); }; /* v9: Shift lead is gone; the Ops manager orders supplies */
+  UI.A.hireLeadFor = (id) => { UI.closeModal(); UI.bizId = id; UI.go('bizd'); UI.A.hireRole('gm'); }; /* v15: the GM orders supplies */
   // ================= 📦 WARN BEFORE NEXT MONTH IF A SHOP WILL RUN OUT =================
   UI.supplyWarnings = (g) => {
     const out = [];

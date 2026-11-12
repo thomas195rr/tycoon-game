@@ -4,13 +4,12 @@
   const TG = globalThis.TG; const R = TG.R, U = TG.U;
   const D = {};
   const COVER = {
-    broken: ['ops', 'gm'], poach: ['hr', 'gm'], theft: ['hr', 'gm', 'accountant'], lawsuit: ['lawyer'],
+    broken: ['gm'], poach: ['hr', 'gm'], theft: ['hr', 'accountant', 'gm'], lawsuit: ['lawyer'],
     pr: ['ads', 'gm'], fund: ['gm', 'accountant'], evict: [], hire: ['hr', 'gm'], maint: [], raise: ['hr', 'gm'],
-    stock: ['ops', 'gm'], bid: ['gm', 'ops'], franchise: ['gm'], farm: ['ops', 'gm'], expand: ['ops'],
+    stock: ['gm'], bid: ['gm'], franchise: ['gm'], farm: ['gm'], expand: ['gm'],
   };
-  // v10: the GM is the people & sales boss, the Ops manager the machines & running-things boss.
-  // Each makes better calls in their own area and worse ones outside it (shown on the Manager tab).
-  const STRONG = { gm: ['poach', 'theft', 'pr', 'fund', 'hire', 'raise', 'bid', 'franchise'], ops: ['broken', 'stock', 'farm', 'expand'] };
+  // v15: three clear bosses. HR hires and keeps people. The GM runs supplies, fuel and machines. The people manager handles safety and morale.
+  const STRONG = { gm: ['broken', 'stock', 'farm', 'expand', 'bid'], hr: ['hire', 'poach', 'raise', 'theft'], people: [] };
   D.COVER = COVER; D.STRONG = STRONG;
   D.roleEdge = (role, kind) => (STRONG[role] ? (STRONG[role].includes(kind) ? 0.08 : -0.06) : 0);
 

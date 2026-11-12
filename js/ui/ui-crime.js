@@ -36,9 +36,14 @@
     o += `<div class="card"><h3>🛒 Sales ${UI.tipBtn('crSl')}</h3>${UI.tipLine('crSl', 'Sales = the smallest of: what clients want, what your dealers and runners can move, and your stock.')}
       <div class="tiles">${UI.tile('crS', '🛒', N(c.last.sold_ || 0), 'Sold', '', 'Units sold last month.')}${UI.tile('crW2', '🧲', N(c.last.wanted || 0), 'Wanted', '', 'Units clients wanted at your prices.')}${UI.tile('crCap', '🧱', N(Math.min(cap.deal, cap.run)), 'Could move', '', 'The most dealers and runners can handle (bigger goods take more effort).')}</div>
       ${UI.irow('crLim', L[0], 'Held back by: ' + L[1], null, L[2])}</div>`;
-    o += workCard(g, c, CR);
-    o += `<div class="card"><h3>⚠️ Danger this month ${UI.tipBtn('crOdd')}</h3>${UI.tipLine('crOdd', 'Odds that each bad thing happens next month, and why. They can be lowered, never to zero.')}
-      ${CR.odds(g).filter((x) => x.p > 0).map((x) => UI.irow('cro' + x.id, x.i, x.t, oddsPill(x.p), x.why)).join('') || '<div class="mute">Nothing yet.</div>'}</div>`;
+    const books = c.last || {};
+    o += `<div class="card" id="crBooks"><h3>💵 How the street made money</h3>
+      <div class="tiles">${UI.tile('crSold', '🛒', m(books.rev || 0), 'Sold', (books.rev || 0) > 0 ? 'g' : '', 'Street cash from sales last month.')}
+      ${UI.tile('crHeat2', '🚨', (books.heatDelta > 0 ? '+' : '') + (books.heatDelta != null ? books.heatDelta.toFixed(1) : '0'), 'Heat change', (books.heatDelta || 0) > 2 ? 'r' : 'g', 'Sales, crew and turf add heat. Lookouts and time cool it.')}</div>
+      <div class="small">Buy stock on 📦 Goods (price each and the total show before you pay). Cooks make it cheaper once you have a workshop. Clean profit on 🧼, not the whole pile. A street boss can buy and replace crew for you.</div></div>`;
+    o += UI.fold ? UI.fold('crWork', '💪 Crew workload', workCard(g, c, CR)) : workCard(g, c, CR);
+    o += UI.fold ? UI.fold('crOddF', '⚠️ Odds of trouble', `<div class="card"><h3>⚠️ Danger this month ${UI.tipBtn('crOdd')}</h3>${UI.tipLine('crOdd', 'Odds that each bad thing happens next month, and why. They can be lowered, never to zero.')}
+      ${CR.odds(g).filter((x) => x.p > 0).map((x) => UI.irow('cro' + x.id, x.i, x.t, oddsPill(x.p), x.why)).join('') || '<div class="mute">Nothing yet.</div>'}</div>`) : '';
     o += `<div class="card"><div class="btns">${UI.btn('👥 See crew', 'crDetail', 'crew', 'sm')}${UI.btn('📦 See stash', 'crDetail', 'stash', 'sm')}${UI.btn('📜 Crime log', 'crDetail', 'log', 'sm')}${UI.btn('📊 Reports', 'tab', 'crime:rep', 'sm')}</div></div>`;
     return o;
   }
@@ -77,7 +82,8 @@
       o += `<div class="small">🏷️ Street ${m(st)} · you buy at ${m(wb)} · margin ${m(pr - wb)} a unit</div>
         <div class="row" style="gap:6px;flex-wrap:wrap">🏷️ Your price <b>${m(pr)}</b> ${UI.pill(c.ask[p] == null ? 'street price' : (r < 0.97 ? 'cheap ' : r > 1.03 ? 'dear ' : 'fair ') + Math.round(r * 100) + '%', r > 1.1 ? 'warn' : r < 0.9 ? 'info' : 'good')}
         ${UI.btn('➖', 'crAsk', p + '|-', 'xs')}${UI.btn('➕', 'crAsk', p + '|+', 'xs')}${UI.btn('Street', 'crAsk', p + '|m', 'xs')}${UI.tipBtn(k + 'pr')}</div>${UI.tipLine(k + 'pr', 'Cheap: more buyers, clients grow faster, street rep rises, less heat per sale, but a thin margin. Dear: bigger margin, but clients leave for rivals, fewer fit on your turf and rep falls. Neither always wins.')}
-        <div class="row"><input type="number" id="crQ${p}" placeholder="units" value="${Math.max(10, Math.round(c.clients * P.want))}" style="max-width:110px">${UI.btn('🛒 Buy', 'crBuy', p, 'sm goodb', !sp.goods.includes(p))}${UI.btn('Sell back', 'crDump', p, 'sm')}</div>
+        <div class="row"><input type="number" id="crQ${p}" placeholder="units" value="${Math.max(10, Math.round((c.clients || 10) * P.want))}" style="max-width:110px" data-input="crQty" data-arg="${p}">${UI.btn('🛒 Buy', 'crBuy', p, 'sm goodb', !sp.goods.includes(p))}${UI.btn('Sell back', 'crDump', p, 'sm')}</div>
+        <div class="small" id="crTot${p}">${m(wb)} each. The total is shown before you pay.</div>
         <div class="small mute">${sp.goods.includes(p) ? `Cost ${m(wb)} each from ${sp.label}` : `${sp.label} does not sell this`} · sell back pays ${m(CR.wholesale(g, p) * K().sellBackShare)}</div></div>`;
     }
     return o;
@@ -147,7 +153,8 @@
       <div class="tiles">${UI.tile('crL1', '🧼', m(L.total), 'Can clean/mo', '', 'Each business can hide a share of its sales: cash-heavy ones (car wash, food truck, cafe) more.')}${UI.tile('crL2', '🧾', U.pct(a, 1), 'Audit odds', a > 0.05 ? 'r' : a > 0.02 ? 'y' : 'g', `Fine ${U.pct(K().audit.fine)} of a year of laundering, heat +15, and ${U.pct(K().audit.seize)} odds a business is seized.`)}</div>
       ${L.rows.map((r) => UI.irow('crLb' + r.b.id, TG.CONFIG.businesses[r.b.type].icon, r.b.name, m(r.cap) + '/mo', `${U.pct(K().cashShare[r.b.type] || 0.1)} of its sales. If you are convicted: ${U.pct(CR.seizeOdds(g, r.b))} odds it is seized.`)).join('')}
       ${L.total ? '' : UI.irow('crLs', '🕴️', 'Shady money man', m(L.shady) + '/mo', `With no business he cleans up to ${m(L.shady)} a month for a ${U.pct(K().shadyFee)} fee.`)}
-      <div class="row"><span>Clean each month</span><input type="number" id="crLa" value="${c.launder}" style="max-width:120px">${UI.btn('Save', 'crDo', 'launder', 'sm pri')}</div></div>`;
+      <div class="small" id="crCleanMath">Fee ${U.pct(K().launderFee)}: you keep ${U.pct(1 - K().launderFee)} of what you clean. Cleaning the whole pile (including cash you just moved in) throws money away. Clean the profit.</div>
+      <div class="row"><span>Clean each month</span><input type="number" id="crLa" value="${c.launder}" style="max-width:120px">${UI.btn('Save', 'crDo', 'launder', 'sm pri')}${UI.btn('Clean the profit', 'crCleanProfit', null, 'sm')}</div></div>`;
     o += `<div class="card"><h3>💵 Move cash to the street</h3><div class="row"><input type="number" id="crW" placeholder="$ amount">${UI.btn('Move', 'crDo', 'withdraw', 'sm')}${UI.tipBtn('crWd')}</div>${UI.tipLine('crWd', 'Normal cash → street cash. Over $10,000 adds heat. Moving it back costs the laundering fee, so there is no free loop.')}</div>`;
     return o;
   }

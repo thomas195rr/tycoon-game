@@ -143,11 +143,11 @@ const ok = (c, msg) => { if (c) pass++; else { fails.push(msg); console.log('FAI
 }
 
 // 7. version bump
-ok(TG.VERSION === 14, 'version is 14');
+ok(TG.VERSION >= 14, 'version is 14 or later');
 {
   const old = TG.Game.newGame({ seed: 1 }); old.v = 13; delete old.v14notes;
   const g = TG.Game.migrate(JSON.parse(JSON.stringify(old)));
-  ok(g.v === 14 && g.v14notes && g.v14notes.length >= 4, 'v13 save migrates to v14 with a note');
+  ok(g.v >= 14 && g.v14notes && g.v14notes.length >= 4, 'v13 save migrates through v14 with a note');
 }
 
 console.log(pass + ' passed, ' + fails.length + ' failed');

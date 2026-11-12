@@ -53,7 +53,7 @@
   const auto0 = UI.autoBtn;
   UI.autoBtn = (g, b, st) => {
     const o = V.orderer(g, b); const last = st.lastBy ? ` · last order: aimed for about ${Math.round(st.need || 0).toLocaleString()} on hand, bought ${Math.round(st.inM || 0).toLocaleString()}` : '';
-    const line = o.who === 'mgr' ? `🤖 Ordering supplies: <b>${esc(o.h.label)}</b>${last}` : o.who === 'off' ? `⏸️ <b>You</b> order supplies (🤖 Auto is off; ${esc(o.h.label)} could do it)` : '🙋 <b>You</b> order supplies (no GM, Ops manager or CEO)';
+    const line = o.who === 'mgr' ? `🤖 Ordering supplies: <b>${esc(o.h.label)}</b>${last}` : o.who === 'off' ? `⏸️ <b>You</b> order supplies (🤖 Auto is off; ${esc(o.h.label)} could do it)` : '🙋 <b>You</b> order supplies (no GM or CEO)';
     return `<div class="small" id="supWho">${line}</div>` + auto0(g, b, st);
   };
 

@@ -155,7 +155,7 @@
     perMonth: { raise: 1, bonus: 1, train: 2 }, spamMorale: 3,
     overheadPerStaffAbove: 60, overheadPerStaff: 120,
     // v9: managers (GM, Ops) also lend a hand on the job, at this share of one regular worker
-    mgrWorkFrac: 0.25, mgrWorkRoles: ['gm', 'ops'],
+    mgrWorkFrac: 0.25, mgrWorkRoles: ['gm'],
     // v9: personalities. poach = how hard they look for better pay; payWeight = how much pay below market hurts morale
     pers: {
       loyal:   { w: 0.25, poach: 0.3, payWeight: 0.4, accept: 0.95, icon: '🤝', label: 'Loyal', txt: 'Happy where they are: stays even when paid a bit below market.' },

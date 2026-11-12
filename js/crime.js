@@ -33,6 +33,7 @@
   CR.withdraw = (g, amt) => {
     const c = CR.ensure(g); amt = Math.floor(Math.min(amt, Math.max(0, g.cash))); if (!(amt > 0)) return { ok: false, msg: 'No cash to move.' };
     TG.F.spend(g, amt, 'Cash moved to the street', null, true); c.dirty += amt; c.started = true;
+    if ((c.clients || 0) < 8) c.clients = K().startClients || 22; // the corner already has regulars, so the first stock can sell
     const h = Math.max(0, (amt - 10000) / 50000) * 2; c.heat = U.clamp(c.heat + h, 0, 100);
     return { ok: true, heat: h };
   };
@@ -341,7 +342,7 @@
     // rivals poach clients when you charge over the street price: fewer clients fit on your blocks
     const room = Math.round((60 + c.blocks * k.perBlock) * (r > 1 ? Math.pow(1 / r, k.dearRoom) : 1)); c.last.room = room;
     if (active) {
-      const add = (1 + c.blocks) * k.newPerBlock * Math.sqrt(c.rep / 50) * Math.pow(1 / r, k.cheapGrowth) * (sold > 0 ? 1 : 0.3);
+      const add = (1 + c.blocks) * k.newPerBlock * Math.sqrt(c.rep / 50) * Math.pow(1 / r, k.cheapGrowth) * (sold > 0 ? 1 : 0.55);
       const churn = c.clients * k.churn * Math.pow(r, k.dearChurn) * (out > wanted * 0.2 ? 1.6 : 1);
       c.clients = Math.max(0, Math.min(c.clients + Math.min(add, Math.max(0, room - c.clients)) - churn, Math.max(room, c.clients * 0.9)));
       const target = U.clamp(50 + 40 * (1 - r) - (out > wanted * 0.2 ? k.outOfStockRep : 0), 5, 95);
@@ -382,7 +383,7 @@
     const shops = c.gear.filter((x) => x.type === 'workshop' && !x.broken).length;
     const gain = heatS + c.crew.length * k.crewHeat + c.blocks * k.blockHeat + shops * k.gear.workshop.heat + (rk ? c.blocks * k.racket.heat : 0);
     const cool = c.heat * k.heatDecay + k.heatFlat + cap.watch / 2 * k.lookoutCool + (J ? 2 : 0);
-    const h0 = c.heat; c.heat = U.clamp(c.heat + gain - cool, 0, 100);
+    const h0 = c.heat; c.heat = U.clamp(c.heat + gain - cool, 0, 100); c.last.heatDelta = Math.round((c.heat - h0) * 10) / 10;
     // bad events
     const O = CR.odds(g); const P = {}; for (const o of O) P[o.id] = o.p; if (!bribed) P.scandal = 0;
     if (R.chance(P.raid)) CR.raid(g, `heat ${Math.round(c.heat)}`);
