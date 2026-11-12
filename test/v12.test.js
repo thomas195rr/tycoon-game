@@ -14,10 +14,10 @@ const answerMgrCards = (g) => { for (const d of g.decisions.slice()) if (d.mgr) 
   let n = 0;
   for (const t of types) {
     const g = fresh(5, 5e7, 'rich'); const b = bots.startBiz(g, t, t === 'farm' ? { ent: 'crops' } : {}); if (!b) { ok(false, `${t}: could not start`); continue; }
-    clearMgrs(g, b); for (const r of ['gm', 'ops', 'hr', 'accountant']) S.hire(g, b, loyal(S.candidate(g, b, r, 0.6)), 'test');
+    clearMgrs(g, b); for (const r of ['gm', 'hr', 'accountant', 'people']) S.hire(g, b, loyal(S.candidate(g, b, r, 0.6)), 'test');
     for (let i = 0; i < 2; i++) { TG.Game.nextMonth(g); bots.resolveSmart(g); answerMgrCards(g); }
     const base = oneMonth(g, b);
-    for (const r of ['gm', 'ops', 'hr', 'accountant']) for (const lvl of ['basic', 'advanced']) {
+    for (const r of ['gm', 'hr', 'accountant', 'people']) for (const lvl of ['basic', 'advanced']) {
       const e = b.spec[r]; if (!e) continue; n++;
       const fx = V.mgrTrainEffect(g, b, e, lvl); ok(fx.after >= fx.now, `${t} ${r}: training effect shown (${U.pct(fx.now)} -> ${U.pct(fx.after)})`);
       const x = oneMonth(g, b, (g2, b2) => { S.train(g2, b2, e.id, lvl); });
@@ -116,10 +116,10 @@ const answerMgrCards = (g) => { for (const d of g.decisions.slice()) if (d.mgr) 
 }
 // ---------- 7. CEO keeps chosen managers hired ----------
 {
-  const g = fresh(50, 5e7, 'rich'); const b = bots.startBiz(g, 'salon', {}); clearMgrs(g, b); b.keep = { gm: true, ops: true };
+  const g = fresh(50, 5e7, 'rich'); const b = bots.startBiz(g, 'salon', {}); clearMgrs(g, b); b.keep = { gm: true, hr: true };
   TG.Game.nextMonth(g); ok(!b.spec.gm, 'no CEO: nobody hires managers for you');
   D.hireCeo(g, loyal(D.ceoPool(g)[0])); TG.Game.nextMonth(g); answerMgrCards(g);
-  ok(b.spec.gm && b.spec.ops, 'CEO hired the chosen GM and Ops manager');
+  ok(b.spec.gm && b.spec.hr, 'CEO hired the chosen GM and HR manager');
   ok(g.log.some((e) => e.type === 'decision' && /CEO/.test(e.by) && /because you asked/.test(e.text)), 'CEO hire is reported with the reason');
 }
 // ---------- 6. help pages ----------

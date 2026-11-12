@@ -113,6 +113,16 @@ Progress autosaves after every month and every tap, and again when the app is hi
 - **Fix:** 2.5 seconds after start, the boot load fallback no longer swaps the live game for the saved copy.
 - **Tests:** `test/v10.test.js` (rules), `test/v10-ui.test.js` (browser checks at 375 and 1280 px), and `tools/playtest/personas10.js` (5 kid personas plus the "how it should work" checklist, written to `tools/playtest/log10.txt`). `tools/upg-calib.js` prints the payback for each upgrade, and `tools/audit10-table.txt` holds the balance audit.
 
+## Version 15 highlights (fewer bosses, automatic repairs, a street corner that can pay)
+
+- **Three bosses:** HR does the hiring, wage discounts, and keeping people. The GM buys supplies and fuel and keeps the place running (the Ops manager job is gone). The people manager keeps people safe and in a good mood (the Safety officer job is gone). Accountant, ads, lawyer, property manager, and mechanics stay.
+- **Old saves:** an Ops manager becomes the GM, and a Safety officer becomes the people manager, with the same skill, training, and pay. If both seats were filled, the higher skill stays. The CEO keep-hired list follows them.
+- **Machines:** a shop with both a mechanic and a GM never stops the month to ask about a repair. The GM fixes it, or replaces a destroyed machine (like-for-like if you set that), and the cost is in the monthly report.
+- **Crime:** a new corner already has regulars, so the first stock can sell. The home screen shows what sold and how heat moved. Cleaning is the profit, not the whole pile (the fee is shown). Reckless play still goes broke. Careful play can make a little money and is not a sure thing.
+- **Street boss:** trainable, with a raise and a bonus, paid from street cash. The card shows the order rate before and after before you pay.
+- **Saves:** v14 games upgrade on their own, with a one-time note. The offline cache is `tycoon-app-v15`.
+- **Tests:** `test/v15.test.js`. `tools/money-check-v15.txt` is the 10-year money check (6 seeds), including crime.
+
 ## Version 14 highlights (gear bulk buy, less scrolling, people manager, factory, save slots)
 
 - **Gear:** pick the quality first, then tap Buy. Choose how many (up to hundreds). The screen shows the price each and the total before you confirm.

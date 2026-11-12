@@ -75,12 +75,12 @@ const worker = (TG, g, b, over) => { const c = TG.S.candidate0(g, b, key(TG, b),
 // 4) v8 save with a Shift lead migrates: lead -> Ops manager (or crew if Ops is taken), with a note; nothing breaks
 { const { TG, g, b } = setup('cafe', 6); const S = TG.S;
   const lead = S.candidate0(g, b, 'gm', 0.5); lead.role = 'lead'; b.spec.lead = lead; delete b.spec.ops;
-  const { g: g2x, b: c2 } = (() => { const b2 = require('./bots')(TG).startBiz(g, 'salon'); const l2 = S.candidate0(g, b2, 'gm', 0.5); l2.role = 'lead'; b2.spec.lead = l2; const o2 = S.candidate0(g, b2, 'ops', 0.5); b2.spec.ops = o2; return { g, b: b2 }; })();
+  const { g: g2x, b: c2 } = (() => { const b2 = require('./bots')(TG).startBiz(g, 'salon'); const l2 = S.candidate0(g, b2, 'gm', 0.5); l2.role = 'lead'; b2.spec.lead = l2; const o2 = S.candidate0(g, b2, 'gm', 0.5); o2.role = 'ops'; b2.spec.ops = o2; return { g, b: b2 }; })();
   const s = JSON.parse(TG.Game.serialize(g)); s.v = 8; for (const bb of s.businesses) for (const e of [].concat(bb.staff, Object.values(bb.spec || {}).filter(Boolean))) { delete e.pers; delete e.persSeen; delete e.expGain; }
   let g2; try { g2 = TG.Game.deserialize(JSON.stringify(s)); } catch (e) { ok(false, 'v8 save failed to load: ' + e.message); }
   if (g2) { TG.G = g2; const a = g2.businesses.find((x) => x.id === b.id), z = g2.businesses.find((x) => x.id === c2.id);
     ok(g2.v >= 9, 'save is now v9+'); ok(!('lead' in a.spec) && !('lead' in z.spec), 'no Shift lead seat left');
-    ok(a.spec.ops && a.spec.ops.id === lead.id && a.spec.ops.role === 'ops', 'lead became the Ops manager when that seat was free');
+    ok(a.spec.gm && a.spec.gm.id === lead.id, 'lead became the Ops manager, then the GM when that job merged');
     ok(z.staff.some((e) => e.name === c2.spec.lead.name && e.role === key(TG, z)), 'lead joined the crew when Ops was taken');
     ok(Array.isArray(g2.v9notes) && g2.v9notes.length === 2, 'the player gets a note for each change');
     ok(TG.S.allStaff(a).every((e) => e.pers), 'everyone has a personality after migration');

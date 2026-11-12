@@ -5,9 +5,9 @@
     // ---- products: fictional street goods. buy = wholesale per unit, street = normal street price, want = units a client buys a month,
     //      heat = heat per unit sold, work = how much dealing/running effort one unit takes, unlock = turf blocks + street rep needed
     products: {
-      sugar: { icon: '🍬', label: 'Sugar Rush', buy: 18, street: 40, want: 4, heat: 0.001, work: 1, unlock: { turf: 0, rep: 0 }, desc: 'Cheap, lots of buyers, little heat. Thin margin.' },
-      glow:  { icon: '✨', label: 'Glow', buy: 70, street: 150, want: 1.2, heat: 0.003, work: 1, unlock: { turf: 1, rep: 25 }, desc: 'Mid price, steady buyers.' },
-      haze:  { icon: '🔮', label: 'Haze', buy: 290, street: 600, want: 0.3, heat: 0.012, work: 1.5, unlock: { turf: 3, rep: 45 }, desc: 'Pricey, fewer buyers, draws police attention.' },
+      sugar: { icon: '🍬', label: 'Sugar Rush', buy: 18, street: 40, want: 4, heat: 0.0035, work: 1, unlock: { turf: 0, rep: 0 }, desc: 'Cheap, lots of buyers. A busy corner still adds a little heat.' },
+      glow:  { icon: '✨', label: 'Glow', buy: 70, street: 150, want: 1.2, heat: 0.008, work: 1, unlock: { turf: 1, rep: 25 }, desc: 'Mid price, steady buyers, more heat than Sugar Rush.' },
+      haze:  { icon: '🔮', label: 'Haze', buy: 290, street: 600, want: 0.3, heat: 0.02, work: 1.5, unlock: { turf: 3, rep: 45 }, desc: 'Pricey, fewer buyers, draws police attention.' },
       void:  { icon: '🌑', label: 'Void', buy: 1250, street: 2500, want: 0.06, heat: 0.05, work: 2, unlock: { turf: 7, rep: 60 }, desc: 'Top tier. Huge margin, huge heat. Only big connects sell it.' },
     },
     priceVol: 0.07, priceShock: 0.04, // monthly price wander and odds of a shortage/glut
@@ -43,7 +43,7 @@
     },
     baseStore: 800,
     // ---- clients, street rep, turf
-    perBlock: 160, newPerBlock: 22, churn: 0.07, startBlocks: 0, // clients one turf block can hold, new clients a month per block
+    perBlock: 160, newPerBlock: 22, churn: 0.07, startBlocks: 0, startClients: 22, // a new corner already has a few regulars so the first buy can sell
     cheapGrowth: 1.6, dearChurn: 3, dearRoom: 1.5, elasticity: 2.0, // cheap = faster growth; expensive = more churn
     repDrift: 0.12, outOfStockRep: 6,
     turfCost: 15000, turfGrow: 1.35, turfWinBase: 0.7, // price of the next block = turfCost * (blocks+1)^turfGrow
@@ -63,7 +63,7 @@
     seize: { base: 0.15, perLaunder: 0.7, max: 0.9 }, // odds each legit business tied to laundering is taken on conviction
     // ---- laundering through your legit businesses
     cashShare: { cafe: 0.35, foodtruck: 0.4, bakery: 0.35, salon: 0.35, carwash: 0.5, lawn: 0.3, auto: 0.25, gym: 0.25, hotel: 0.2, farm: 0.1, freight: 0.1, brand: 0.1, law: 0.1, clinic: 0.05, construction: 0.15, factory: 0.05, tech: 0.03, franchise: 0.15 },
-    launderFee: 0.25, shadyCap: 4000, shadyFee: 0.4, // with no businesses a shady money man cleans a little at a bad rate
+    launderFee: 0.25, shadyCap: 9000, shadyFee: 0.4, // with no businesses a money man cleans a little, at a bad rate, so profit can reach the bank
     audit: { base: 0.003, k: 0.09, heat: 0.03, fine: 0.5, seize: 0.3 },
     // ---- protection racket: dirty cash per block a month
     racket: { perBlock: 3500, heat: 1.2, report: 0.02 },

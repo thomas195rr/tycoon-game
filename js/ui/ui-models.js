@@ -14,7 +14,7 @@
     if (!h) return fill + UI.btn('🤖 Auto: needs a manager', 'stAutoNo', null, 'xs');
     return fill + UI.btn(st.auto ? `🤖 Auto ✓ (${esc((TG.CONFIG.specialists[h.role] || { label: 'CEO' }).label)})` : '🤖 Auto ✗', 'stAuto', null, 'xs' + (st.auto ? ' pri' : ''));
   };
-  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire an Ops manager or GM in Staff to do it.', true);
+  UI.A.stAutoNo = () => UI.toast('No one reorders for you yet: buy supplies yourself each month (🛒 Buy or 📦 Fill), or hire a GM in Staff to do it.', true);
   // ================= STOCK CARD (every business) =================
   UI.stockCard = (g, b) => {
     const d = TG.B.def(b); let rows = ''; let title = '📦 What you have';

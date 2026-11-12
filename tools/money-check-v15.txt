@@ -1,0 +1,35 @@
+v15 money check: 6 seeds x 120 months. Careful bot, one normal start (lease if that is what fits). Reckless on the same cash.
+unit                 median/yr  grew   prof yr2-3  ruin   worst10%   boom-start  slump-start   reckless med/ruin
+cafe                     8%    67%       67%     0%      -20%        0%        8%    -31% / 100%
+foodtruck               12%   100%      100%     0%       10%       11%       14%    -24% / 0%
+bakery                   6%   100%      100%     0%        2%        6%        6%    -31% / 100%
+salon                   13%   100%      100%     0%        5%       11%       13%    -31% / 100%
+carwash                 18%   100%      100%     0%       15%       17%       18%    -24% / 0%
+lawn                    15%   100%      100%     0%        8%       14%       15%    -31% / 50%
+auto                    15%   100%      100%     0%       11%       14%       17%    -31% / 75%
+gym                      4%    67%       83%     0%       -4%        3%        9%    -31% / 100%
+freight                  4%   100%      100%     0%        0%        5%        4%    -37% / 50%
+brand                    8%   100%      100%     0%        2%        8%        6%    -15% / 25%
+hotel                    6%   100%      100%     0%        1%        9%        3%    -40% / 0%
+law                      9%   100%       83%     0%        4%        9%        8%    -26% / 25%
+clinic                  14%   100%      100%     0%        6%       14%       14%    -49% / 75%
+construction            16%   100%       83%     0%       13%       17%       15%    -49% / 100%
+factory                 12%   100%      100%     0%       10%       12%       12%    -15% / 0%
+tech                   -10%     0%        0%     0%      -18%      -12%       -7%    -44% / 50%
+franchise                9%   100%      100%     0%        6%        9%       10%    -49% / 75%
+farm:cows                8%   100%      100%     0%        4%         –        8%    -11% / 0%
+farm:crops              11%   100%      100%     0%        6%        9%       11%    -18% / 25%
+farm:orchard            -2%    40%       80%    20%      -37%        9%      -16%    -24% / 50%
+re:condo                 3%    64%       91%     9%      -18%        2%       14%
+re:house                 4%    82%       91%     0%       -7%        3%       14%
+re:duplex                6%    92%      100%     0%        3%        5%        7%
+re:smallapt              5%   100%      100%     0%        2%        5%        5%
+re:apartment             4%    91%       91%     0%        1%        3%        7%
+re:strip                 5%    91%       91%     0%        3%        5%       12%
+re:officebldg            6%    83%      100%     0%       -1%        5%       11%
+re:warehouse             6%    83%      100%     0%       -1%        6%       10%
+re:land                 -6%     0%        0%    25%      -44%       -6%       -3%
+re:tower                 5%    91%      100%     0%        1%        5%       11%
+crime:careful           -1%    50%       83%     0%      -15%
+crime:reckless         -25%     0%       83%   100%      -27%
+crime:bank jobs         -2%    17%       17%     0%       -5%

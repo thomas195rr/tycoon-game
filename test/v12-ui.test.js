@@ -39,11 +39,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await shot('shots12-gm-poach-setting', '#poachCard'); await noSide('staff tab');
   ok(/Needs a CEO/.test(await txt('#keepCard')), 'CEO keep setting says it needs a CEO');
   await page.evaluate(() => { const g = TG.G; const c = TG.D.ceoPool(g)[0]; TG.D.hireCeo(g, c); TG.UI.render(); }); await sleep(100);
-  await page.evaluate(() => { TG.UI.closeModal && TG.UI.closeModal(); document.querySelector('#keepCard [data-act="keepRole"][data-arg="ops"]').click(); }); await sleep(100);
-  ok(await page.evaluate(() => TG.B.get(TG.G, TG.UI.bizId).keep.ops === true) && /✅/.test(await txt('#keepCard')), 'tapping Ops manager marks it to keep hired');
+  await page.evaluate(() => { TG.UI.closeModal && TG.UI.closeModal(); document.querySelector('#keepCard [data-act="keepRole"][data-arg="hr"]').click(); }); await sleep(100);
+  ok(await page.evaluate(() => TG.B.get(TG.G, TG.UI.bizId).keep.hr === true) && /✅/.test(await txt('#keepCard')), 'tapping HR manager marks it to keep hired');
   await shot('shots12-ceo-hiring-setting', '#keepCard');
   await page.evaluate(() => { TG.Game.nextMonth(TG.G); TG.UI.closeModal && TG.UI.closeModal(); TG.UI.render(); });
-  ok(await page.evaluate(() => !!TG.B.get(TG.G, TG.UI.bizId).spec.ops), 'next month the CEO hired an Ops manager');
+  ok(await page.evaluate(() => !!TG.B.get(TG.G, TG.UI.bizId).spec.hr), 'next month the CEO hired an HR manager');
   // ---- CEO coaching ----
   await page.evaluate(() => { TG.UI.tab.more = 'mgr'; TG.UI.go('more'); }); await sleep(100);
   const cu = await txt('#ceoUp'); ok(/good calls \d+% → \d+%/.test(cu) && /Raise/.test(cu) && /Bonus/.test(cu), 'CEO card: coaching effect, raise and bonus shown with costs');

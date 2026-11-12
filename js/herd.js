@@ -64,8 +64,8 @@
   M.sickOdds = (g, b, w) => {
     const f = b.farm, a = f.areas.cows; if (!a.herd) return { p: 0, why: '' };
     const over = a.herd / Math.max(1, M.farmHeadCap(b)); const hp = a.health == null ? 0.9 : a.health; const bl = TG.B.backlogMult(b);
-    const p = U.clamp(E().diseaseBase * (1 + 3 * Math.max(0, over - 1)) * (1 + HC().hunger.sickK * (1 - hp)) * (b.spec.ops ? 0.6 : 1) * bl, 0, 0.9);
-    return { p, why: `herd at ${U.pct(over)} of room, health ${U.pct(hp)}${hp < 0.8 ? ' (hungry cows get sick more)' : ''}${b.spec.ops ? ', ops manager helps' : ''}${bl > 1.05 ? `, unfinished work x${bl.toFixed(2)}` : ''}` };
+    const p = U.clamp(E().diseaseBase * (1 + 3 * Math.max(0, over - 1)) * (1 + HC().hunger.sickK * (1 - hp)) * (b.spec.gm ? 0.6 : 1) * bl, 0, 0.9);
+    return { p, why: `herd at ${U.pct(over)} of room, health ${U.pct(hp)}${hp < 0.8 ? ' (hungry cows get sick more)' : ''}${b.spec.gm ? ', your GM keeps the herd healthier' : ''}${bl > 1.05 ? `, unfinished work x${bl.toFixed(2)}` : ''}` };
   };
   M.herdForecast = (g, b) => {
     const a = b.farm.areas.cows, c = HC(); M.herdSync(a);

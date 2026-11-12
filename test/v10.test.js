@@ -73,11 +73,11 @@ const fresh = (seed, cash) => { const g = TG.Game.newGame({ seed: seed || 1 }); 
   delete b.spec.gm; delete b.spec.ops; g.ceo = null; g.month++; TG.D.autoResolve(g);
   ok(g.decisions.some((d) => d.kind === 'broken' && d.itemId === it.id) && b.equip.find((x) => x.id === it.id && x.broken === 'destroyed'), 'no manager: the destroyed machine waits for you');
   // with an Ops manager + like-for-like order
-  const cand = TG.S.poolFor(g, b, 'ops')[0]; TG.S.hire(g, b, cand); b.orders = b.orders || {}; b.orders.replaceLike = true; const tier = it.tier; g.month++;
+  const cand = TG.S.poolFor(g, b, 'gm')[0]; TG.S.hire(g, b, cand); b.orders = b.orders || {}; b.orders.replaceLike = true; const tier = it.tier; g.month++;
   const R2 = TG.R; const roll = TG.D.roll; TG.D.roll = () => 'good'; try { TG.D.autoResolve(g); } finally { TG.D.roll = roll; }
-  ok(!b.equip.some((x) => x.broken === 'destroyed'), 'Ops manager replaced the destroyed machine');
+  ok(!b.equip.some((x) => x.broken === 'destroyed'), 'GM replaced the destroyed machine');
   ok(b.equip.some((x) => x.type === it.type && x.tier === tier && x.id !== it.id), `like-for-like order: same kind and quality (${tier})`); void R2;
-  ok(TG.D.roleEdge('ops', 'broken') > 0 && TG.D.roleEdge('gm', 'broken') < 0 && TG.D.roleEdge('gm', 'poach') > 0 && TG.D.roleEdge('ops', 'poach') < 0, 'GM is better at people jobs, Ops at machine jobs');
+  ok(TG.D.roleEdge('gm', 'broken') > 0 && TG.D.roleEdge('hr', 'poach') > 0 && !TG.CONFIG.specialists.ops && !TG.CONFIG.specialists.safety, 'GM handles machines, HR handles people, Ops and Safety are gone');
 }
 // ---------- 4. take over a struggling business (any type) + failing-business new games ----------
 for (const type of Object.keys(C.businesses)) {

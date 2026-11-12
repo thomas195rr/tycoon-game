@@ -79,7 +79,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(/cares for ~\d+ machines/.test(mech) && !/work pts[^\n]*cows[^\n]*\n[^\n]*mechanic/i.test(mech), 'farm mechanic candidates: machines cared for');
   // ---- GM vs Ops ----
   await page.evaluate(() => { TG.UI.tab.biz = 'mgr'; TG.UI.render(); });
-  ok(await page.evaluate(() => /GM or Ops manager\?/.test(document.querySelector('main').innerText)), 'Manager tab explains GM vs Ops');
+  ok(await page.evaluate(() => /Three bosses/.test(document.querySelector('main').innerText) && /HR manager/.test(document.querySelector('main').innerText) && /People manager/.test(document.querySelector('main').innerText)), 'Manager tab explains HR, GM and the people manager');
   // ---- 2. bonus preview ----
   await page.evaluate((id) => { TG.UI.bizId = id; const b = TG.B.get(TG.G, id); TG.UI.A.emp(b.staff[0].id); }, ids.cafe); await sleep(100);
   ok(await page.evaluate(() => /loyalty \d+ → \d+/.test((document.getElementById('bonusPrev') || {}).innerText || '')), 'worker card: bonus raises loyalty, lowers poach odds');

@@ -164,8 +164,8 @@
       case 'ambition': return 0.6 + ctx.ambition / 100;
       case 'busy': return 0.7 + 0.6 * U.clamp(ctx.busy, 0, 1.3);
       case 'noHR': return s.hr ? 0.7 : 1.15;
-      case 'noOps': return s.ops ? 0.6 : s.gm ? 0.85 : 1.2;
-      case 'noSafety': return s.safety ? 0.45 : 1.2;
+      case 'noOps': return s.gm ? 0.6 : 1.2; // v15: the GM orders supplies and keeps things running
+      case 'noSafety': return s.people ? 0.45 : 1.2; // v15: the people manager covers safety
       case 'noMech': return TG.E.hasMech(b) ? 0.6 : 1.2;
       case 'noAccountant': return s.accountant ? 0.6 : 1.2;
       case 'noLawyer': return s.lawyer ? 0.6 : 1.1;
@@ -195,7 +195,7 @@
     skill: (c) => `avg skill ${Math.round(c.skill)}`, attitude: (c) => `staff attitude ${Math.round(c.attitude)}`, temper: () => 'hot tempers on staff',
     honestyLow: (c) => `staff honesty`, reliability: (c) => `reliability ${Math.round(c.reliability)}`, morale: (c) => `morale ${Math.round(c.morale)}`,
     ambition: () => 'ambitious staff', busy: (c) => `workload ${U.pct(c.busy)}`, noHR: () => 'HR manager', noOps: () => 'ops manager',
-    noSafety: () => 'safety officer', noMech: () => 'mechanic', noAccountant: () => 'accountant', noLawyer: () => 'lawyer',
+    noSafety: () => 'people manager', noMech: () => 'mechanic', noAccountant: () => 'accountant', noLawyer: () => 'lawyer',
     equipWear: () => 'equipment wear', supportWear: () => 'support equipment condition', scale: (c, b) => `${b.staff.length} staff`,
     econ: (c, b, g) => `${TG.W.phaseLabel(g).toLowerCase()} economy`, weather: (c) => (c.weather.sev ? TG.CONFIG.weather.kinds[c.weather.kind].label.toLowerCase() : 'mild weather'),
     drought: (c) => (c.weather.kind === 'drought' ? 'drought' : 'normal water'), rush: (c, b) => `${b.pace} pace`, priceHigh: (c, b) => `price ${TG.PR.label(c.priceR || 1)}`,
